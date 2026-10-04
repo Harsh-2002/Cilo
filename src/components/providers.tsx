@@ -1,4 +1,5 @@
 "use client";
+import { ConfirmProvider } from "./confirm-provider";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { useEffect } from "react";
@@ -15,7 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       storageKey="cilo-theme"
     >
       <Toaster richColors closeButton />
-      {children}
+      <ConfirmProvider>{children}</ConfirmProvider>
     </ThemeProvider>
   );
 }

@@ -5,7 +5,6 @@ import { useTheme } from "next-themes";
 import {
   BlockNoteEditor,
   BlockNoteSchema,
-  createCodeBlockSpec,
   type PartialBlock,
 } from "@blocknote/core";
 import {
@@ -16,22 +15,16 @@ import {
 } from "@blocknote/react";
 import { filterSuggestionItems } from "@blocknote/core/extensions";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { codeBlockOptions, syntaxHighlighter } from "@blocknote/code-block";
+import { syntaxHighlighter } from "@blocknote/code-block";
 import {
   createReactDiagramBlockSpec,
   locales as diagramLocales,
   getDiagramSlashMenuItems,
 } from "@blocknote/diagram-block";
 import * as locales from "@blocknote/core/locales";
-import {
-  PencilLine,
-  Download,
-  Code2,
-  Workflow,
-  Table2,
-  Loader2,
-} from "lucide-react";
+import { PencilLine, Download, Table2, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
+import { codeBlockSpec } from "./code-block";
 import { download } from "@/lib/client";
 import type { Document } from "@/lib/types";
 import "@blocknote/shadcn/style.css";
@@ -130,15 +123,24 @@ const canvasSpec = createReactBlockSpec(
     content: "none",
   },
   {
-    render: ({ block, editor }) => (
-      <CanvasPreview
-        scene={block.props.scene}
-        preview={block.props.preview}
-        onChange={(scene, preview) =>
-          editor.updateBlock(block, { props: { scene, preview } })
-        }
-      />
-    ),
+    render: ({ block, editor }) =>
+      editor.isEditable ? (
+        <CanvasPreview
+          scene={block.props.scene}
+          preview={block.props.preview}
+          onChange={(scene, preview) =>
+            editor.updateBlock(block, { props: { scene, preview } })
+          }
+        />
+      ) : (
+        <div className="drawing-block">
+          {block.props.preview ? (
+            <img src={block.props.preview} alt="Drawing" />
+          ) : (
+            <p>Drawing preview unavailable</p>
+          )}
+        </div>
+      ),
     toExternalHTML: ({ block }) => (
       <div>
         {block.props.preview ? (
@@ -152,7 +154,7 @@ const canvasSpec = createReactBlockSpec(
 );
 export const editorSchema = BlockNoteSchema.create().extend({
   blockSpecs: {
-    codeBlock: createCodeBlockSpec(codeBlockOptions),
+    codeBlock: codeBlockSpec,
     diagram: createReactDiagramBlockSpec(),
     canvas: canvasSpec(),
   },
@@ -243,14 +245,6 @@ export default function Editor({
     <div className="editor-root">
       {editable && (
         <div className="insert-toolbar" aria-label="Insert a block">
-          <Button variant="ghost" size="sm" onClick={() => insert("codeBlock")}>
-            <Code2 size={15} />
-            Code
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => insert("diagram")}>
-            <Workflow size={15} />
-            Diagram
-          </Button>
           <Button variant="ghost" size="sm" onClick={() => insert("canvas")}>
             <PencilLine size={15} />
             Drawing
@@ -265,6 +259,8 @@ export default function Editor({
         editor={editor}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         editable={editable}
+        formattingToolbar={editable}
+        sideMenu={editable}
         slashMenu={false}
         onChange={() =>
           onChange({
@@ -273,26 +269,28 @@ export default function Editor({
           })
         }
       >
-        <SuggestionMenuController
-          triggerCharacter="/"
-          getItems={async (query) =>
-            filterSuggestionItems(
-              [
-                ...getDefaultReactSlashMenuItems(editor),
-                ...getDiagramSlashMenuItems(editor),
-                {
-                  title: "Drawing",
-                  subtext: "Sketch on a freeform canvas",
-                  group: "Artifacts",
-                  icon: <PencilLine size={18} />,
-                  aliases: ["canvas", "excalidraw", "draw"],
-                  onItemClick: () => insert("canvas"),
-                },
-              ],
-              query,
-            )
-          }
-        />
+        {editable && (
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) =>
+              filterSuggestionItems(
+                [
+                  ...getDefaultReactSlashMenuItems(editor),
+                  ...getDiagramSlashMenuItems(editor),
+                  {
+                    title: "Drawing",
+                    subtext: "Sketch on a freeform canvas",
+                    group: "Artifacts",
+                    icon: <PencilLine size={18} />,
+                    aliases: ["canvas", "excalidraw", "draw"],
+                    onItemClick: () => insert("canvas"),
+                  },
+                ],
+                query,
+              )
+            }
+          />
+        )}
       </BlockNoteView>
     </div>
   );

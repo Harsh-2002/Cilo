@@ -1,4 +1,5 @@
 "use client";
+import { useConfirm } from "./confirm-provider";
 import { useEffect, useRef, useState } from "react";
 import {
   Excalidraw,
@@ -78,8 +79,17 @@ export default function CanvasDialog({
       active = false;
     };
   }, [scene]);
-  const close = () => {
-    if (!dirty || window.confirm("Discard changes to this drawing?")) onClose();
+  const confirm = useConfirm();
+  const close = async () => {
+    if (
+      !dirty ||
+      (await confirm({
+        title: "Discard drawing changes?",
+        description: "Your unsaved changes to this drawing will be lost.",
+        action: "Discard changes",
+      }))
+    )
+      onClose();
   };
   async function save() {
     if (!apiRef.current) return;

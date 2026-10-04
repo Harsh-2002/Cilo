@@ -24,7 +24,7 @@ Docker starts the app. First-run onboarding, account creation, appearance, and p
 
 ## Capabilities and Constraints
 
-Flat notes, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Online notes in v1; offline editing, S3, collaboration, and shared workspaces are deferred.
+Flat notes, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots with reader preview, and environment-only local/S3-compatible file storage. Offline editing, collaboration, and shared workspaces are deferred.
 
 ## Brand Commitments
 
@@ -40,3 +40,7 @@ Cilo, inspired by Clio. Minimal black-and-white interface with neutral gray, lig
 ## Accessibility & Inclusion
 
 Keyboard-operable controls, visible focus, readable contrast, reduced-motion support, and touch-sized mobile actions.
+
+## Next iteration
+
+Dedicated Tasks and Bookmarks views are proposed next: completion/filtering for tasks and URL cards for bookmarks, using SQLite metadata and the same file adapter. Browser-extension capture follows later. These managers are not implemented in this iteration; checklist blocks and ordinary links already work inside notes.

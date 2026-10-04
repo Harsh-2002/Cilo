@@ -10,7 +10,6 @@ import {
   LogOut,
   PanelLeftClose,
   Menu,
-  Tag as TagIcon,
   MoreHorizontal,
   Pencil,
   ArrowUpDown,
@@ -38,6 +37,9 @@ import {
 import { api, authRequest } from "@/lib/client";
 import type { Note, NoteSummary, Owner, Settings, Tag } from "@/lib/types";
 import { NotePane } from "./note-pane";
+import { useConfirm } from "./confirm-provider";
+import { TagColorPicker } from "./tag-color-picker";
+import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
 
 export function Workspace({
@@ -66,8 +68,10 @@ export function Workspace({
   const [tagDialog, setTagDialog] = useState<{
     id?: string;
     name: string;
+    color?: TagColor;
   } | null>(null);
   const [tagBusy, setTagBusy] = useState(false);
+  const confirm = useConfirm();
   const [generation, setGeneration] = useState(0);
   const guard = useRef<() => Promise<boolean>>(async () => true);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -204,7 +208,10 @@ export function Workspace({
     try {
       await api(tagDialog.id ? `tags/${tagDialog.id}` : "tags", {
         method: tagDialog.id ? "PATCH" : "POST",
-        body: JSON.stringify({ name: tagDialog.name }),
+        body: JSON.stringify({
+          name: tagDialog.name,
+          color: tagDialog.color || "gray",
+        }),
       });
       setTagDialog(null);
       await load();
@@ -215,7 +222,13 @@ export function Workspace({
     }
   }
   async function deleteTag(item: Tag) {
-    if (!window.confirm(`Delete the tag “${item.name}”? Notes will be kept.`))
+    if (
+      !(await confirm({
+        title: `Delete “${item.name}”?`,
+        description: "The tag will be removed. Your notes will be kept.",
+        action: "Delete tag",
+      }))
+    )
       return;
     if (!(await guard.current())) return;
     try {
@@ -280,7 +293,7 @@ export function Workspace({
             className={`tag-nav-row ${tag === item.id ? "active" : ""}`}
           >
             <button onClick={() => void filter("all", item.id)}>
-              <TagIcon size={14} />
+              <span className="tag-dot" data-color={item.color} />
               <span>{item.name}</span>
             </button>
             <DropdownMenu>
@@ -295,7 +308,7 @@ export function Workspace({
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onSelect={() => setTagDialog(item)}>
                   <Pencil size={14} />
-                  Rename tag
+                  Edit tag
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void deleteTag(item)}>
                   <Trash2 size={14} />
@@ -486,7 +499,10 @@ export function Workspace({
                     })}
                   </time>
                   {note.tags.slice(0, 2).map((tag) => (
-                    <span key={tag.id}>{tag.name}</span>
+                    <span key={tag.id}>
+                      <span className="tag-dot" data-color={tag.color} />
+                      {tag.name}
+                    </span>
                   ))}
                 </footer>
               </button>
@@ -559,7 +575,7 @@ export function Workspace({
       >
         <DialogContent>
           <DialogTitle>
-            {tagDialog?.id ? "Rename tag" : "Create a tag"}
+            {tagDialog?.id ? "Edit tag" : "Create a tag"}
           </DialogTitle>
           <DialogDescription>
             A simple way to connect related ideas.
@@ -577,6 +593,14 @@ export function Workspace({
                 )
               }
               placeholder="e.g. Personal, Projects, Reading"
+            />
+            <TagColorPicker
+              value={tagDialog?.color || "gray"}
+              onChange={(color) =>
+                setTagDialog((previous) =>
+                  previous ? { ...previous, color } : previous,
+                )
+              }
             />
             <Button type="submit" disabled={tagBusy}>
               {tagBusy && <Loader2 size={14} className="animate-spin" />}

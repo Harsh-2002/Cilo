@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { username } from "better-auth/plugins";
+import { username, twoFactor } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -41,7 +41,7 @@ export function auth(request?: Request) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
-    plugins: [username()],
+    plugins: [username(), twoFactor({ issuer: "Cilo" })],
     trustedOrigins: [origin],
     rateLimit: { enabled: true, window: 60, max: 30 },
     session: { expiresIn: 60 * 60 * 24 * 14 },

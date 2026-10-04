@@ -32,4 +32,12 @@ The note list is a narrow index beside an open writing sheet. The signature inte
 - Explicit empty, loading, error, conflict, and offline states with a next action.
 - Keep rich editor, diagrams, code, and drawing controls usable across themes and viewport sizes.
 
+## Accepted visual extensions
+
+These code-led extensions preserve the neutral workspace. Named tag colors are the explicit content-color exception: Gray (#737373), Red (#ef4444), Orange (#f97316), Yellow (#eab308), Green (#22c55e), Blue (#3b82f6), Purple (#a855f7), and Pink (#ec4899) are user-selected tag metadata. The chosen color marks the tag dot and lightly tints its chip; it does not become a general interface accent.
+
+The note title stays borderless and signals keyboard focus with a muted fill. Settings remains a centered dialog with horizontal Appearance, Account, and Import & export tabs, compact security rows, and scrollable content without visible scrollbar chrome. Use styled shadcn controls for forms, searchable code-language selection, and confirmations. Keep About and editable storage or file-size controls out of settings. Reuse the folded-page C monogram from the shared local path in the app, favicon, mobile icons, and reader.
+
+The publishing preview and public read-only reader follow the workspace's quiet typography and neutral surfaces with responsive reading gutters. Publishing controls remain separate from the reader content.
+
 The review screenshots are verification fixtures containing synthetic notes and are excluded from Git. No seed, diagram, or screenshot is a substitute for verified application behavior.

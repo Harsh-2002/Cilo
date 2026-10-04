@@ -1,4 +1,5 @@
 "use client";
+import { brandPath } from "@/lib/brand";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -13,6 +14,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Checkbox } from "./ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,19 +24,8 @@ import type { Settings } from "@/lib/types";
 export function Mark({ small = false }: { small?: boolean }) {
   return (
     <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true">
-      <svg viewBox="0 0 40 40" fill="none">
-        <path
-          d="M28 11a12 12 0 1 0 0 18"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M29 19h-7"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
+      <svg viewBox="0 0 40 40" fill="currentColor">
+        <path d={brandPath} />
       </svg>
     </span>
   );
@@ -80,10 +71,9 @@ export function RecoveryCard({
         Download recovery code
       </Button>
       <label className="check-row">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={saved}
-          onChange={(e) => setSaved(e.target.checked)}
+          onCheckedChange={(value) => setSaved(value === true)}
         />
         I have saved my recovery code
       </label>
@@ -102,6 +92,9 @@ export function AuthScreen({
   onReady: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const [mfa, setMfa] = useState(false);
+  const [backup, setBackup] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [recovering, setRecovering] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -141,8 +134,13 @@ export function AuthScreen({
         setConfirm("");
         setStep(1);
       } else {
-        await authRequest("sign-in/username", { username, password });
-        onReady();
+        const result = await authRequest("sign-in/username", {
+          username,
+          password,
+        });
+        setPassword("");
+        if (result.twoFactorRedirect) setMfa(true);
+        else onReady();
       }
     } catch (e) {
       setError((e as Error).message);
@@ -158,7 +156,6 @@ export function AuthScreen({
         method: "PATCH",
         body: JSON.stringify({
           theme: theme || "system",
-          uploadLimit: 25 * 1024 * 1024,
         }),
       });
       onReady();
@@ -185,7 +182,83 @@ export function AuthScreen({
             ))}
           </div>
         )}
-        {step === 1 ? (
+        {mfa ? (
+          <>
+            <h1>One more step.</h1>
+            <p className="auth-description">
+              {backup
+                ? "Enter one of your saved backup codes."
+                : "Enter the six-digit code from your authenticator app."}
+            </p>
+            <form
+              className="auth-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError("");
+                void authRequest(
+                  backup
+                    ? "two-factor/verify-backup-code"
+                    : "two-factor/verify-totp",
+                  { code: mfaCode, trustDevice: false },
+                )
+                  .then(onReady)
+                  .catch((e) => setError(e.message))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <div className="field">
+                <Label htmlFor="mfa-code">
+                  {backup ? "Backup code" : "Authentication code"}
+                </Label>
+                <Input
+                  id="mfa-code"
+                  value={mfaCode}
+                  autoComplete="one-time-code"
+                  inputMode={backup ? "text" : "numeric"}
+                  pattern={backup ? undefined : "[0-9]{6}"}
+                  maxLength={backup ? 32 : 6}
+                  required
+                  autoFocus
+                  onChange={(e) => setMfaCode(e.target.value.trim())}
+                />
+              </div>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 size={16} className="animate-spin" />}Verify
+                and sign in
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setBackup(!backup);
+                  setMfaCode("");
+                  setError("");
+                }}
+              >
+                {backup ? "Use authenticator code" : "Use a backup code"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setMfa(false);
+                  setMfaCode("");
+                  setError("");
+                }}
+              >
+                Back to sign in
+              </Button>
+            </form>
+          </>
+        ) : step === 1 ? (
           <RecoveryCard
             code={recoveryCode}
             onDone={() => {

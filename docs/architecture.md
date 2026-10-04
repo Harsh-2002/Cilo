@@ -16,16 +16,28 @@ A one-use recovery code is hashed in the database. Recovery changes the credenti
 
 ## Files and runtime
 
-The data directory contains `cilo.sqlite`, SQLite WAL files, `auth.secret`, and `uploads/`. Attachments have generated identifiers and are served only through authenticated routes. Raster image types are detected from their signatures; other types download as binary files. The local storage adapter is the extension boundary for future S3-compatible storage.
+The data directory contains `cilo.sqlite`, SQLite WAL files, `auth.secret`, and `uploads/`. Attachments have generated identifiers and are served only through authenticated routes. Raster image types are detected from their signatures; other types download as binary files. The storage adapter supports local files or an environment-configured S3-compatible bucket. The modular AWS SDK signs object reads, writes, and deletes; credentials remain server-only. SQLite stays local with either file backend.
 
 The PWA caches public static assets and an offline explanation. Notes, API responses, and attachments are network-only. Fonts and drawing assets are bundled with the application.
 
 ## Deferred work
 
-S3-compatible storage, IndexedDB offline editing and synchronization, Yjs collaboration, shared workspaces, public sharing, and executable HTML/React previews are not available in this release.
+IndexedDB offline editing and synchronization, Yjs collaboration, shared workspaces, and executable HTML/React previews are not available in this release.
 
 ## Dependency maintenance
 
 Direct dependency versions and the lockfile are pinned. `npm audit --omit=dev` currently reports no advisories. The development lint toolchain has an unresolved `braces` denial-of-service advisory inherited through `eslint-config-next` and `fast-glob`; npm's proposed fix downgrades the Next.js lint configuration across major versions. Do not apply that downgrade blindly. Keep lint inputs limited to trusted project files and revisit when an upstream compatible fix ships.
 
 The viewport and single scrolling wrapper follow [BlockNote's mobile keyboard guidance](https://www.blocknotejs.org/docs/react/components/formatting-toolbar#browser-limitations). The workspace inherits the visual viewport height so the editing area remains above the keyboard.
+
+## Publication snapshots
+
+An ordered migration adds publications and publication files. Publishing checks the expected note revision, copies only referenced note-owned attachments, rewrites their URLs to token-scoped public endpoints, and commits the snapshot and file records together. Private drawing scene data is omitted; readers see its preview. Public APIs return no owner, private note IDs, tags, or draft revisions. Later private edits do not change a publication. Updates preserve its link; revocation deletes the publication and its copies, and a subsequent publication gets a new token. Trashing a note revokes it. Public pages and files are network-only with no persistent service-worker caching.
+
+## Search and tags
+
+FTS5 covers note titles, prose, code, and drawing text, with prefix matching and relevance ordering. If the normal query finds no notes, a vocabulary-based fallback finds close spellings (one edit for words of at least four characters, two for words of at least eight, including adjacent transpositions). Short words and exact matches retain their normal behavior. Up to eight terms participate in typo correction. Favorites, tag, and trash filters apply to both paths. This does not extract text from PDFs, images, or videos.
+
+Tags have a validated named color, defaulting to gray for existing data. Bundles retain colors for newly imported tags; a same-named existing tag keeps its local color. Tag colors are content metadata, while the interface remains monochrome.
+
+Better Auth's TOTP plugin stores encrypted secrets and backup-code data in SQLite. Enrollment must be verified before activation. Password-only sign-in has no private-note session when MFA is enabled. Single-use account recovery also clears MFA and outstanding verification challenges.

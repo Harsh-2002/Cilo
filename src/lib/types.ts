@@ -12,10 +12,20 @@ export type Note = {
   tags: Tag[];
 };
 export type NoteSummary = Omit<Note, "document">;
-export type Tag = { id: string; name: string };
+export type Tag = {
+  id: string;
+  name: string;
+  color: import("./tags").TagColor;
+};
 export type Settings = {
   theme: "light" | "dark" | "system";
   uploadLimit: number;
+  twoFactorEnabled?: boolean;
+};
+export type Publication = {
+  token: string;
+  revision: number;
+  publishedAt: number;
 };
 export type Owner = { id: string; name: string; username: string };
 export const emptyDocument: Document = {

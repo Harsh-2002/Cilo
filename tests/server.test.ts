@@ -130,7 +130,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
         const note = await created.json();
         noteId = note.id;
         const tag = await (
-          await call("tags", "POST", { name: "Projects" })
+          await call("tags", "POST", { name: "Projects", color: "blue" })
         ).json();
         const document = {
           schemaVersion: 1,
@@ -161,6 +161,16 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
             },
           ],
         };
+        assert.equal(tag.color, "blue");
+        assert.equal(
+          (
+            await call("tags", "POST", {
+              name: "Bad color",
+              color: "not-a-color",
+            })
+          ).status,
+          400,
+        );
         const saved = await call(`notes/${noteId}`, "PATCH", {
           revision: 1,
           document,
@@ -177,7 +187,14 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           ).status,
           409,
         );
-        for (const q of ["searchable", "durableIdea", "CanvasLabel"])
+        for (const q of [
+          "searchable",
+          "durableIdea",
+          "CanvasLabel",
+          "serachable",
+          "searchabl thought",
+          "durrableIdea",
+        ])
           assert.equal((await (await call(`notes?q=${q}`)).json()).length, 1);
         assert.equal(
           (await (await call(`notes?tag=${tag.id}&view=favorites`)).json())
@@ -515,6 +532,293 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
             .status,
           200,
         );
+      },
+    );
+    await t.test(
+      "batch imports relink selected assets and report failed files without losing successful notes",
+      async () => {
+        const { importFiles } = await import("../src/lib/import-files");
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = ((
+          input: string | URL | Request,
+          init?: RequestInit,
+        ) => {
+          if (typeof input === "string" && input.startsWith("/api/cilo/")) {
+            const body = init?.body;
+            return call(
+              input.slice("/api/cilo/".length),
+              init?.method || "GET",
+              body instanceof FormData
+                ? body
+                : typeof body === "string"
+                  ? JSON.parse(body)
+                  : undefined,
+            );
+          }
+          return originalFetch(input, init);
+        }) as typeof fetch;
+        const before = (await (await call("notes")).json()).map(
+          (note: { id: string }) => note.id,
+        );
+        const resource = new File(
+          [await readFile("public/icons/icon-192.png")],
+          "image.png",
+        );
+        const first = new File(["First"], "first.md");
+        Object.defineProperty(first, "webkitRelativePath", {
+          value: "folder/first.md",
+        });
+        Object.defineProperty(resource, "webkitRelativePath", {
+          value: "folder/image.png",
+        });
+        process.env.CILO_UPLOAD_LIMIT_MIB = "1";
+        try {
+          const results = await importFiles(
+            [
+              first,
+              new File(["Second"], "second.md"),
+              resource,
+              new File(["pdf"], "report.pdf"),
+              new File([new Uint8Array(2 * 1024 * 1024)], "oversize.bin"),
+            ],
+            async (text) => ({
+              schemaVersion: 1,
+              blocks:
+                text === "First"
+                  ? [{ type: "image", props: { url: "./image.png" } }]
+                  : [
+                      {
+                        type: "paragraph",
+                        content: [{ type: "text", text, styles: {} }],
+                      },
+                    ],
+            }),
+            () => {},
+          );
+          assert.equal(results.filter((result) => result.ok).length, 3);
+          assert.equal(results.filter((result) => !result.ok).length, 1);
+          const after = await (await call("notes")).json();
+          const added = after.filter(
+            (note: { id: string }) => !before.includes(note.id),
+          );
+          assert.equal(added.length, 3);
+          const imported = await (
+            await call(
+              `notes/${added.find((note: { title: string }) => note.title === "first").id}`,
+            )
+          ).json();
+          assert.match(
+            imported.document.blocks[0].props.url,
+            /^\/api\/cilo\/files\//,
+          );
+          assert.equal(
+            (
+              await call(
+                imported.document.blocks[0].props.url.replace("/api/cilo/", ""),
+              )
+            ).status,
+            200,
+          );
+          for (const note of added) {
+            await call(`notes/${note.id}`, "PATCH", {
+              revision: note.revision,
+              trashed: true,
+            });
+            await call(`notes/${note.id}`, "DELETE");
+          }
+        } finally {
+          globalThis.fetch = originalFetch;
+          delete process.env.CILO_UPLOAD_LIMIT_MIB;
+        }
+      },
+    );
+    await t.test(
+      "publishing snapshots preserves privacy, assets, and revocation",
+      async () => {
+        const note = await (
+          await call("notes", "POST", { title: "Shared reading" })
+        ).json();
+        const form = new FormData();
+        form.set("note", note.id);
+        form.set(
+          "file",
+          new File([await readFile("public/icons/icon-192.png")], "public.png"),
+        );
+        const attachment = await (await call("files", "POST", form)).json();
+        let edited = await (
+          await call(`notes/${note.id}`, "PATCH", {
+            revision: note.revision,
+            document: {
+              schemaVersion: 1,
+              blocks: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Published content", styles: {} },
+                  ],
+                },
+                { type: "image", props: { url: attachment.url } },
+                { type: "image", props: { url: `/api/cilo/files/${fileId}` } },
+                {
+                  type: "canvas",
+                  props: {
+                    scene: JSON.stringify({
+                      elements: [],
+                      files: { secret: { attachmentId: fileId } },
+                    }),
+                    preview: attachment.url,
+                  },
+                },
+              ],
+            },
+          })
+        ).json();
+        assert.equal(
+          (
+            await call(
+              `notes/${note.id}/publication`,
+              "POST",
+              { revision: edited.revision },
+              false,
+            )
+          ).status,
+          401,
+        );
+        const published = await (
+          await call(`notes/${note.id}/publication`, "POST", {
+            revision: edited.revision,
+          })
+        ).json();
+        assert.match(published.token, /^[a-f0-9]{48}$/);
+        const publicData = await (
+          await call(`published/${published.token}`, "GET", undefined, false)
+        ).json();
+        assert.equal(publicData.title, "Shared reading");
+        assert.equal(publicData.document.blocks[2].props.url, "");
+        assert.equal(publicData.document.blocks[3].props.scene, "");
+        assert.equal(JSON.stringify(publicData).includes(note.id), false);
+        const sharedFileUrl = publicData.document.blocks[1].props.url;
+        const route = sharedFileUrl.replace("/api/cilo/", "");
+        const file = await call(route, "GET", undefined, false);
+        assert.equal(file.status, 200);
+        assert.equal(file.headers.get("cache-control"), "no-store");
+        assert.deepEqual(
+          Buffer.from(await file.arrayBuffer()),
+          await readFile("public/icons/icon-192.png"),
+        );
+        assert.equal(
+          (
+            await call(
+              `published/${published.token}/files/${fileId}`,
+              "GET",
+              undefined,
+              false,
+            )
+          ).status,
+          404,
+        );
+        edited = await (
+          await call(`notes/${note.id}`, "PATCH", {
+            revision: edited.revision,
+            title: "Private edits",
+          })
+        ).json();
+        assert.equal(
+          (
+            await (
+              await call(
+                `published/${published.token}`,
+                "GET",
+                undefined,
+                false,
+              )
+            ).json()
+          ).title,
+          "Shared reading",
+        );
+        assert.equal(
+          (
+            await call(`notes/${note.id}/publication`, "POST", {
+              revision: edited.revision - 1,
+            })
+          ).status,
+          409,
+        );
+        const updated = await (
+          await call(`notes/${note.id}/publication`, "POST", {
+            revision: edited.revision,
+          })
+        ).json();
+        assert.equal(updated.token, published.token);
+        assert.equal(
+          (
+            await (
+              await call(
+                `published/${published.token}`,
+                "GET",
+                undefined,
+                false,
+              )
+            ).json()
+          ).title,
+          "Private edits",
+        );
+        assert.equal((await call(route, "GET", undefined, false)).status, 404);
+        await call(`notes/${note.id}/publication`, "DELETE");
+        assert.equal(
+          (await call(`published/${published.token}`, "GET", undefined, false))
+            .status,
+          404,
+        );
+        const republished = await (
+          await call(`notes/${note.id}/publication`, "POST", {
+            revision: edited.revision,
+          })
+        ).json();
+        assert.notEqual(republished.token, published.token);
+        await call(`notes/${note.id}`, "PATCH", {
+          revision: edited.revision,
+          trashed: true,
+        });
+        assert.equal(
+          (
+            await call(
+              `published/${republished.token}`,
+              "GET",
+              undefined,
+              false,
+            )
+          ).status,
+          404,
+        );
+        await call(`notes/${note.id}`, "DELETE");
+      },
+    );
+    await t.test(
+      "upload limits are configured by environment, not account settings",
+      async () => {
+        process.env.CILO_UPLOAD_LIMIT_MIB = "2";
+        try {
+          assert.equal(
+            (await (await call("settings")).json()).uploadLimit,
+            2 * 1024 * 1024,
+          );
+          assert.equal(
+            (
+              await call("settings", "PATCH", {
+                theme: "system",
+                uploadLimit: 1,
+              })
+            ).status,
+            400,
+          );
+          assert.equal(
+            (await call("settings", "PATCH", { theme: "system" })).status,
+            200,
+          );
+        } finally {
+          delete process.env.CILO_UPLOAD_LIMIT_MIB;
+        }
       },
     );
     await t.test(

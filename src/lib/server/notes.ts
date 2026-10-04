@@ -3,6 +3,7 @@ import { db, sqlite } from "./db";
 import { notes } from "./schema";
 import { eq } from "drizzle-orm";
 import { emptyDocument, type Note, type NoteSummary, type Tag } from "../types";
+import { fuzzyQuery } from "./search";
 import { plainText, ftsQuery } from "./validation";
 
 const columns =
@@ -10,7 +11,7 @@ const columns =
 export function tagsFor(note: string): Tag[] {
   return sqlite()
     .prepare(
-      "SELECT t.id,t.name FROM tags t JOIN note_tags nt ON nt.tag_id=t.id WHERE nt.note_id=? ORDER BY t.name",
+      "SELECT t.id,t.name,t.color FROM tags t JOIN note_tags nt ON nt.tag_id=t.id WHERE nt.note_id=? ORDER BY t.name",
     )
     .all(note) as Tag[];
 }
@@ -18,14 +19,17 @@ export function getNote(id: string): Note | undefined {
   const row = db().select().from(notes).where(eq(notes.id, id)).get();
   return row ? { ...row, tags: tagsFor(id) } : undefined;
 }
-export function listNotes(params: URLSearchParams): NoteSummary[] {
+export function listNotes(
+  params: URLSearchParams,
+  queryOverride?: string,
+): NoteSummary[] {
   const where = [
     params.get("view") === "trash"
       ? "n.trashed_at IS NOT NULL"
       : "n.trashed_at IS NULL",
   ];
   const values: string[] = [];
-  const search = ftsQuery(params.get("q") || "");
+  const search = queryOverride ?? ftsQuery(params.get("q") || "");
   if (search) {
     where.push(
       "n.rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)",
@@ -52,6 +56,10 @@ export function listNotes(params: URLSearchParams): NoteSummary[] {
       `SELECT ${columns} FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order}`,
     )
     .all(...values) as NoteSummary[];
+  if (!rows.length && search && queryOverride === undefined) {
+    const fallback = fuzzyQuery(params.get("q") || "");
+    if (fallback) return listNotes(params, fallback);
+  }
   return rows.map((n) => ({
     ...n,
     favorite: Boolean(n.favorite),

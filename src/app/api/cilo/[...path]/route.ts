@@ -8,10 +8,18 @@ import { hashPassword } from "better-auth/crypto";
 import { APIError } from "better-auth/api";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 import { z } from "zod";
+import { tagColors } from "@/lib/tags";
 import { remapDocument } from "@/lib/document";
 import { auth } from "@/lib/server/auth";
 import { sqlite } from "@/lib/server/db";
 import { storage } from "@/lib/server/storage";
+import { uploadLimit } from "@/lib/server/config";
+import {
+  publicationFor,
+  publishedNote,
+  publishNote,
+  revokePublication,
+} from "@/lib/server/publications";
 import { createNote, getNote, listNotes } from "@/lib/server/notes";
 import {
   documentInput,
@@ -56,12 +64,15 @@ const filesFor = (id: string) =>
     .prepare("SELECT * FROM attachments WHERE note_id=?")
     .all(id) as Attachment[];
 const settings = () => {
-  const row = sqlite()
-    .prepare(
-      "SELECT theme,upload_limit AS uploadLimit FROM instance WHERE id=1",
-    )
-    .get();
-  return row;
+  const row = sqlite().prepare("SELECT theme FROM instance WHERE id=1").get();
+  const owner = sqlite()
+    .prepare("SELECT two_factor_enabled FROM user LIMIT 1")
+    .get() as { two_factor_enabled: number } | undefined;
+  return {
+    ...(row as { theme: string }),
+    uploadLimit: uploadLimit(),
+    twoFactorEnabled: Boolean(owner?.two_factor_enabled),
+  };
 };
 function needNote(id: string) {
   const note = getNote(id);
@@ -92,6 +103,37 @@ async function handle(
     if (area === "health" && method === "GET") {
       database.prepare("SELECT 1").get();
       return response({ status: "ok" });
+    }
+    if (area === "published" && method === "GET") {
+      const published = publishedNote(id);
+      if (!published)
+        throw new HttpError(404, "This shared note is no longer available.");
+      if (action === "files" && path[3]) {
+        const file = database
+          .prepare("SELECT * FROM publication_files WHERE token=? AND id=?")
+          .get(id, path[3]) as Attachment | undefined;
+        if (!file) throw new HttpError(404, "This file was not found.");
+        const inline = [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "image/gif",
+        ].includes(file.mime);
+        return new Response(
+          new Uint8Array(await storage.read(file.storage_key)),
+          {
+            headers: {
+              "Content-Type": inline ? file.mime : "application/octet-stream",
+              "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName(file.name)}"`,
+              "Cache-Control": "no-store",
+              "X-Content-Type-Options": "nosniff",
+              "Content-Security-Policy": "default-src 'none'; sandbox",
+            },
+          },
+        );
+      }
+      if (action) throw new HttpError(404, "This shared note was not found.");
+      return response(published);
     }
     const owner = database
       .prepare("SELECT id,name,username FROM user LIMIT 1")
@@ -189,6 +231,13 @@ async function handle(
             )
             .run(password, Date.now(), owner.id);
           database.prepare("DELETE FROM session").run();
+          database.prepare("DELETE FROM verification").run();
+          database
+            .prepare("DELETE FROM two_factor WHERE user_id=?")
+            .run(owner.id);
+          database
+            .prepare("UPDATE user SET two_factor_enabled=0 WHERE id=?")
+            .run(owner.id);
           database
             .prepare("UPDATE instance SET recovery_hash=? WHERE id=1")
             .run(recoveryHash(code));
@@ -207,16 +256,12 @@ async function handle(
         const input = z
           .object({
             theme: z.enum(["light", "dark", "system"]),
-            uploadLimit: z
-              .number()
-              .int()
-              .min(1024 * 1024)
-              .max(100 * 1024 * 1024),
           })
+          .strict()
           .parse(await json(request));
         database
-          .prepare("UPDATE instance SET theme=?,upload_limit=? WHERE id=1")
-          .run(input.theme, input.uploadLimit);
+          .prepare("UPDATE instance SET theme=? WHERE id=1")
+          .run(input.theme);
         return response(settings());
       }
       if (id === "recovery" && method === "POST") {
@@ -239,21 +284,28 @@ async function handle(
     if (area === "tags") {
       if (method === "GET")
         return response(
-          database.prepare("SELECT id,name FROM tags ORDER BY name").all(),
+          database
+            .prepare("SELECT id,name,color FROM tags ORDER BY name")
+            .all(),
         );
       if (method === "POST" || method === "PATCH") {
-        const { name } = z
-          .object({ name: z.string().trim().min(1).max(50) })
+        const { name, color } = z
+          .object({
+            name: z.string().trim().min(1).max(50),
+            color: z.enum(tagColors).default("gray"),
+          })
           .parse(await json(request));
         if (method === "POST") {
           const tagId = randomUUID();
           database
-            .prepare("INSERT INTO tags(id,name) VALUES(?,?)")
-            .run(tagId, name);
-          return response({ id: tagId, name }, 201);
+            .prepare("INSERT INTO tags(id,name,color) VALUES(?,?,?)")
+            .run(tagId, name, color);
+          return response({ id: tagId, name, color }, 201);
         }
-        database.prepare("UPDATE tags SET name=? WHERE id=?").run(name, id);
-        return response({ id, name });
+        database
+          .prepare("UPDATE tags SET name=?,color=? WHERE id=?")
+          .run(name, color, id);
+        return response({ id, name, color });
       }
       if (method === "DELETE" && id) {
         database.prepare("DELETE FROM tags WHERE id=?").run(id);
@@ -261,6 +313,20 @@ async function handle(
       }
     }
     if (area === "notes") {
+      if (id && action === "publication") {
+        const note = needNote(id);
+        if (method === "GET") return response(publicationFor(id));
+        if (method === "POST") {
+          const input = z
+            .object({ revision: z.number().int().positive() })
+            .parse(await json(request));
+          return response(await publishNote(note, input.revision));
+        }
+        if (method === "DELETE") {
+          await revokePublication(id);
+          return response({ ok: true });
+        }
+      }
       if (method === "GET")
         return response(id ? needNote(id) : listNotes(url.searchParams));
       if (method === "POST" && !id) {
@@ -311,6 +377,7 @@ async function handle(
             return needNote(id);
           })
           .immediate();
+        if (note.trashedAt) await revokePublication(id);
         return response(note);
       }
       if (method === "POST" && action === "duplicate") {
@@ -371,6 +438,7 @@ async function handle(
             400,
             "Move this note to trash before deleting it permanently.",
           );
+        await revokePublication(id);
         const files = filesFor(id);
         database.prepare("DELETE FROM notes WHERE id=?").run(id);
         await Promise.all(files.map((f) => storage.delete(f.storage_key)));
@@ -596,6 +664,7 @@ async function handle(
                   z.object({
                     id: z.string().uuid(),
                     name: z.string().min(1).max(50),
+                    color: z.enum(tagColors).default("gray"),
                   }),
                 ),
               }),
@@ -658,8 +727,10 @@ async function handle(
                 );
               for (const tag of note.tags) {
                 database
-                  .prepare("INSERT OR IGNORE INTO tags(id,name) VALUES(?,?)")
-                  .run(randomUUID(), tag.name);
+                  .prepare(
+                    "INSERT OR IGNORE INTO tags(id,name,color) VALUES(?,?,?)",
+                  )
+                  .run(randomUUID(), tag.name, tag.color);
                 const existing = database
                   .prepare("SELECT id FROM tags WHERE name=? COLLATE NOCASE")
                   .get(tag.name) as { id: string };

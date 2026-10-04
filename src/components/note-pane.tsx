@@ -22,6 +22,7 @@ import {
   Trash2,
   X,
   AlertCircle,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -36,6 +37,8 @@ import { remapDocument } from "@/lib/document";
 import { api, ApiError, downloadRequest } from "@/lib/client";
 import type { Note, Tag } from "@/lib/types";
 import type { EditorTools } from "./editor";
+import { useConfirm } from "./confirm-provider";
+import { PublishDialog } from "./publish-dialog";
 
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
@@ -71,6 +74,8 @@ export function NotePane({
     "saved" | "saving" | "dirty" | "error" | "conflict"
   >("saved");
   const [error, setError] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const confirm = useConfirm();
   const version = useRef(0);
   const savedVersion = useRef(0);
   const saving = useRef<Promise<boolean> | null>(null);
@@ -209,9 +214,12 @@ export function NotePane({
   }
   async function permanentDelete() {
     if (
-      !window.confirm(
-        "Permanently delete this note and its files? This cannot be undone.",
-      )
+      !(await confirm({
+        title: "Delete this note permanently?",
+        description:
+          "This removes the note and its files. This cannot be undone.",
+        action: "Delete permanently",
+      }))
     )
       return;
     await action(async () => {
@@ -309,6 +317,16 @@ export function NotePane({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Share and publish note"
+            title="Share and publish"
+            disabled={!!note.trashedAt}
+            onClick={() => void action(async () => setSharing(true))}
+          >
+            <Share2 size={17} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={
               note.favorite ? "Remove from favorites" : "Add to favorites"
             }
@@ -324,6 +342,13 @@ export function NotePane({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={!!note.trashedAt}
+                onSelect={() => void action(async () => setSharing(true))}
+              >
+                <Share2 size={15} />
+                Share & publish
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() =>
                   void action(async () => {
@@ -395,6 +420,13 @@ export function NotePane({
           </DropdownMenu>
         </div>
       </header>
+      {sharing && (
+        <PublishDialog
+          note={note}
+          beforeAction={flush}
+          onClose={() => setSharing(false)}
+        />
+      )}
       {error && (
         <div className="save-error" role="alert">
           <span>{error} Your edits are still here.</span>
@@ -411,17 +443,22 @@ export function NotePane({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Reload this note and discard your unsaved edits?",
+                onClick={() =>
+                  void (async () => {
+                    if (
+                      await confirm({
+                        title: "Discard unsaved edits?",
+                        description:
+                          "Reloading replaces your local edits with the saved version.",
+                        action: "Reload note",
+                      })
                     )
-                  )
-                    void action(async () => {
-                      savedVersion.current = version.current;
-                      onOpen(await api<Note>(`notes/${note.id}`));
-                    }, false);
-                }}
+                      await action(async () => {
+                        savedVersion.current = version.current;
+                        onOpen(await api<Note>(`notes/${note.id}`));
+                      }, false);
+                  })()
+                }
               >
                 Reload
               </Button>
@@ -466,7 +503,19 @@ export function NotePane({
           />
           <div className="note-tags">
             {note.tags.map((tag) => (
-              <span key={tag.id} className="tag-chip">
+              <span
+                key={tag.id}
+                className="tag-chip"
+                data-color={
+                  tags.find((item) => item.id === tag.id)?.color || tag.color
+                }
+              >
+                <span
+                  className="tag-dot"
+                  data-color={
+                    tags.find((item) => item.id === tag.id)?.color || tag.color
+                  }
+                />
                 {tag.name}
                 {!note.trashedAt && (
                   <button
@@ -502,6 +551,7 @@ export function NotePane({
                           });
                         }}
                       >
+                        <span className="tag-dot" data-color={tag.color} />
                         <span className="flex-1">{tag.name}</span>
                         {note.tags.some((t) => t.id === tag.id) && (
                           <Check size={14} />

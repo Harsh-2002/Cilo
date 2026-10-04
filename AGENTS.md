@@ -44,13 +44,14 @@ Docker delivery uses `docker compose up -d --build`. Inspect configuration with 
 - BlockNote JSON is canonical. Markdown export is intentionally lossy; Cilo bundles must preserve document and attachment data.
 - Keep revision checks and unsaved edits intact. Never silently resolve a conflict by overwriting the server document.
 - Owner creation must remain atomic and single-use. Public signup stays disabled. Authorize every private API and file request on the server.
-- Onboarding and ordinary settings belong in the UI. Environment variables configure deployment concerns; secrets are generated and persisted by the server.
+- Onboarding, appearance, account security, and import/export belong in the UI. Upload limits and local/S3 storage are configured only through environment variables; secrets are generated and persisted by the server.
 - Keep uploads outside public assets behind the storage adapter. Enforce upload limits, generated storage keys, and safe serving of active file formats.
-- Keep the interface monochrome and responsive. Reuse existing shadcn controls, with labeled actions, visible focus, accessible dialogs, and explicit loading/error states.
+- Use shadcn/ui or Cilo’s styled components for visible controls, including editor selectors and confirmations. Do not use native select menus, browser alerts, prompts, or confirm dialogs. Native file pickers remain the system integration behind styled upload buttons. Apply Impeccable to UI changes and verify consistent desktop/mobile behavior.
+- Keep the interface monochrome and responsive; user-selected tag and artifact colors are content metadata. Reuse existing shadcn controls, with labeled actions, visible focus, accessible dialogs, and explicit loading/error states.
 - Bundle app fonts and drawing assets locally. PWA caching must exclude authenticated pages, notes, attachments, and API responses.
 - Add dependencies only when necessary for the authorized work. Pin direct versions, update the lockfile, and review compatibility and relevant advisories.
 - Keep comments rare: concise single lines that explain a non-obvious reason. Do not narrate the code or add large comment blocks.
-- S3, offline editing/sync, collaboration, sharing, and executable artifacts are deferred. Do not present them as implemented.
+- Offline editing/sync, collaboration, shared workspaces, and executable artifacts are deferred. Do not present them as implemented.
 
 ## Current documentation lookup
 
@@ -66,7 +67,7 @@ Resolve before fetching unless the user supplied a valid `/org/project` ID. Use 
 
 Run checks appropriate to the change. Application delivery requires type checking, lint, meaningful tests, and a production build. Documentation-only changes require checking paths, commands, and consistency rather than rerunning unrelated application tests.
 
-- Authentication: check onboarding races, blocked signup, login, recovery, and session invalidation.
+- Authentication: check onboarding races, blocked signup, login, recovery, optional TOTP enrollment/challenge, one-use backup codes, and session invalidation.
 - Persistence/editor: check saves, delayed requests, conflicting revisions, reloads, and preservation of artifacts.
 - Files/import/export: check authorization, limits, traversal, malformed archives, and restoration with attachments.
 - UI: inspect desktop and mobile in the browser, including dark mode, keyboard focus, touch controls, and overflow. Use the browser MCP when available.

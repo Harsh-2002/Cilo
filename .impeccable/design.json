@@ -258,6 +258,126 @@
           "oklch(75% 0 0)",
           "oklch(95% 0 0)"
         ]
+      },
+      "tag-gray": {
+        "role": "content",
+        "displayName": "Tag Gray",
+        "canonical": "#737373",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "tag-red": {
+        "role": "content",
+        "displayName": "Tag Red",
+        "canonical": "#ef4444",
+        "tonalRamp": [
+          "oklch(15% 0.208 25.3)",
+          "oklch(25% 0.208 25.3)",
+          "oklch(35% 0.208 25.3)",
+          "oklch(45% 0.208 25.3)",
+          "oklch(55% 0.208 25.3)",
+          "oklch(65% 0.208 25.3)",
+          "oklch(75% 0.208 25.3)",
+          "oklch(95% 0.208 25.3)"
+        ]
+      },
+      "tag-orange": {
+        "role": "content",
+        "displayName": "Tag Orange",
+        "canonical": "#f97316",
+        "tonalRamp": [
+          "oklch(15% 0.187 47.6)",
+          "oklch(25% 0.187 47.6)",
+          "oklch(35% 0.187 47.6)",
+          "oklch(45% 0.187 47.6)",
+          "oklch(55% 0.187 47.6)",
+          "oklch(65% 0.187 47.6)",
+          "oklch(75% 0.187 47.6)",
+          "oklch(95% 0.187 47.6)"
+        ]
+      },
+      "tag-yellow": {
+        "role": "content",
+        "displayName": "Tag Yellow",
+        "canonical": "#eab308",
+        "tonalRamp": [
+          "oklch(15% 0.162 86)",
+          "oklch(25% 0.162 86)",
+          "oklch(35% 0.162 86)",
+          "oklch(45% 0.162 86)",
+          "oklch(55% 0.162 86)",
+          "oklch(65% 0.162 86)",
+          "oklch(75% 0.162 86)",
+          "oklch(95% 0.162 86)"
+        ]
+      },
+      "tag-green": {
+        "role": "content",
+        "displayName": "Tag Green",
+        "canonical": "#22c55e",
+        "tonalRamp": [
+          "oklch(15% 0.192 149.6)",
+          "oklch(25% 0.192 149.6)",
+          "oklch(35% 0.192 149.6)",
+          "oklch(45% 0.192 149.6)",
+          "oklch(55% 0.192 149.6)",
+          "oklch(65% 0.192 149.6)",
+          "oklch(75% 0.192 149.6)",
+          "oklch(95% 0.192 149.6)"
+        ]
+      },
+      "tag-blue": {
+        "role": "content",
+        "displayName": "Tag Blue",
+        "canonical": "#3b82f6",
+        "tonalRamp": [
+          "oklch(15% 0.188 259.8)",
+          "oklch(25% 0.188 259.8)",
+          "oklch(35% 0.188 259.8)",
+          "oklch(45% 0.188 259.8)",
+          "oklch(55% 0.188 259.8)",
+          "oklch(65% 0.188 259.8)",
+          "oklch(75% 0.188 259.8)",
+          "oklch(95% 0.188 259.8)"
+        ]
+      },
+      "tag-purple": {
+        "role": "content",
+        "displayName": "Tag Purple",
+        "canonical": "#a855f7",
+        "tonalRamp": [
+          "oklch(15% 0.233 303.9)",
+          "oklch(25% 0.233 303.9)",
+          "oklch(35% 0.233 303.9)",
+          "oklch(45% 0.233 303.9)",
+          "oklch(55% 0.233 303.9)",
+          "oklch(65% 0.233 303.9)",
+          "oklch(75% 0.233 303.9)",
+          "oklch(95% 0.233 303.9)"
+        ]
+      },
+      "tag-pink": {
+        "role": "content",
+        "displayName": "Tag Pink",
+        "canonical": "#ec4899",
+        "tonalRamp": [
+          "oklch(15% 0.212 354.3)",
+          "oklch(25% 0.212 354.3)",
+          "oklch(35% 0.212 354.3)",
+          "oklch(45% 0.212 354.3)",
+          "oklch(55% 0.212 354.3)",
+          "oklch(65% 0.212 354.3)",
+          "oklch(75% 0.212 354.3)",
+          "oklch(95% 0.212 354.3)"
+        ]
       }
     },
     "typographyMeta": {
@@ -380,9 +500,9 @@
       "name": "Tag Chip",
       "kind": "chip",
       "refersTo": "tag-chip",
-      "description": "Compact neutral label attached to a note.",
-      "html": "<span class=\"ds-tag-chip\">Ideas <button type=\"button\" aria-label=\"Remove Ideas tag\"><svg aria-hidden=\"true\" width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></span>",
-      "css": ".ds-tag-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:4px;background:var(--muted);color:var(--muted-foreground);font:400 10px var(--font-sans)}\n.ds-tag-chip button{padding:1px;border:0;border-radius:2px;background:transparent;color:inherit}\n.ds-tag-chip button:hover{background:color-mix(in oklch,var(--foreground) 8%,transparent)}\n.ds-tag-chip button:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
+      "description": "Compact tag label with a user-selected metadata color and a softly tinted surface.",
+      "html": "<span class=\"ds-tag-chip\" data-color=\"red\">Ideas <button type=\"button\" aria-label=\"Remove Ideas tag\"><svg aria-hidden=\"true\" width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></span>",
+      "css": ".ds-tag-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:4px;background:color-mix(in srgb,var(--tag-color) 12%,var(--background));color:var(--foreground);font:400 10px var(--font-sans)}\n.ds-tag-chip[data-color=\"gray\"]{--tag-color:#737373}\n.ds-tag-chip[data-color=\"red\"]{--tag-color:#ef4444}\n.ds-tag-chip[data-color=\"orange\"]{--tag-color:#f97316}\n.ds-tag-chip[data-color=\"yellow\"]{--tag-color:#eab308}\n.ds-tag-chip[data-color=\"green\"]{--tag-color:#22c55e}\n.ds-tag-chip[data-color=\"blue\"]{--tag-color:#3b82f6}\n.ds-tag-chip[data-color=\"purple\"]{--tag-color:#a855f7}\n.ds-tag-chip[data-color=\"pink\"]{--tag-color:#ec4899}\n.ds-tag-chip button{padding:1px;border:0;border-radius:2px;background:transparent;color:inherit}\n.ds-tag-chip button:hover{background:color-mix(in oklch,var(--foreground) 8%,transparent)}\n.ds-tag-chip button:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
     },
     {
       "name": "Navigation Item",
@@ -405,21 +525,35 @@
       "kind": "custom",
       "description": "Centered note title and open prose area with no card background.",
       "html": "<article class=\"ds-writing-surface\"><time>October 4, 2026</time><textarea rows=\"1\" aria-label=\"Note title\" class=\"ds-note-title\">A place for unfinished ideas</textarea><div class=\"ds-note-body\"><p>Good notes leave room for what comes next.</p><pre><code>const idea = \"write something worth keeping\";</code></pre></div></article>",
-      "css": ".ds-writing-surface{max-width:800px;margin:0 auto;padding:58px 52px 100px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 32px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:2px solid var(--ring);outline-offset:6px;border-radius:4px}\n.ds-note-body{font:400 16px/1.7 var(--font-sans)}\n.ds-note-body p{margin:0 0 12px}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:13px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:29px}}"
+      "css": ".ds-writing-surface{max-width:800px;margin:0 auto;padding:58px 52px 100px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 32px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:none;background:var(--muted);border-radius:4px}\n.ds-note-body{font:400 16px/1.7 var(--font-sans)}\n.ds-note-body p{margin:0 0 12px}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:13px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:29px}}"
+    },
+    {
+      "name": "Brand Mark",
+      "kind": "custom",
+      "description": "Folded-page C monogram shared across the app, favicon, mobile icons, and published reader.",
+      "html": "<span class=\"ds-brand-mark\" aria-hidden=\"true\"><svg viewBox=\"0 0 40 40\"><rect width=\"40\" height=\"40\" rx=\"9\" fill=\"var(--foreground)\"/><path d=\"M21 8h-6a8 8 0 0 0-8 8v8a8 8 0 0 0 8 8h14v-6H15a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h6V8Zm2 0v8h8l-8-8Z\" fill=\"var(--background)\"/></svg></span>",
+      "css": ".ds-brand-mark{display:inline-grid;width:40px;height:40px;place-items:center;flex-shrink:0;border-radius:9px;background:var(--foreground);color:var(--background)}\n.ds-brand-mark svg{display:block;width:40px;height:40px}"
+    },
+    {
+      "name": "Settings Tabs",
+      "kind": "nav",
+      "description": "Horizontal settings sections with a clear active underline and keyboard- and touch-sized targets.",
+      "html": "<div class=\"ds-settings-tabs\" role=\"tablist\" aria-label=\"Settings sections\"><button role=\"tab\" aria-selected=\"true\">Appearance</button><button role=\"tab\" aria-selected=\"false\">Account</button><button role=\"tab\" aria-selected=\"false\">Import &amp; export</button></div>",
+      "css": ".ds-settings-tabs{display:flex;gap:24px;padding:0 28px;border-bottom:1px solid var(--border);font-family:var(--font-sans)}\n.ds-settings-tabs button{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:transparent;color:var(--muted-foreground);font:400 13px var(--font-sans);white-space:nowrap;transition:color 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-settings-tabs button[aria-selected=\"true\"]{color:var(--foreground);border-color:var(--foreground)}\n.ds-settings-tabs button:hover{color:var(--foreground)}\n.ds-settings-tabs button:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}\n@media(max-width:767px){.ds-settings-tabs{gap:20px;padding:0 22px}.ds-settings-tabs button{font-size:12px}}"
     }
   ],
   "narrative": {
     "northStar": "The Quiet Page",
-    "overview": "Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.\n\nThe desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, and highlighted code, with semantic color reserved for destructive actions.",
+    "overview": "Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.\n\nThe desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, highlighted code, named tag-color metadata, and clear semantic states.",
     "keyCharacteristics": [
       "Writing stays visually dominant inside the workspace.",
       "Neutral surfaces, thin separators, and compact controls organize the app.",
-      "Color belongs to note artifacts or a clear semantic action."
+      "Color belongs to note artifacts, user-selected tag metadata, or a clear semantic state."
     ],
     "rules": [
       {
         "name": "The Content-Color Rule",
-        "body": "Keep normal workspace chrome neutral; let color arrive inside the owner's drawings, diagrams, and highlighted code, with semantic destructive coloring confined to that action state.",
+        "body": "Keep normal workspace chrome neutral. Owner-selected tag colors may appear only on their tag dot and chip; drawings, diagrams, and highlighted code may retain their own colors, while destructive color stays with that action state.",
         "section": "colors"
       },
       {
@@ -432,7 +566,7 @@
       "Do keep navigation, the list, and the editor distinct with thin neutral separators.",
       "Do use the locally bundled Geist family for interface, titles, and prose.",
       "Do preserve visible keyboard focus and reduced-motion support.",
-      "Do let drawings, diagrams, and syntax keep their own color.",
+      "Do keep the named tag palette on owner-selected tag metadata; let drawings, diagrams, and syntax keep their own color.",
       "Do keep note actions touch-sized on narrow screens."
     ],
     "donts": [

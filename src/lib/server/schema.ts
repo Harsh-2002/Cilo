@@ -19,6 +19,9 @@ export const user = sqliteTable("user", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   username: text("username").notNull().unique(),
   displayUsername: text("display_username"),
+  twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 export const session = sqliteTable(
   "session",
@@ -86,6 +89,7 @@ export const notes = sqliteTable(
 export const tags = sqliteTable("tags", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),
+  color: text("color").notNull().default("gray"),
 });
 export const noteTags = sqliteTable(
   "note_tags",
@@ -116,3 +120,48 @@ export const instance = sqliteTable("instance", {
   theme: text("theme").notNull().default("system"),
   uploadLimit: integer("upload_limit").notNull().default(26214400),
 });
+
+export const publications = sqliteTable("publications", {
+  token: text("token").primaryKey(),
+  noteId: text("note_id")
+    .notNull()
+    .unique()
+    .references(() => notes.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  document: text("document", { mode: "json" }).$type<Document>().notNull(),
+  excerpt: text("excerpt").notNull(),
+  revision: integer("revision").notNull(),
+  publishedAt: integer("published_at").notNull(),
+});
+export const publicationFiles = sqliteTable(
+  "publication_files",
+  {
+    id: text("id").primaryKey(),
+    token: text("token")
+      .notNull()
+      .references(() => publications.token, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    mime: text("mime").notNull(),
+    storageKey: text("storage_key").notNull().unique(),
+  },
+  (t) => [index("publication_files_token_idx").on(t.token)],
+);
+
+export const twoFactor = sqliteTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: integer("verified", { mode: "boolean" }).default(true),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("two_factor_user_idx").on(t.userId),
+    index("two_factor_secret_idx").on(t.secret),
+  ],
+);

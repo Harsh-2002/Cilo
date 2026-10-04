@@ -17,6 +17,14 @@ colors:
   destructive: "oklch(0.577 0.245 27.325)"
   popover: "oklch(1 0 0)"
   popover-foreground: "oklch(0.145 0 0)"
+  tag-gray: "#737373"
+  tag-red: "#ef4444"
+  tag-orange: "#f97316"
+  tag-yellow: "#eab308"
+  tag-green: "#22c55e"
+  tag-blue: "#3b82f6"
+  tag-purple: "#a855f7"
+  tag-pink: "#ec4899"
 typography:
   headline:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
@@ -130,17 +138,17 @@ components:
 
 Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.
 
-The desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, and highlighted code, with semantic color reserved for destructive actions.
+The desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, highlighted code, named tag-color metadata, and clear semantic states.
 
 **Key Characteristics:**
 
 - Writing stays visually dominant inside the workspace.
 - Neutral surfaces, thin separators, and compact controls organize the app.
-- Color belongs to note artifacts or a clear semantic action.
+- Color belongs to note artifacts, user-selected tag metadata, or a clear semantic state.
 
 ## Colors
 
-The interface uses a restrained grayscale palette in both themes; color is carried by note content and semantic states.
+The interface uses a restrained grayscale palette in both themes; the named palette below is reserved for user-selected tag metadata, alongside color inside note content and clear semantic states.
 
 ### Primary
 
@@ -159,9 +167,14 @@ The interface uses a restrained grayscale palette in both themes; color is carri
 
 Destructive actions retain a reserved semantic color; it does not become a general accent.
 
+### User-Selected Tag Metadata
+
+- **Gray** (#737373), **Red** (#ef4444), **Orange** (#f97316), **Yellow** (#eab308), **Green** (#22c55e), **Blue** (#3b82f6), **Purple** (#a855f7), and **Pink** (#ec4899) are selectable tag colors.
+- The selected color appears in a small tag dot and as a 12% tint mixed into that tag's chip surface. It remains tag metadata and does not color general workspace chrome.
+
 ### Named Rules
 
-**The Content-Color Rule.** Keep normal workspace chrome neutral; let color arrive inside the owner's drawings, diagrams, and highlighted code, with semantic destructive coloring confined to that action state.
+**The Content-Color Rule.** Keep normal workspace chrome neutral. Owner-selected tag colors may appear only on their tag dot and chip; drawings, diagrams, and highlighted code may retain their own colors, while destructive color stays with that action state.
 
 ## Typography
 
@@ -186,7 +199,7 @@ Destructive actions retain a reserved semantic color; it does not become a gener
 
 Desktop uses a 216px navigation rail, a 300px searchable note list, and a fluid editor. The writing surface has an 800px outer maximum with 52px horizontal gutters, leaving up to 696px for note content. At widths below 1100px the list narrows and editor gutters reduce; below 1024px the desktop rail becomes a drawer. At 767px and below, mobile shows either the list or the open note with a visible back action. The mobile viewport resizes for the software keyboard so editing controls remain reachable. The note title, tags, save state, and artifact actions stay close to the writing surface.
 
-The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system.
+The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system. Settings sits in a centered 600px dialog with horizontal Appearance, Account, and Import & export tabs; its content scrolls without visible scrollbar chrome. Publishing preview and the read-only public reader use a centered 800px shell with responsive gutters and the same quiet reading surface.
 
 ## Elevation & Depth
 
@@ -212,7 +225,7 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 
 ### Chips
 
-- **Style:** Tags use a compact muted fill, quiet text, and a small radius.
+- **Style:** Tags use a compact fill and small radius. A selected metadata color marks the dot and softly tints only that tag's chip surface; text remains theme foreground.
 - **State:** The selected tag sits next to the add-tag action; removing a tag stays available within the chip.
 
 ### Cards / Containers
@@ -231,11 +244,15 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 
 ### Navigation
 
-The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action.
+The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation.
+
+### Brand Mark
+
+The folded-page C monogram uses the foreground on a compact rounded square and reverses against the theme background. Reuse the shared local vector path across the app, favicon, mobile icons, and published reader.
 
 ### Writing Surface
 
-The title field has a borderless treatment but retains visible keyboard focus. BlockNote prose stays on the shared sans family, while source blocks use monospace. The editor preserves the draft during save errors and uses a visible save state; those interaction states stay close to the note rather than moving into a separate dashboard.
+The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. BlockNote prose stays on the shared sans family, while source blocks use monospace. The editor preserves the draft during save errors and uses a visible save state; those interaction states stay close to the note rather than moving into a separate dashboard.
 
 ## Do's and Don'ts
 
@@ -244,7 +261,7 @@ The title field has a borderless treatment but retains visible keyboard focus. B
 - **Do** keep navigation, the list, and the editor distinct with thin neutral separators.
 - **Do** use the locally bundled Geist family for interface, titles, and prose.
 - **Do** preserve visible keyboard focus and reduced-motion support.
-- **Do** let drawings, diagrams, and syntax keep their own color.
+- **Do** keep the named tag palette on owner-selected tag metadata; let drawings, diagrams, and syntax keep their own color.
 - **Do** keep note actions touch-sized on narrow screens.
 
 ### Don't:
