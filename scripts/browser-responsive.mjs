@@ -37,7 +37,12 @@ export default async function verifyResponsive(page, theme, widths, options) {
       });
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,
-        nativeSelects: document.querySelectorAll("select").length,
+        nativeSelects: [...document.querySelectorAll("select")].filter(
+          (e) =>
+            e.getBoundingClientRect().width > 1 &&
+            e.getBoundingClientRect().height > 1 &&
+            getComputedStyle(e).opacity !== "0",
+        ).length,
         smallInputs: [...document.querySelectorAll("input,textarea")]
           .filter(
             (element) =>

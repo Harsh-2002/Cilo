@@ -18,6 +18,8 @@ import {
   ArrowRight,
   ListTodo,
   Bookmark,
+  CalendarDays,
+  LayoutTemplate,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -37,7 +39,16 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { api, authRequest } from "@/lib/client";
-import type { Note, NoteSummary, Owner, Settings, Tag } from "@/lib/types";
+import type {
+  Note,
+  NoteSummary,
+  Owner,
+  Settings,
+  Tag,
+  SearchResult,
+} from "@/lib/types";
+import { localDate } from "@/lib/dates";
+import { GlobalSearch } from "./global-search";
 import { NotePane } from "./note-pane";
 import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
@@ -69,6 +80,13 @@ export function Workspace({
   const [sidebar, setSidebar] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState(false);
+  const [sectionTarget, setSectionTarget] = useState<{
+    query: string;
+    completed?: boolean;
+    focusCreate?: boolean;
+  }>({ query: "" });
+  const initialLink = useRef(false);
   const [tagDialog, setTagDialog] = useState<{
     id?: string;
     name: string;
@@ -141,26 +159,34 @@ export function Workspace({
     }
   }
   const adopt = (note: Note) => {
+    setView(note.kind === "template" ? "templates" : "all");
+    setTag("");
+    setQuery("");
     setActive(note);
     setGeneration((n) => n + 1);
     void load();
   };
-  async function create() {
+  async function create(template = false) {
     if (!(await guard.current())) {
       toast.error("Save your current edits before creating a note.");
-      return;
+      return false;
     }
     try {
-      const note = await api<Note>("notes", { method: "POST", body: "{}" });
-      setView("all");
+      const note = await api<Note>(template ? "templates" : "notes", {
+        method: "POST",
+        body: template ? JSON.stringify({ title: "Untitled template" }) : "{}",
+      });
+      setView(template ? "templates" : "all");
       setTag("");
       setQuery("");
       setActive(note);
       setGeneration((n) => n + 1);
       setNotes((n) => [note, ...n]);
       setDrawer(false);
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
+      return false;
     }
   }
   const back = async () => {
@@ -171,13 +197,88 @@ export function Workspace({
     } else toast.error("Your edits haven’t been saved yet.");
   };
   const filter = async (next: string, tagId = "") => {
-    if (!(await guard.current())) return;
+    if (!(await guard.current())) return false;
     setView(next);
     setTag(tagId);
     setActive(null);
     guard.current = async () => true;
     setDrawer(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("note");
+    window.history.replaceState(null, "", url);
+    return true;
   };
+  const navigateNote = useCallback(async (id: string) => {
+    if (!(await guard.current())) return false;
+    try {
+      const note = await api<Note>(`notes/${id}`);
+      if (note.trashedAt) {
+        toast.error(
+          "This linked note is in trash. Restore it to open the connection.",
+        );
+        return false;
+      }
+      setView(note.kind === "template" ? "templates" : "all");
+      setTag("");
+      setQuery("");
+      setActive(note);
+      setGeneration((n) => n + 1);
+      setDrawer(false);
+      return true;
+    } catch (e) {
+      toast.error((e as Error).message);
+      return false;
+    }
+  }, []);
+  useEffect(() => {
+    if (initialLink.current) return;
+    const id = new URL(window.location.href).searchParams.get("note");
+    const timer = setTimeout(() => {
+      initialLink.current = true;
+      if (id && /^[a-f0-9-]{36}$/.test(id)) void navigateNote(id);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [navigateNote]);
+  useEffect(() => {
+    if (!active) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("note", active.id);
+    window.history.replaceState(null, "", url);
+  }, [active]);
+  async function today() {
+    if (!(await guard.current())) return false;
+    try {
+      const note = await api<Note>("notes/daily", {
+        method: "POST",
+        body: JSON.stringify({ date: localDate() }),
+      });
+      adopt(note);
+      setDrawer(false);
+      return true;
+    } catch (e) {
+      toast.error((e as Error).message);
+      return false;
+    }
+  }
+  async function selectResult(result: SearchResult) {
+    if (result.type === "note") return navigateNote(result.id);
+    if (!(await filter(result.type === "task" ? "tasks" : "bookmarks")))
+      return false;
+    setSectionTarget({ query: result.title, completed: result.completed });
+    setGeneration((n) => n + 1);
+    return true;
+  }
+  async function searchCommand(
+    command: "note" | "task" | "bookmark" | "daily",
+  ) {
+    if (command === "note") return create();
+    if (command === "daily") return today();
+    if (!(await filter(command === "task" ? "tasks" : "bookmarks")))
+      return false;
+    setSectionTarget({ query: "", focusCreate: true });
+    setGeneration((n) => n + 1);
+    return true;
+  }
   async function logout() {
     if (!(await guard.current())) return;
     try {
@@ -190,13 +291,9 @@ export function Workspace({
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (view === "bookmarks" || view === "tasks") return;
         e.preventDefault();
-        void (async () => {
-          if (window.innerWidth < 768 && !(await guard.current())) return;
-          if (window.innerWidth < 768) setActive(null);
-          setTimeout(() => searchRef.current?.focus(), 0);
-        })();
+        setDrawer(false);
+        setGlobalSearch((previous) => !previous);
       }
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
@@ -264,11 +361,27 @@ export function Workspace({
         <Plus size={16} />
         New note<span>⌥ N</span>
       </Button>
+      <button
+        className="nav-item workspace-search"
+        aria-label="Search"
+        onClick={() => {
+          setDrawer(false);
+          setGlobalSearch(true);
+        }}
+      >
+        <Search size={16} />
+        Search<span className="nav-shortcut">⌘ K</span>
+      </button>
       <nav aria-label="Notes navigation">
+        <button className="nav-item" onClick={() => void today()}>
+          <CalendarDays size={16} />
+          Today
+        </button>
         {[
           { id: "all", label: "All notes", Icon: FileText },
           { id: "favorites", label: "Favorites", Icon: Star },
           { id: "trash", label: "Trash", Icon: Trash2 },
+          { id: "templates", label: "Templates", Icon: LayoutTemplate },
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -388,7 +501,9 @@ export function Workspace({
       ? "Favorites"
       : view === "trash"
         ? "Trash"
-        : "All notes";
+        : view === "templates"
+          ? "Templates"
+          : "All notes";
   return (
     <main
       className={`workspace ${active ? "has-note" : ""} ${sidebar ? "" : "rail-hidden"}`}
@@ -404,6 +519,10 @@ export function Workspace({
         <TasksPanel
           key={generation}
           registerGuard={registerGuard}
+          initialQuery={sectionTarget.query}
+          initialFilter={sectionTarget.completed ? "completed" : "open"}
+          focusCreate={sectionTarget.focusCreate}
+          onOpenNote={navigateNote}
           onNavigation={() =>
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }
@@ -412,6 +531,9 @@ export function Workspace({
         <BookmarksPanel
           key={generation}
           registerGuard={registerGuard}
+          initialQuery={sectionTarget.query}
+          focusCreate={sectionTarget.focusCreate}
+          onOpenNote={navigateNote}
           onNavigation={() =>
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }
@@ -471,7 +593,6 @@ export function Workspace({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your notes…"
               />
-              <kbd>⌘ K</kbd>
             </div>
             <div className="note-list-scroll" aria-label="Note list">
               {error ? (
@@ -565,13 +686,22 @@ export function Workspace({
             </div>
             <footer className="list-footer">
               <span>
-                {notes.length} {notes.length === 1 ? "note" : "notes"}
+                {notes.length}{" "}
+                {view === "templates"
+                  ? notes.length === 1
+                    ? "template"
+                    : "templates"
+                  : notes.length === 1
+                    ? "note"
+                    : "notes"}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Create note"
-                onClick={() => void create()}
+                aria-label={
+                  view === "templates" ? "Create template" : "Create note"
+                }
+                onClick={() => void create(view === "templates")}
               >
                 <Plus size={16} />
               </Button>
@@ -591,6 +721,8 @@ export function Workspace({
                 void load();
               }}
               registerGuard={registerGuard}
+              onNavigateNote={navigateNote}
+              onNavigateItem={selectResult}
             />
           ) : (
             <section className="workspace-empty">
@@ -665,6 +797,12 @@ export function Workspace({
           </form>
         </DialogContent>
       </Dialog>
+      <GlobalSearch
+        open={globalSearch}
+        onClose={() => setGlobalSearch(false)}
+        onSelect={selectResult}
+        onCommand={searchCommand}
+      />
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

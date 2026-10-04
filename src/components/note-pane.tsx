@@ -23,6 +23,9 @@ import {
   X,
   AlertCircle,
   Share2,
+  History,
+  LayoutTemplate,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -35,7 +38,16 @@ import {
 } from "./ui/dropdown-menu";
 import { remapDocument } from "@/lib/document";
 import { api, ApiError, downloadRequest } from "@/lib/client";
-import type { Note, Tag } from "@/lib/types";
+import type { Note, Tag, SearchResult } from "@/lib/types";
+import { Input } from "./ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import { HistoryDialog } from "./history-dialog";
+import { NoteConnections } from "./note-connections";
 import type { EditorTools } from "./editor";
 import { useConfirm } from "./confirm-provider";
 import { PublishDialog } from "./publish-dialog";
@@ -58,6 +70,8 @@ type Props = {
   onOpen: (note: Note) => void;
   onDeleted: () => void;
   registerGuard: (guard: () => Promise<boolean>) => void;
+  onNavigateNote: (id: string) => Promise<boolean>;
+  onNavigateItem: (item: SearchResult) => Promise<boolean>;
 };
 export function NotePane({
   initial,
@@ -67,6 +81,8 @@ export function NotePane({
   onOpen,
   onDeleted,
   registerGuard,
+  onNavigateNote,
+  onNavigateItem,
 }: Props) {
   const [note, setNote] = useState(initial);
   const current = useRef(initial);
@@ -75,6 +91,10 @@ export function NotePane({
   >("saved");
   const [error, setError] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [history, setHistory] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState<string | null>(null);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [templateError, setTemplateError] = useState("");
   const confirm = useConfirm();
   const version = useRef(0);
   const savedVersion = useRef(0);
@@ -292,6 +312,31 @@ export function NotePane({
     });
   }
   const [editorKey, setEditorKey] = useState(0);
+  async function saveTemplate(event: React.FormEvent) {
+    event.preventDefault();
+    if (!templateTitle?.trim() || templateBusy) return;
+    setTemplateBusy(true);
+    setTemplateError("");
+    try {
+      if (!(await flush()))
+        throw new Error("Save your edits before creating a template.");
+      const template = await api<Note>("templates", {
+        method: "POST",
+        body: JSON.stringify({
+          sourceId: note.id,
+          revision: current.current.revision,
+          title: templateTitle.trim(),
+        }),
+      });
+      setTemplateTitle(null);
+      onOpen(template);
+      toast.success("Template saved. Edit it here, then create notes from it.");
+    } catch (e) {
+      setTemplateError((e as Error).message);
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
   return (
     <section className="note-pane" data-note-id={note.id}>
       <header className="note-topbar">
@@ -354,6 +399,57 @@ export function NotePane({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() => void action(async () => setHistory(true))}
+              >
+                <History size={15} />
+                Version history
+              </DropdownMenuItem>
+              {!note.trashedAt &&
+                (note.kind === "template" ? (
+                  <>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        void action(async () => {
+                          const created = await api<Note>(
+                            `templates/${note.id}/instantiate`,
+                            { method: "POST" },
+                          );
+                          onOpen(created);
+                        })
+                      }
+                    >
+                      <LayoutTemplate size={15} />
+                      Create note from template
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        void action(async () => {
+                          await api(`templates/${note.id}/daily-default`, {
+                            method: "POST",
+                          });
+                          toast.success("Daily notes will use this template.");
+                        })
+                      }
+                    >
+                      <CalendarDays size={15} />
+                      Use for daily notes
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      void action(async () => {
+                        setTemplateTitle(note.title || "New template");
+                        setTemplateError("");
+                      })
+                    }
+                  >
+                    <LayoutTemplate size={15} />
+                    Save as template
+                  </DropdownMenuItem>
+                ))}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={!!note.trashedAt}
                 onSelect={() => void action(async () => setSharing(true))}
@@ -439,6 +535,56 @@ export function NotePane({
           onClose={() => setSharing(false)}
         />
       )}
+      {history && (
+        <HistoryDialog
+          note={note}
+          onClose={() => setHistory(false)}
+          onRestore={async (id) => {
+            if (!(await flush()))
+              throw new Error("Save your edits before restoring a version.");
+            const restored = await api<Note>(`notes/${note.id}/history/${id}`, {
+              method: "POST",
+              body: JSON.stringify({ revision: current.current.revision }),
+            });
+            onSaved(restored);
+            onOpen(restored);
+            toast.success(
+              "Version restored. Your previous content is kept in history.",
+            );
+          }}
+        />
+      )}
+      <Dialog
+        open={templateTitle !== null}
+        onOpenChange={(open) => {
+          if (!open && !templateBusy) setTemplateTitle(null);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Save as template</DialogTitle>
+          <DialogDescription>
+            Create a reusable copy of this note, including its attachments.
+          </DialogDescription>
+          <form className="template-form" onSubmit={saveTemplate}>
+            <Input
+              aria-label="Template name"
+              autoFocus
+              value={templateTitle || ""}
+              maxLength={300}
+              disabled={templateBusy}
+              onChange={(e) => setTemplateTitle(e.target.value)}
+              required
+            />
+            {templateError && <p role="alert">{templateError}</p>}
+            <Button
+              type="submit"
+              disabled={templateBusy || !templateTitle?.trim()}
+            >
+              {templateBusy ? "Saving…" : "Save template"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
       {error && (
         <div className="save-error" role="alert">
           <span>{error} Your edits are still here.</span>
@@ -494,6 +640,17 @@ export function NotePane({
       <div className="note-scroll">
         <div className="writing-surface">
           <div className="note-date">
+            {note.kind === "template" ? (
+              <span className="note-kind">
+                <LayoutTemplate size={14} />
+                Template · Changes apply to future notes
+              </span>
+            ) : note.dailyDate ? (
+              <span className="note-kind">
+                <CalendarDays size={14} />
+                Daily note ·{" "}
+              </span>
+            ) : null}
             {new Date(note.createdAt).toLocaleDateString(undefined, {
               month: "long",
               day: "numeric",
@@ -579,6 +736,40 @@ export function NotePane({
               </DropdownMenu>
             )}
           </div>
+          {note.kind === "template" && !note.trashedAt && (
+            <div className="template-actions">
+              <Button
+                size="sm"
+                onClick={() =>
+                  void action(async () => {
+                    const created = await api<Note>(
+                      `templates/${note.id}/instantiate`,
+                      { method: "POST" },
+                    );
+                    onOpen(created);
+                  })
+                }
+              >
+                <LayoutTemplate size={15} />
+                Create note from template
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  void action(async () => {
+                    await api(`templates/${note.id}/daily-default`, {
+                      method: "POST",
+                    });
+                    toast.success("Daily notes will use this template.");
+                  })
+                }
+              >
+                <CalendarDays size={15} />
+                Use for daily notes
+              </Button>
+            </div>
+          )}
           <Editor
             key={editorKey}
             document={note.document}
@@ -586,7 +777,16 @@ export function NotePane({
             onChange={(document) => change({ document })}
             onTools={setTools}
             editable={!note.trashedAt}
+            onOpenNote={onNavigateNote}
           />
+          {!note.trashedAt && (
+            <NoteConnections
+              noteId={note.id}
+              revision={note.revision}
+              onOpenNote={onNavigateNote}
+              onOpenItem={onNavigateItem}
+            />
+          )}
         </div>
       </div>
       <input

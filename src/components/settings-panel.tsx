@@ -692,6 +692,7 @@ export function SettingsPanel({
                             imported: number;
                             importedTasks?: number;
                             importedBookmarks?: number;
+                            dailyConflicts?: number;
                           }>("import/bundle", {
                             method: "POST",
                             body: file,
@@ -701,6 +702,10 @@ export function SettingsPanel({
                           toast.success(
                             `${result.imported} notes${result.importedTasks ? ` and ${result.importedTasks} tasks` : ""}${result.importedBookmarks ? ` and ${result.importedBookmarks} bookmarks` : ""} restored.`,
                           );
+                          if (result.dailyConflicts)
+                            toast.info(
+                              `${result.dailyConflicts} daily notes were imported as regular notes because those days already exist.`,
+                            );
                         });
                       e.target.value = "";
                     }}

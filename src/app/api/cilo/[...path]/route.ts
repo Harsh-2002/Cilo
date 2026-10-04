@@ -33,6 +33,19 @@ import {
 } from "@/lib/server/publications";
 import { createNote, getNote, listNotes } from "@/lib/server/notes";
 import {
+  checkpoint,
+  listVersions,
+  getVersion,
+  restoreVersion,
+} from "@/lib/server/note-history";
+import { syncNoteLinks, connectionsFor } from "@/lib/server/connections";
+import { searchWorkspace } from "@/lib/server/unified-search";
+import {
+  ensureTemplates,
+  instantiate,
+  dailyNote,
+} from "@/lib/server/templates";
+import {
   createTask,
   deleteTask,
   listTasks,
@@ -44,6 +57,8 @@ import {
   plainText,
   setupInput,
   credentials,
+  calendarDate,
+  taskSchedule,
 } from "@/lib/server/validation";
 import {
   checkOrigin,
@@ -268,6 +283,59 @@ async function handle(
     });
     if (!session || !owner || session.user.id !== owner.id)
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "search" && method === "GET")
+      return response(
+        searchWorkspace(
+          owner.id,
+          z
+            .string()
+            .max(300)
+            .parse(url.searchParams.get("q") || ""),
+        ),
+      );
+    if (area === "templates") {
+      ensureTemplates(owner.id);
+      if (method === "GET" && !id)
+        return response(listNotes(new URLSearchParams({ view: "templates" })));
+      if (method === "POST" && !id) {
+        const input = z
+          .object({
+            sourceId: z.string().uuid().optional(),
+            revision: z.number().int().positive().optional(),
+            title: z.string().trim().min(1).max(300),
+          })
+          .parse(await json(request));
+        const source = input.sourceId ? needNote(input.sourceId) : undefined;
+        if (source && source.revision !== input.revision)
+          throw new HttpError(
+            409,
+            "This note changed. Save it before creating a template.",
+          );
+        return response(
+          await instantiate(owner.id, source, {
+            title: input.title,
+            kind: "template",
+          }),
+          201,
+        );
+      }
+      if (method === "POST" && id) {
+        const source = needNote(id);
+        if (source.kind !== "template" || source.trashedAt)
+          throw new HttpError(400, "Choose an available template.");
+        if (action === "daily-default") {
+          database
+            .prepare("UPDATE instance SET daily_template_id=? WHERE id=1")
+            .run(id);
+          return response({ ok: true });
+        }
+        if (action === "instantiate")
+          return response(
+            await instantiate(owner.id, source, { title: source.title }),
+            201,
+          );
+      }
+    }
     if (area === "settings") {
       if (method === "GET") return response(settings());
       if (method === "PATCH") {
@@ -344,6 +412,7 @@ async function handle(
             description: z.string().max(2000).optional(),
             collection: z.string().trim().max(80).optional(),
             favorite: z.boolean().optional(),
+            noteId: z.string().uuid().nullable().optional(),
           })
           .strict()
           .refine((v) => Object.keys(v).length > 1)
@@ -371,10 +440,10 @@ async function handle(
       if (method === "GET" && !id) return response(listTasks(owner.id));
       if (method === "POST" && !id) {
         const input = z
-          .object({ title: z.string().trim().min(1).max(300) })
+          .object({ title: z.string().trim().min(1).max(300), ...taskSchedule })
           .strict()
           .parse(await json(request));
-        return response(createTask(owner.id, input.title), 201);
+        return response(createTask(owner.id, input.title, input), 201);
       }
       if (method === "PATCH" && id) {
         const input = z
@@ -382,9 +451,10 @@ async function handle(
             revision: z.number().int().positive(),
             title: z.string().trim().min(1).max(300).optional(),
             completed: z.boolean().optional(),
+            ...taskSchedule,
           })
           .strict()
-          .refine((v) => v.title !== undefined || v.completed !== undefined)
+          .refine((v) => Object.keys(v).length > 1)
           .parse(await json(request));
         return response(updateTask(owner.id, id, input));
       }
@@ -429,6 +499,35 @@ async function handle(
       }
     }
     if (area === "notes") {
+      if (method === "POST" && id === "daily") {
+        const input = z
+          .object({ date: calendarDate })
+          .strict()
+          .parse(await json(request));
+        return response(await dailyNote(owner.id, input.date));
+      }
+      if (id && action === "connections" && method === "GET") {
+        needNote(id);
+        return response(connectionsFor(id));
+      }
+      if (id && action === "history") {
+        needNote(id);
+        if (method === "GET")
+          return response(path[3] ? getVersion(id, path[3]) : listVersions(id));
+        if (method === "POST" && path[3]) {
+          const input = z
+            .object({ revision: z.number().int().positive() })
+            .strict()
+            .parse(await json(request));
+          return response(restoreVersion(id, path[3], input.revision));
+        }
+      }
+      if (
+        method === "GET" &&
+        !id &&
+        url.searchParams.get("view") === "templates"
+      )
+        ensureTemplates(owner.id);
       if (id && action === "publication") {
         const note = needNote(id);
         if (method === "GET") return response(publicationFor(id));
@@ -465,6 +564,13 @@ async function handle(
                 "This note changed in another tab. Save your edits as a new note or reload it.",
               );
             const document = input.document || previous.document;
+            if (
+              (input.title !== undefined && input.title !== previous.title) ||
+              (input.document !== undefined &&
+                JSON.stringify(input.document) !==
+                  JSON.stringify(previous.document))
+            )
+              checkpoint(previous);
             database
               .prepare(
                 "UPDATE notes SET title=?,document=?,text=?,favorite=?,trashed_at=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?",
@@ -490,6 +596,7 @@ async function handle(
                   .prepare("INSERT INTO note_tags VALUES(?,?)")
                   .run(id, tag);
             }
+            syncNoteLinks(id, document);
             return needNote(id);
           })
           .immediate();
@@ -668,10 +775,17 @@ async function handle(
         "manifest.json": strToU8(
           JSON.stringify({
             format: "cilo",
-            version: 1,
+            version: 2,
             notes,
             tasks: listTasks(owner.id),
             bookmarks: bookmarkExport.items,
+            history: (
+              database
+                .prepare(
+                  "SELECT note_id AS noteId,title,document,revision,created_at AS createdAt FROM note_versions ORDER BY rowid",
+                )
+                .all() as { document: string }[]
+            ).map((v) => ({ ...v, document: JSON.parse(v.document) })),
             attachments: attachments.map((f) => ({
               id: f.id,
               note_id: f.note_id,
@@ -769,7 +883,19 @@ async function handle(
       const manifest = z
         .object({
           format: z.literal("cilo"),
-          version: z.literal(1),
+          version: z.union([z.literal(1), z.literal(2)]),
+          history: z
+            .array(
+              z.object({
+                noteId: z.string().uuid(),
+                title: z.string().max(300),
+                document: documentInput,
+                revision: z.number().int().positive(),
+                createdAt: z.number().int().nonnegative(),
+              }),
+            )
+            .max(100000)
+            .default([]),
           bookmarks: z
             .array(
               z.object({
@@ -782,6 +908,7 @@ async function handle(
                 metadataStatus: z.enum(["ready", "unavailable"]),
                 createdAt: z.number().int().nonnegative(),
                 updatedAt: z.number().int().nonnegative(),
+                noteId: z.string().uuid().nullable().default(null),
                 thumbnail: z
                   .object({ id: z.string().uuid(), mime: z.string() })
                   .nullable(),
@@ -795,10 +922,25 @@ async function handle(
           tasks: z
             .array(
               z.object({
+                id: z.string().uuid().optional(),
                 title: z.string().trim().min(1).max(300),
                 completedAt: z.number().int().nonnegative().nullable(),
                 createdAt: z.number().int().nonnegative(),
                 updatedAt: z.number().int().nonnegative(),
+                dueDate: calendarDate.nullable().default(null),
+                recurrence: z
+                  .enum(["daily", "weekly", "monthly"])
+                  .nullable()
+                  .default(null),
+                recurrenceDay: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(31)
+                  .nullable()
+                  .default(null),
+                parentTaskId: z.string().uuid().nullable().default(null),
+                noteId: z.string().uuid().nullable().default(null),
               }),
             )
             .max(10000)
@@ -808,6 +950,9 @@ async function handle(
               z.object({
                 id: z.string().uuid(),
                 title: z.string().max(300),
+                kind: z.enum(["note", "template"]).default("note"),
+                dailyDate: calendarDate.nullable().default(null),
+                revision: z.number().int().positive().default(1),
                 document: documentInput,
                 favorite: z.boolean(),
                 trashedAt: z.number().nullable(),
@@ -840,6 +985,68 @@ async function handle(
       const fileIds = new Map(
         manifest.attachments.map((f) => [f.id, randomUUID()]),
       );
+      const taskIds = new Map(
+        manifest.tasks.map((t) => [t.id || randomUUID(), randomUUID()]),
+      );
+      if (taskIds.size !== manifest.tasks.length)
+        throw new HttpError(
+          400,
+          "The bundle contains duplicate task identifiers.",
+        );
+      const historyCounts = new Map<string, number>();
+      for (const v of manifest.history) {
+        const count = (historyCounts.get(v.noteId) || 0) + 1;
+        historyCounts.set(v.noteId, count);
+        if (!noteIds.has(v.noteId) || count > 100)
+          throw new HttpError(400, "The bundle contains invalid note history.");
+      }
+      for (const item of [...manifest.tasks, ...manifest.bookmarks])
+        if (item.noteId && !noteIds.has(item.noteId))
+          throw new HttpError(
+            400,
+            "The bundle contains an unavailable note connection.",
+          );
+      for (const task of manifest.tasks)
+        if (task.recurrence && !task.dueDate)
+          throw new HttpError(400, "A repeating task is missing its due date.");
+      if (
+        manifest.notes.some(
+          (note) => note.kind === "template" && note.dailyDate,
+        )
+      )
+        throw new HttpError(400, "A template cannot also be a daily note.");
+      const parents = new Map<string, string>();
+      const children = new Set<string>();
+      for (const task of manifest.tasks) {
+        if (!task.parentTaskId) continue;
+        if (
+          !task.id ||
+          !taskIds.has(task.parentTaskId) ||
+          children.has(task.parentTaskId)
+        )
+          throw new HttpError(
+            400,
+            "The bundle contains an invalid recurring occurrence.",
+          );
+        children.add(task.parentTaskId);
+        parents.set(task.id, task.parentTaskId);
+      }
+      const checkedTasks = new Set<string>();
+      for (const start of parents.keys()) {
+        const chain = new Set<string>();
+        let cursor: string | undefined = start;
+        while (cursor && !checkedTasks.has(cursor)) {
+          if (chain.has(cursor))
+            throw new HttpError(
+              400,
+              "The bundle contains a recurring task cycle.",
+            );
+          chain.add(cursor);
+          cursor = parents.get(cursor);
+        }
+        for (const task of chain) checkedTasks.add(task);
+      }
+      let dailyConflicts = 0;
       if (
         noteIds.size !== manifest.notes.length ||
         fileIds.size !== manifest.attachments.length
@@ -901,10 +1108,72 @@ async function handle(
         }
         database
           .transaction(() => {
+            for (const note of manifest.notes) {
+              const parsed = remapDocument(note.document, fileIds, noteIds);
+              const dailyDate =
+                note.dailyDate &&
+                !database
+                  .prepare(
+                    "SELECT 1 FROM notes WHERE owner_id=? AND daily_date=?",
+                  )
+                  .get(owner.id, note.dailyDate)
+                  ? note.dailyDate
+                  : null;
+              if (note.dailyDate && !dailyDate) dailyConflicts++;
+              database
+                .prepare(
+                  "INSERT INTO notes(id,owner_id,title,document,text,favorite,trashed_at,created_at,updated_at,kind,daily_date,revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                )
+                .run(
+                  noteIds.get(note.id),
+                  owner.id,
+                  note.title,
+                  JSON.stringify(parsed),
+                  plainText(parsed.blocks),
+                  Number(note.favorite),
+                  note.trashedAt,
+                  note.createdAt,
+                  note.updatedAt,
+                  note.kind,
+                  dailyDate,
+                  note.revision,
+                );
+              for (const tag of note.tags) {
+                database
+                  .prepare(
+                    "INSERT OR IGNORE INTO tags(id,name,color) VALUES(?,?,?)",
+                  )
+                  .run(randomUUID(), tag.name, tag.color);
+                const existing = database
+                  .prepare("SELECT id FROM tags WHERE name=? COLLATE NOCASE")
+                  .get(tag.name) as { id: string };
+                database
+                  .prepare("INSERT OR IGNORE INTO note_tags VALUES(?,?)")
+                  .run(noteIds.get(note.id), existing.id);
+              }
+            }
+            for (const note of manifest.notes)
+              syncNoteLinks(
+                noteIds.get(note.id)!,
+                remapDocument(note.document, fileIds, noteIds),
+              );
+            for (const v of manifest.history)
+              database
+                .prepare(
+                  "INSERT INTO note_versions(id,note_id,title,document,revision,created_at) VALUES(?,?,?,?,?,?)",
+                )
+                .run(
+                  randomUUID(),
+                  noteIds.get(v.noteId),
+                  v.title,
+                  JSON.stringify(remapDocument(v.document, fileIds, noteIds)),
+                  v.revision,
+                  v.createdAt,
+                );
             for (const { item, thumbnail, icon } of importedBookmarks)
               database
                 .prepare(
-                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 )
                 .run(
                   randomUUID(),
@@ -922,52 +1191,41 @@ async function handle(
                   item.icon?.mime || null,
                   item.createdAt,
                   item.updatedAt,
+                  item.noteId ? noteIds.get(item.noteId) : null,
                 );
-            for (const task of manifest.tasks) {
-              const createdTask = createTask(owner.id, task.title);
+            for (const [index, task] of manifest.tasks.entries()) {
+              const assigned = task.id
+                ? taskIds.get(task.id)
+                : [...taskIds.values()][index];
               database
                 .prepare(
-                  "UPDATE tasks SET completed_at=?,created_at=?,updated_at=? WHERE id=?",
+                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,recurrence,recurrence_day,note_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
                 )
                 .run(
+                  assigned,
+                  owner.id,
+                  task.title,
                   task.completedAt,
                   task.createdAt,
                   task.updatedAt,
-                  createdTask.id,
+                  task.dueDate,
+                  task.recurrence,
+                  task.recurrenceDay ||
+                    (task.dueDate ? Number(task.dueDate.slice(8)) : null),
+                  task.noteId ? noteIds.get(task.noteId) : null,
                 );
             }
-            for (const note of manifest.notes) {
-              const parsed = remapDocument(note.document, fileIds);
-              const document = JSON.stringify(parsed);
-              database
-                .prepare(
-                  "INSERT INTO notes(id,owner_id,title,document,text,favorite,trashed_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                )
-                .run(
-                  noteIds.get(note.id),
-                  owner.id,
-                  note.title,
-                  document,
-                  plainText(parsed.blocks),
-                  Number(note.favorite),
-                  note.trashedAt,
-                  note.createdAt,
-                  note.updatedAt,
-                );
-              for (const tag of note.tags) {
+            for (const task of manifest.tasks)
+              if (task.id && task.parentTaskId) {
+                if (!taskIds.has(task.parentTaskId))
+                  throw new HttpError(
+                    400,
+                    "The bundle contains an unavailable recurring occurrence.",
+                  );
                 database
-                  .prepare(
-                    "INSERT OR IGNORE INTO tags(id,name,color) VALUES(?,?,?)",
-                  )
-                  .run(randomUUID(), tag.name, tag.color);
-                const existing = database
-                  .prepare("SELECT id FROM tags WHERE name=? COLLATE NOCASE")
-                  .get(tag.name) as { id: string };
-                database
-                  .prepare("INSERT OR IGNORE INTO note_tags VALUES(?,?)")
-                  .run(noteIds.get(note.id), existing.id);
+                  .prepare("UPDATE tasks SET parent_task_id=? WHERE id=?")
+                  .run(taskIds.get(task.parentTaskId), taskIds.get(task.id));
               }
-            }
             for (const file of manifest.attachments)
               database
                 .prepare("INSERT INTO attachments VALUES(?,?,?,?,?,?,?)")
@@ -990,6 +1248,7 @@ async function handle(
         imported: manifest.notes.length,
         importedTasks: manifest.tasks.length,
         importedBookmarks: importedBookmarks.length,
+        dailyConflicts,
       });
     }
     throw new HttpError(404, "This action was not found.");

@@ -6,9 +6,70 @@ import { Select as SelectPrimitive } from "radix-ui";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
 function Select({
+  open,
+  defaultOpen,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false);
+  const isOpen = open ?? internalOpen;
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const owned = new Set<HTMLElement>();
+    const background = document.querySelector<HTMLElement>(
+      ".bn-scroll-container",
+    );
+    const sync = () => {
+      if (
+        background &&
+        !background.querySelector('[data-slot="select-content"]') &&
+        !background.inert
+      ) {
+        background.inert = true;
+        owned.add(background);
+      }
+      for (const element of document.querySelectorAll<HTMLElement>(
+        '[data-aria-hidden="true"]',
+      )) {
+        if (!element.inert) {
+          element.inert = true;
+          owned.add(element);
+        }
+      }
+      for (const element of owned) {
+        if (
+          element !== background &&
+          element.getAttribute("data-aria-hidden") !== "true"
+        ) {
+          element.inert = false;
+          owned.delete(element);
+        }
+      }
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-aria-hidden"],
+    });
+    return () => {
+      observer.disconnect();
+      for (const element of owned) element.inert = false;
+    };
+  }, [isOpen]);
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      {...props}
+      open={isOpen}
+      onOpenChange={(value) => {
+        setInternalOpen(value);
+        onOpenChange?.(value);
+      }}
+    />
+  );
 }
 
 function SelectGroup({

@@ -5,9 +5,10 @@ import { eq } from "drizzle-orm";
 import { emptyDocument, type Note, type NoteSummary, type Tag } from "../types";
 import { fuzzyQuery } from "./search";
 import { plainText, ftsQuery } from "./validation";
+import { syncNoteLinks } from "./connections";
 
 const columns =
-  "n.id,n.title,n.text,n.revision,n.favorite,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
+  "n.id,n.title,n.text,n.revision,n.favorite,n.kind,n.daily_date AS dailyDate,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
 export function tagsFor(note: string): Tag[] {
   return sqlite()
     .prepare(
@@ -24,6 +25,11 @@ export function listNotes(
   queryOverride?: string,
 ): NoteSummary[] {
   const where = [
+    params.get("view") === "trash"
+      ? "1=1"
+      : params.get("view") === "templates"
+        ? "n.kind='template'"
+        : "n.kind='note'",
     params.get("view") === "trash"
       ? "n.trashed_at IS NOT NULL"
       : "n.trashed_at IS NULL",
@@ -53,7 +59,7 @@ export function listNotes(
   if (search) values.push(search);
   const rows = sqlite()
     .prepare(
-      `SELECT ${columns} FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order}`,
+      `SELECT ${columns} FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order}${params.has("limit") ? ` LIMIT ${Math.max(1, Math.min(100, Math.trunc(Number(params.get("limit"))) || 30))}` : ""}`,
     )
     .all(...values) as NoteSummary[];
   if (!rows.length && search && queryOverride === undefined) {
@@ -85,5 +91,6 @@ export function createNote(
       updatedAt: now,
     })
     .run();
+  syncNoteLinks(id, document);
   return getNote(id)!;
 }

@@ -19,6 +19,13 @@ export const tasks = sqliteTable(
     revision: integer("revision").notNull().default(1),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    dueDate: text("due_date"),
+    recurrence: text("recurrence").$type<import("../dates").Recurrence>(),
+    recurrenceDay: integer("recurrence_day"),
+    parentTaskId: text("parent_task_id"),
+    noteId: text("note_id").references(() => notes.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [index("tasks_owner_created_idx").on(t.ownerId, t.createdAt)],
 );
@@ -93,6 +100,8 @@ export const notes = sqliteTable(
       .references(() => user.id),
     title: text("title").notNull().default(""),
     document: text("document", { mode: "json" }).$type<Document>().notNull(),
+    kind: text("kind").$type<"note" | "template">().notNull().default("note"),
+    dailyDate: text("daily_date"),
     text: text("text").notNull().default(""),
     revision: integer("revision").notNull().default(1),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
@@ -135,6 +144,12 @@ export const instance = sqliteTable("instance", {
   recoveryHash: text("recovery_hash"),
   theme: text("theme").notNull().default("system"),
   uploadLimit: integer("upload_limit").notNull().default(26214400),
+  templatesSeeded: integer("templates_seeded", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  dailyTemplateId: text("daily_template_id").references(() => notes.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const publications = sqliteTable("publications", {
@@ -188,6 +203,7 @@ export const bookmarks = sqliteTable("bookmarks", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
+  noteId: text("note_id").references(() => notes.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   siteName: text("site_name").notNull().default(""),
@@ -202,3 +218,33 @@ export const bookmarks = sqliteTable("bookmarks", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const noteVersions = sqliteTable(
+  "note_versions",
+  {
+    id: text("id").primaryKey(),
+    noteId: text("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    document: text("document", { mode: "json" }).$type<Document>().notNull(),
+    revision: integer("revision").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("note_versions_note_idx").on(t.noteId, t.createdAt)],
+);
+export const noteLinks = sqliteTable(
+  "note_links",
+  {
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    targetId: text("target_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sourceId, t.targetId] }),
+    index("note_links_target_idx").on(t.targetId),
+  ],
+);

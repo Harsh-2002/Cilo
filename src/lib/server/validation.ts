@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { validDate } from "../dates";
+export const calendarDate = z
+  .string()
+  .refine(validDate, "Choose a valid calendar date (YYYY-MM-DD).");
+export const taskSchedule = {
+  dueDate: calendarDate.nullable().optional(),
+  recurrence: z.enum(["daily", "weekly", "monthly"]).nullable().optional(),
+  noteId: z.string().uuid().nullable().optional(),
+};
 export const credentials = z.object({
   username: z.string().regex(/^[a-zA-Z0-9_.]{3,30}$/),
   password: z.string().min(12).max(128),

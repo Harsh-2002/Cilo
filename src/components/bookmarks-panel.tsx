@@ -13,6 +13,7 @@ import {
   Search,
   Star,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import type { Bookmark } from "@/lib/types";
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { useConfirm } from "./confirm-provider";
+import { NotePicker } from "./note-picker";
 function PreviewImage({
   src,
   kind,
@@ -53,15 +55,21 @@ function PreviewImage({
 export function BookmarksPanel({
   onNavigation,
   registerGuard,
+  initialQuery = "",
+  focusCreate = false,
+  onOpenNote,
 }: {
   onNavigation: () => void;
   registerGuard: (guard: () => Promise<boolean>) => void;
+  initialQuery?: string;
+  focusCreate?: boolean;
+  onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [results, setResults] = useState<Bookmark[] | null>(null);
   const [url, setUrl] = useState("");
   const [newCollection, setNewCollection] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [collection, setCollection] = useState("all");
   const [favorites, setFavorites] = useState(false);
   const [editing, setEditing] = useState<Bookmark | null>(null);
@@ -71,25 +79,19 @@ export function BookmarksPanel({
   const [notice, setNotice] = useState("");
   const [searchError, setSearchError] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   useEffect(() => {
-    const keyboard = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchInput.current?.focus();
-      }
-    };
+    if (focusCreate) input.current?.focus();
+  }, [focusCreate]);
+  useEffect(() => {
     const leaving = (e: BeforeUnloadEvent) => {
       if (busy || url.trim() || newCollection.trim() || editing) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
-    window.addEventListener("keydown", keyboard);
     window.addEventListener("beforeunload", leaving);
     return () => {
-      window.removeEventListener("keydown", keyboard);
       window.removeEventListener("beforeunload", leaving);
     };
   }, [busy, url, newCollection, editing]);
@@ -189,7 +191,10 @@ export function BookmarksPanel({
   async function update(
     item: Bookmark,
     changes: Partial<
-      Pick<Bookmark, "title" | "description" | "collection" | "favorite">
+      Pick<
+        Bookmark,
+        "title" | "description" | "collection" | "favorite" | "noteId"
+      >
     >,
   ) {
     await mutate(async () => {
@@ -317,7 +322,6 @@ export function BookmarksPanel({
             <div className="task-search">
               <Search size={15} />
               <Input
-                ref={searchInput}
                 disabled={busy || !!editing}
                 maxLength={300}
                 aria-label="Search bookmarks"
@@ -363,6 +367,7 @@ export function BookmarksPanel({
                           title: editing.title.trim(),
                           description: editing.description,
                           collection: editing.collection.trim(),
+                          noteId: editing.noteId,
                         });
                       }}
                     >
@@ -403,6 +408,18 @@ export function BookmarksPanel({
                         disabled={busy}
                         onChange={(e) =>
                           setEditing({ ...editing, collection: e.target.value })
+                        }
+                      />
+                      <NotePicker
+                        value={editing.noteId}
+                        title={editing.noteTitle}
+                        disabled={busy}
+                        onChange={(id, title) =>
+                          setEditing({
+                            ...editing,
+                            noteId: id,
+                            noteTitle: title,
+                          })
                         }
                       />
                       <div>
@@ -551,6 +568,17 @@ export function BookmarksPanel({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </footer>
+                      {item.noteId && (
+                        <button
+                          className="bookmark-note-link linked-note-chip"
+                          aria-label={`Open linked note ${item.noteTitle || "Untitled"}`}
+                          disabled={busy || !!editing}
+                          onClick={() => void onOpenNote(item.noteId!)}
+                        >
+                          <FileText size={13} />
+                          {item.noteTitle || "Untitled"}
+                        </button>
+                      )}
                     </>
                   )}
                 </li>

@@ -6,6 +6,12 @@ export type Task = {
   revision: number;
   createdAt: number;
   updatedAt: number;
+  dueDate: string | null;
+  recurrence: import("./dates").Recurrence | null;
+  recurrenceDay: number | null;
+  parentTaskId: string | null;
+  noteId: string | null;
+  noteTitle: string | null;
 };
 export type Note = {
   id: string;
@@ -18,6 +24,8 @@ export type Note = {
   createdAt: number;
   updatedAt: number;
   tags: Tag[];
+  kind: "note" | "template";
+  dailyDate: string | null;
 };
 export type NoteSummary = Omit<Note, "document">;
 export type Tag = {
@@ -54,4 +62,27 @@ export type Bookmark = {
   revision: number;
   createdAt: number;
   updatedAt: number;
+  noteId: string | null;
+  noteTitle: string | null;
+};
+export type SearchResult = {
+  id: string;
+  type: "note" | "task" | "bookmark";
+  title: string;
+  excerpt: string;
+  updatedAt: number;
+  completed?: boolean;
+};
+export type NoteVersion = {
+  id: string;
+  title: string;
+  revision: number;
+  createdAt: number;
+  document?: Document;
+};
+export type Connections = {
+  incoming: { id: string; title: string }[];
+  outgoing: { id: string; title: string }[];
+  tasks: { id: string; title: string; completed: boolean }[];
+  bookmarks: { id: string; title: string; url: string }[];
 };

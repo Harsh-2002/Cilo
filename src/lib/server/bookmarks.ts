@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { HttpError } from "./http";
 import { fuzzyQuery } from "./search";
 import { ftsQuery } from "./validation";
+import { requireLinkedNote } from "./connections";
 import {
   bookmarkUrl,
   fetchPublic,
@@ -30,6 +31,7 @@ type Row = {
   revision: number;
   created_at: number;
   updated_at: number;
+  note_id: string | null;
 };
 const fields = {
   id: bookmarks.id,
@@ -48,6 +50,7 @@ const fields = {
   revision: bookmarks.revision,
   created_at: bookmarks.createdAt,
   updated_at: bookmarks.updatedAt,
+  note_id: bookmarks.noteId,
 };
 function existing(owner: string, url: string) {
   return db()
@@ -73,6 +76,14 @@ function expose(row: Row): Bookmark {
     revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    noteId: row.note_id,
+    noteTitle: row.note_id
+      ? ((
+          sqlite()
+            .prepare("SELECT title FROM notes WHERE id=?")
+            .get(row.note_id) as { title: string } | undefined
+        )?.title ?? null)
+      : null,
   };
 }
 function need(owner: string, id: string): Row {
@@ -215,9 +226,11 @@ export function updateBookmark(
     description?: string;
     collection?: string;
     favorite?: boolean;
+    noteId?: string | null;
   },
 ): Bookmark {
   need(owner, id);
+  requireLinkedNote(owner, input.noteId);
   const { revision, ...changes } = input;
   const result = db()
     .update(bookmarks)
@@ -358,6 +371,7 @@ export async function exportBookmarkBundle(owner: string) {
       metadataStatus: row.metadata_status,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      noteId: row.note_id,
       thumbnail: row.thumbnail_key
         ? { id: row.thumbnail_key, mime: row.thumbnail_mime }
         : null,

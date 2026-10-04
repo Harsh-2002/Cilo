@@ -22,11 +22,14 @@ import {
   getDiagramSlashMenuItems,
 } from "@blocknote/diagram-block";
 import * as locales from "@blocknote/core/locales";
-import { PencilLine, Download, Table2, Loader2 } from "lucide-react";
+import { PencilLine, Download, Table2, Loader2, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 import { codeBlockSpec } from "./code-block";
+import { checklistBlockSpec } from "./checklist-block";
 import { download } from "@/lib/client";
-import type { Document } from "@/lib/types";
+import { api } from "@/lib/client";
+import { toast } from "sonner";
+import type { Document, NoteSummary } from "@/lib/types";
 import "@blocknote/shadcn/style.css";
 
 const CanvasDialog = dynamic(() => import("./canvas-dialog"), {
@@ -155,6 +158,7 @@ const canvasSpec = createReactBlockSpec(
 export const editorSchema = BlockNoteSchema.create().extend({
   blockSpecs: {
     codeBlock: codeBlockSpec,
+    checkListItem: checklistBlockSpec,
     diagram: createReactDiagramBlockSpec(),
     canvas: canvasSpec(),
   },
@@ -180,19 +184,24 @@ export default function Editor({
   onTools,
   editable,
   noteId,
+  onOpenNote,
+  contentLabel,
 }: {
   document: Document;
   onChange: (document: Document) => void;
   onTools: (tools: EditorTools) => void;
   editable: boolean;
   noteId: string;
+  onOpenNote?: (id: string) => Promise<boolean>;
+  contentLabel?: string;
 }) {
   const { resolvedTheme } = useTheme();
   const editor = useCreateBlockNote({
     schema: editorSchema,
     domAttributes: {
       editor: {
-        "aria-label": editable ? "Note content" : "Shared note content",
+        "aria-label":
+          contentLabel ?? (editable ? "Note content" : "Shared note content"),
         "aria-multiline": "true",
       },
     },
@@ -261,7 +270,31 @@ export default function Editor({
     editor.focus();
   };
   return (
-    <div className="editor-root">
+    <div
+      className="editor-root"
+      onClickCapture={(event) => {
+        const link = (event.target as HTMLElement).closest("a");
+        const match = link
+          ?.getAttribute("href")
+          ?.match(/^\/\?note=([a-f0-9-]{36})$/);
+        if (match && onOpenNote && !event.metaKey && !event.ctrlKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          void onOpenNote(match[1]);
+        }
+      }}
+      onKeyDownCapture={(event) => {
+        const link = (event.target as HTMLElement).closest("a");
+        const match = link
+          ?.getAttribute("href")
+          ?.match(/^\/\?note=([a-f0-9-]{36})$/);
+        if (event.key === "Enter" && match && onOpenNote) {
+          event.preventDefault();
+          event.stopPropagation();
+          void onOpenNote(match[1]);
+        }
+      }}
+    >
       {editable && (
         <div className="insert-toolbar" aria-label="Insert a block">
           <Button variant="ghost" size="sm" onClick={() => insert("canvas")}>
@@ -308,6 +341,44 @@ export default function Editor({
                 query,
               )
             }
+          />
+        )}
+        {editable && (
+          <SuggestionMenuController
+            triggerCharacter="[["
+            getItems={async (query) => {
+              const notes = await api<NoteSummary[]>(
+                `notes?limit=20&q=${encodeURIComponent(query)}`,
+              ).catch(() => {
+                toast.error(
+                  "Could not find notes. Try linking again when connected.",
+                );
+                return [];
+              });
+              return notes
+                .filter((note) => note.id !== noteId)
+                .map((note) => ({
+                  title: note.title || "Untitled",
+                  subtext: note.text.slice(0, 80),
+                  group: "Link a note",
+                  icon: <FileText size={16} />,
+                  onItemClick: () =>
+                    editor.insertInlineContent([
+                      {
+                        type: "link",
+                        href: `/?note=${note.id}`,
+                        content: [
+                          {
+                            type: "text",
+                            text: note.title || "Untitled",
+                            styles: {},
+                          },
+                        ],
+                      },
+                      " ",
+                    ]),
+                }));
+            }}
           />
         )}
       </BlockNoteView>

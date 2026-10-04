@@ -1,6 +1,6 @@
 # Verification record
 
-This records the 2026-10-04 audit of the implemented application. Passing checks are evidence for the listed cases, not a guarantee of defect-free software or a security certification. Reverify after changes.
+This records the 2026-10-04 baseline audit and subsequent connected-workspace delivery. Passing checks are evidence for the listed cases, not a guarantee of defect-free software or a security certification. Reverify after changes.
 
 ## Environment and isolation
 
@@ -8,7 +8,7 @@ Node.js 24 on Linux; production Next.js standalone output; Chromium 153 through 
 
 No local Docker builds were needed. The repository's shipping workflow builds and smoke-tests the Docker image separately.
 
-## Executed checks
+## Baseline audit checks
 
 | Area                                | Evidence                                                                                                                                                                                                    | Result                                                                                                      |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -58,11 +58,46 @@ The browser regression count is **61 assertions**, separate from the 31 automate
 
 Implementation integrity passes at the checked scope. The detector produced 43 advisory findings and no blocking findings, primarily existing literal font-size/radius deviations from the documented scale. Advisory drift is not proof of broken behavior; the existing design authority was preserved. No redesign or sidecar repair was performed as an audit side effect.
 
+## Connected-workspace delivery
+
+Approved features 1, 2, 3, 6 and 7 are implemented: unified search/commands; note history/restoration; stable internal links/backlinks and task/bookmark associations; task dates/recurrence; daily notes/templates. See [the reviewed plan](feature-plan.md) and [usage guide](connected-workspace.md).
+
+| Area                                 | Executed evidence                                                                                                                                                                                                                                                               | Result                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Automated behavior                   | Full `npm test`: 41 tests, zero failures, cancellations or skips                                                                                                                                                                                                                | Passed                                                                                                                                       |
+| Existing encrypted-data upgrade      | Migration 0008 applied to an encrypted pre-upgrade fixture, preserving notes and backfilling links/task FTS5                                                                                                                                                                    | Passed                                                                                                                                       |
+| New data behavior                    | Search types/tags/typos/auth; checkpoint coalescing/100-version retention/restore conflicts; note relationships; leap/month boundaries/concurrent recurring completion; daily races; attachment-isolated templates; bundle ID remapping/invalid cycles; full encrypted recovery | Passed                                                                                                                                       |
+| Source and shipping checks           | Typecheck, lint, Prettier, production build, backup CLI bundle and private-data tracing guard                                                                                                                                                                                   | Passed                                                                                                                                       |
+| Existing browser features            | All 51 tasks/bookmarks/notes/artifacts/security assertions rerun against the final standalone production build with live RustFS storage                                                                                                                                         | Passed                                                                                                                                       |
+| New browser features                 | Search 6, history 5, connections 5, scheduling 6, templates/checklist 7: 29 assertions                                                                                                                                                                                          | Passed                                                                                                                                       |
+| New responsive states                | Eight surfaces at 1440, 768, 390 and 320 pixels in both themes: 64 unique combinations                                                                                                                                                                                          | No document overflow, visible browser-native select, undersized mobile inputs or detected WCAG A/AA violations; transient controls contained |
+| Existing responsive states           | Notes, tasks, bookmarks and three settings tabs at the same widths/themes: 48 combinations, plus 8 language-menu bounds checks                                                                                                                                                  | Passed                                                                                                                                       |
+| Short-height navigation              | Settings reachable through the scrollable navigation drawer at 640×450                                                                                                                                                                                                          | Passed                                                                                                                                       |
+| Independent Impeccable finish review | Fresh reviewer examined the final captures and source against the direction contract, DESIGN.md and craft floor                                                                                                                                                                 | **ship**, no material fixes                                                                                                                  |
+| Independent documentation handoff    | Fresh documenter confirmed the extension follows existing tokens, materials and responsive rules                                                                                                                                                                                | DESIGN.md and sidecar preserved; no material inconsistency                                                                                   |
+
+This delivery has **80 functional browser assertions**, **112 unique responsive surface combinations**, and eight additional language-menu containment checks. The earlier ten onboarding/MFA assertions remain baseline evidence; they are not counted as newly rerun assertions here. Verification used Chromium and a disposable production copy isolated from the host installation.
+
+Browser verification reproduced and corrected stale command selection, lost focus after a creation command, an unlabeled starter checklist, and menu-background focus/scroll accessibility. The initial DOM-based checkbox-label correction caused an editor-update loop; the shipped correction adds its label in the checklist renderer before insertion. The final checklist save/reload regression and template matrix pass. Monthly recurrence also preserves its original day when an unchanged date accompanies a title edit. Harness races were corrected by waiting for actual dialog closure and the selected autocomplete result, rather than an identically named note-list row; selectors distinguish Open-task filters from linked-note buttons.
+
+## Live RustFS storage and recovery
+
+A separate loopback-only RustFS **1.0.1** Docker container used private media and backup buckets, while Cilo's SQLite/key remained in a disposable local directory. See [the integration procedure](rustfs-testing.md).
+
+- Local-to-S3 copying verified seven encrypted fixture objects while retaining the local source. Raw media/backup objects used `CILOENC1` envelopes; anonymous bucket access was denied and conditional writes rejected overwrites.
+- Real Cilo uploads returned byte-identical authenticated downloads. Published attachment copies were anonymously readable while their original private routes required authentication.
+- Recreating the RustFS container with its original volumes retained health, file reads and backup verification.
+- A subsequent full backup containing nine referenced files was verified and restored into an empty local directory. A separately booted recovery instance returned the original owner, 21 notes, 11 tasks, 7 bookmarks, 5 templates, 5 checkpoints, 3 directed links, 4 recurring tasks and one daily note; private files, publication state and a public attachment remained readable. Recovery verification also authenticated every inventory object and checked database/file integrity.
+- Stopping RustFS caused a real UI upload to report HTTP 500, preserve the saved document and leave zero partial file records. Restarting it allowed the upload and returned the exact original bytes.
+
+The regular installation's storage configuration was preserved. Before its host-process restart, a full recovery backup was created and verified. The host instance remains a local Node development server on port 3001; Docker was used for the requested disposable RustFS service, while shipping-image checks belong to CI.
+
 ## Repeatable browser checks
 
-The exported functions in `scripts/browser-regression.mjs`, `scripts/browser-onboarding.mjs`, and `scripts/browser-responsive.mjs` accept a Playwright page/browser supplied by a test driver or browser MCP. They are not part of `npm test` or CI and do not install a browser themselves.
+The exported functions in `scripts/browser-regression.mjs`, `scripts/browser-onboarding.mjs`, `scripts/browser-responsive.mjs`, `scripts/browser-connected.mjs`, and `scripts/browser-connected-responsive.mjs` accept a Playwright page/browser supplied by a test driver or browser MCP. They are not part of `npm test` or CI and do not install a browser themselves.
 
 - Functional phases: `tasks`, `bookmarks`, `notes`, `artifacts`, `security`. Require a disposable production instance on port 3004 authenticated as `Review Owner`. The artifact phase writes notes/files; never point it at real data.
+- Connected functional phases: `search`, `history`, `connections`, `schedule`, `templates`, with the same disposable-owner/port guard. The connected responsive script covers global search, task editing, calendar, recurrence menu, note picker, related items, history and templates. Capture all four widths in both themes; run one width per browser call to keep audits bounded.
 - Onboarding: requires a fresh empty disposable instance on port 3005. It creates an account and enables MFA, keeping generated credentials and authenticator values in memory only. Use a new data directory for every run.
 - Responsive: provide `theme`, widths, and `{ axePath, screenshotDir }`; seed an `Audit rich note` containing a code block, along with tasks/bookmarks. Supply a local axe-core script and save screenshots to an ignored directory. Browser scripts must not be run against user content.
 
@@ -72,8 +107,8 @@ The backend test suite independently uses fresh temporary directories. Test cred
 
 - Browser coverage here is Chromium. Firefox, Safari/WebKit, physical iOS/Android, software keyboards, assistive technology and PWA installation on physical devices remain unverified.
 - The LAN development address uses HTTP. Encryption at rest does not encrypt network traffic. HTTPS is needed for protected transport and mobile PWA secure-context capabilities; no DNS, certificate, reverse-proxy, or public-exposure change was made during this audit.
-- S3 tests use a signed, private, paginated compatibility fixture. Live MinIO/RustFS deployments and provider-specific operational failures require an integration environment.
-- Offline editing and synchronization, collaboration, browser-extension capture, reminders and recurring tasks remain deferred product scope.
+- Live RustFS 1.0.1 passed the isolated checks above. Other MinIO/S3 providers, production credentials/topologies and additional provider-specific failures remain separate integration checks.
+- Offline editing and synchronization, collaboration, browser-extension capture, and reminders remain deferred product scope. Recurring task dates are implemented; notification delivery is not.
 - Automated accessibility checks do not establish full WCAG conformance. Performance under very large collections, long-duration use, interrupted browser processes, and every possible input/state combination is not proven.
 
-Future release verification should run the same regression checks against the exact shipping revision, add the missing browser/device coverage, exercise a real S3 target when configured, and verify HTTPS on the chosen deployment origin. Follow functional verification with the established Impeccable polish pass when a release changes UI.
+Future release verification should run the same regression checks against the exact shipping revision, add the missing browser/device coverage, exercise the chosen production S3 target when configured, and verify HTTPS on the chosen deployment origin. Follow functional verification with the established Impeccable polish pass when a release changes UI.

@@ -11,9 +11,22 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  CalendarDays,
+  Repeat2,
+  FileText,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import type { Task } from "@/lib/types";
+import { formatDate, localDate, type Recurrence } from "@/lib/dates";
+import { DatePicker } from "./date-picker";
+import { NotePicker } from "./note-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
@@ -28,22 +41,46 @@ import { useConfirm } from "./confirm-provider";
 export function TasksPanel({
   onNavigation,
   registerGuard,
+  initialQuery = "",
+  initialFilter = "open",
+  focusCreate = false,
+  onOpenNote,
 }: {
   onNavigation: () => void;
   registerGuard: (guard: () => Promise<boolean>) => void;
+  initialQuery?: string;
+  initialFilter?: "open" | "completed";
+  focusCreate?: boolean;
+  onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"open" | "completed">("open");
+  const [query, setQuery] = useState(initialQuery);
+  const [filter, setFilter] = useState<
+    "open" | "completed" | "today" | "upcoming"
+  >(initialFilter);
   const [editing, setEditing] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [editDate, setEditDate] = useState<string | null>(null);
+  const [editRepeat, setEditRepeat] = useState<Recurrence | null>(null);
+  const [editNote, setEditNote] = useState<{
+    id: string | null;
+    title: string | null;
+  }>({ id: null, title: null });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+  const editDirty =
+    !!editing &&
+    (editTitle !== editing.title ||
+      editDate !== editing.dueDate ||
+      editRepeat !== editing.recurrence ||
+      editNote.id !== editing.noteId);
+  useEffect(() => {
+    if (focusCreate) input.current?.focus();
+  }, [focusCreate]);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -63,7 +100,7 @@ export function TasksPanel({
     registerGuard(
       async () =>
         !busy &&
-        (!(title.trim() || (editing && editTitle !== editing.title)) ||
+        (!(title.trim() || editDirty) ||
           (await confirm({
             title: "Discard unfinished task?",
             description:
@@ -72,27 +109,19 @@ export function TasksPanel({
           }))),
     );
     return () => registerGuard(async () => true);
-  }, [busy, title, editing, editTitle, registerGuard, confirm]);
+  }, [busy, title, editDirty, registerGuard, confirm]);
   useEffect(() => {
     const leaving = (e: BeforeUnloadEvent) => {
-      if (busy || title.trim() || (editing && editTitle !== editing.title)) {
+      if (busy || title.trim() || editDirty) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
-    const keyboard = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchInput.current?.focus();
-      }
-    };
     window.addEventListener("beforeunload", leaving);
-    window.addEventListener("keydown", keyboard);
     return () => {
       window.removeEventListener("beforeunload", leaving);
-      window.removeEventListener("keydown", keyboard);
     };
-  }, [busy, title, editing, editTitle]);
+  }, [busy, title, editDirty]);
   async function mutate(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -123,7 +152,13 @@ export function TasksPanel({
   }
   async function update(
     task: Task,
-    change: { title?: string; completed?: boolean },
+    change: {
+      title?: string;
+      completed?: boolean;
+      dueDate?: string | null;
+      recurrence?: Recurrence | null;
+      noteId?: string | null;
+    },
   ) {
     await mutate(async () => {
       const next = await api<Task>(`tasks/${task.id}`, {
@@ -131,17 +166,31 @@ export function TasksPanel({
         body: JSON.stringify({ revision: task.revision, ...change }),
       });
       setTasks((t) => t.map((item) => (item.id === next.id ? next : item)));
+      if (change.completed && task.recurrence)
+        setTasks(await api<Task[]>("tasks"));
       if (change.title !== undefined) setEditing(null);
     });
   }
   const openCount = tasks.filter((t) => t.completedAt === null).length;
-  const visible = tasks.filter(
-    (t) =>
-      (filter === "completed"
-        ? t.completedAt !== null
-        : t.completedAt === null) &&
-      t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-  );
+  const today = localDate();
+  const visible = tasks
+    .filter(
+      (t) =>
+        (filter === "completed"
+          ? t.completedAt !== null
+          : t.completedAt === null &&
+            (filter === "today"
+              ? !!t.dueDate && t.dueDate <= today
+              : filter === "upcoming"
+                ? !!t.dueDate && t.dueDate > today
+                : true)) &&
+        t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+    )
+    .sort(
+      (a, b) =>
+        (a.dueDate || "9999").localeCompare(b.dueDate || "9999") ||
+        a.createdAt - b.createdAt,
+    );
   return (
     <section className="tasks-panel" aria-label="Tasks">
       <header className="tasks-header">
@@ -198,6 +247,22 @@ export function TasksPanel({
               </Button>
               <Button
                 variant="ghost"
+                aria-pressed={filter === "today"}
+                disabled={busy || !!editing}
+                onClick={() => setFilter("today")}
+              >
+                Today
+              </Button>
+              <Button
+                variant="ghost"
+                aria-pressed={filter === "upcoming"}
+                disabled={busy || !!editing}
+                onClick={() => setFilter("upcoming")}
+              >
+                Upcoming
+              </Button>
+              <Button
+                variant="ghost"
                 aria-pressed={filter === "completed"}
                 disabled={busy || !!editing}
                 onClick={() => setFilter("completed")}
@@ -208,7 +273,6 @@ export function TasksPanel({
             <div className="task-search">
               <Search size={15} />
               <Input
-                ref={searchInput}
                 disabled={busy || !!editing}
                 aria-label="Search tasks"
                 placeholder="Search tasks…"
@@ -243,7 +307,7 @@ export function TasksPanel({
           ) : visible.length ? (
             <ul
               className="task-list"
-              aria-label={`${filter === "open" ? "Open" : "Completed"} tasks`}
+              aria-label={`${filter === "open" ? "Open" : filter === "completed" ? "Completed" : filter === "today" ? "Today" : "Upcoming"} tasks`}
             >
               {visible.map((task) => (
                 <li
@@ -266,7 +330,12 @@ export function TasksPanel({
                       onSubmit={(e) => {
                         e.preventDefault();
                         if (editTitle.trim())
-                          void update(task, { title: editTitle.trim() });
+                          void update(task, {
+                            title: editTitle.trim(),
+                            dueDate: editDate,
+                            recurrence: editRepeat,
+                            noteId: editNote.id,
+                          });
                       }}
                     >
                       <Input
@@ -280,7 +349,45 @@ export function TasksPanel({
                           if (e.key === "Escape") setEditing(null);
                         }}
                       />
-                      <div>
+                      <div className="task-schedule-controls">
+                        <DatePicker
+                          value={editDate}
+                          disabled={busy}
+                          onChange={(date) => {
+                            setEditDate(date);
+                            if (!date) setEditRepeat(null);
+                          }}
+                        />
+                        <Select
+                          value={editRepeat || "none"}
+                          disabled={busy || !editDate}
+                          onValueChange={(value) =>
+                            setEditRepeat(
+                              value === "none" ? null : (value as Recurrence),
+                            )
+                          }
+                        >
+                          <SelectTrigger aria-label="Task recurrence">
+                            <Repeat2 size={14} />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              Does not repeat
+                            </SelectItem>
+                            <SelectItem value="daily">Every day</SelectItem>
+                            <SelectItem value="weekly">Every week</SelectItem>
+                            <SelectItem value="monthly">Every month</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <NotePicker
+                          value={editNote.id}
+                          title={editNote.title}
+                          disabled={busy}
+                          onChange={(id, title) => setEditNote({ id, title })}
+                        />
+                      </div>
+                      <div className="task-edit-actions">
                         <Button
                           type="submit"
                           disabled={busy || !editTitle.trim()}
@@ -298,7 +405,49 @@ export function TasksPanel({
                       </div>
                     </form>
                   ) : (
-                    <span className="task-title">{task.title}</span>
+                    <div className="task-copy">
+                      <span className="task-title">{task.title}</span>
+                      <div className="task-metadata">
+                        {task.dueDate && (
+                          <span
+                            className={
+                              task.completedAt === null && task.dueDate < today
+                                ? "is-overdue"
+                                : ""
+                            }
+                          >
+                            <CalendarDays size={12} />
+                            {task.completedAt === null && task.dueDate < today
+                              ? "Overdue · "
+                              : ""}
+                            {task.dueDate === today
+                              ? "Today"
+                              : formatDate(task.dueDate)}
+                          </span>
+                        )}
+                        {task.recurrence && (
+                          <span>
+                            <Repeat2 size={12} />
+                            {task.recurrence === "daily"
+                              ? "Daily"
+                              : task.recurrence === "weekly"
+                                ? "Weekly"
+                                : "Monthly"}
+                          </span>
+                        )}
+                        {task.noteId && (
+                          <button
+                            className="linked-note-chip"
+                            aria-label={`Open linked note ${task.noteTitle || "Untitled"}`}
+                            disabled={busy}
+                            onClick={() => void onOpenNote(task.noteId!)}
+                          >
+                            <FileText size={12} />
+                            {task.noteTitle || "Untitled"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -316,6 +465,12 @@ export function TasksPanel({
                         onSelect={() => {
                           setEditing(task);
                           setEditTitle(task.title);
+                          setEditDate(task.dueDate);
+                          setEditRepeat(task.recurrence);
+                          setEditNote({
+                            id: task.noteId,
+                            title: task.noteTitle,
+                          });
                         }}
                       >
                         <Pencil size={15} />
@@ -369,16 +524,22 @@ export function TasksPanel({
                   ? "No matching tasks."
                   : filter === "completed"
                     ? "Your finished tasks will live here."
-                    : tasks.length
-                      ? "Everything is checked off."
-                      : "Make room for your next step."}
+                    : filter === "today"
+                      ? "Nothing due today."
+                      : filter === "upcoming"
+                        ? "Nothing scheduled ahead."
+                        : tasks.length
+                          ? "Everything is checked off."
+                          : "Make room for your next step."}
               </h3>
               <p>
                 {query
                   ? "Try another search."
                   : filter === "completed"
                     ? "Check off an open task to keep track of your progress."
-                    : "Add a task above. Check it off when you’re done."}
+                    : filter === "today" || filter === "upcoming"
+                      ? "Edit a task to give it a due date."
+                      : "Add a task above. Check it off when you’re done."}
               </p>
             </div>
           )}

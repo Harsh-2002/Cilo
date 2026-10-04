@@ -47,7 +47,7 @@ export default async function verifyCilo(page, phase) {
     await page
       .getByRole("checkbox", { name: `Reopen ${first}`, exact: true })
       .click();
-    await page.getByRole("button", { name: /^Open / }).click();
+    await page.getByRole("button", { name: /^Open \d+$/ }).click();
     await page
       .getByRole("checkbox", { name: `Complete ${first}`, exact: true })
       .waitFor();
@@ -91,11 +91,13 @@ export default async function verifyCilo(page, phase) {
       .waitFor();
     await page.keyboard.press("Control+k");
     check(
-      await textbox("Search tasks").evaluate(
-        (element) => element === document.activeElement,
-      ),
-      "Task search keyboard shortcut",
+      await page
+        .getByRole("combobox", { name: "Search everything", exact: true })
+        .evaluate((element) => element === document.activeElement),
+      "Global search keyboard shortcut from tasks",
     );
+    await page.keyboard.press("Escape");
+    await page.getByRole("dialog").waitFor({ state: "hidden" });
     const failure = (route) =>
       route.request().method() === "POST"
         ? route.fulfill({
