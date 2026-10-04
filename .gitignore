@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local state and generated assets
+/data/
+/.impeccable/*
+!/.impeccable/design.json
+!/.impeccable/config.json
+/.playwright-mcp/
+/test-results/
+/playwright-report/
+/public/excalidraw/
+!.env.example

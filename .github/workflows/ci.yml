@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - name: Docker startup and persistence smoke check
+        run: |
+          docker compose -p cilo-ci up -d --build --wait
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/cilo/health
+          docker compose -p cilo-ci up -d --force-recreate --wait
+          curl --fail http://127.0.0.1:3000/api/cilo/health
+      - if: always()
+        run: docker compose -p cilo-ci down

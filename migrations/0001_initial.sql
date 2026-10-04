@@ -1,0 +1,17 @@
+CREATE TABLE user (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, email_verified INTEGER NOT NULL DEFAULT 0, image TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, username TEXT NOT NULL UNIQUE, display_username TEXT);
+CREATE TRIGGER single_owner BEFORE INSERT ON user WHEN (SELECT count(*) FROM user) > 0 BEGIN SELECT RAISE(ABORT, 'This instance already has an owner'); END;
+CREATE TABLE session (id TEXT PRIMARY KEY, expires_at INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, ip_address TEXT, user_agent TEXT, user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE);
+CREATE INDEX session_user_idx ON session(user_id);
+CREATE TABLE account (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, provider_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE, access_token TEXT, refresh_token TEXT, id_token TEXT, access_token_expires_at INTEGER, refresh_token_expires_at INTEGER, scope TEXT, password TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE verification (id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE instance (id INTEGER PRIMARY KEY CHECK(id = 1), recovery_hash TEXT, theme TEXT NOT NULL DEFAULT 'system', upload_limit INTEGER NOT NULL DEFAULT 26214400);
+INSERT INTO instance(id) VALUES(1);
+CREATE TABLE notes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES user(id), title TEXT NOT NULL DEFAULT '', document TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', revision INTEGER NOT NULL DEFAULT 1, favorite INTEGER NOT NULL DEFAULT 0, trashed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE INDEX notes_updated_idx ON notes(updated_at DESC);
+CREATE TABLE tags (id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE);
+CREATE TABLE note_tags (note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE, PRIMARY KEY(note_id, tag_id));
+CREATE TABLE attachments (id TEXT PRIMARY KEY, note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, storage_key TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+CREATE VIRTUAL TABLE notes_fts USING fts5(title, text, content='notes', content_rowid='rowid', tokenize='unicode61');
+CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN INSERT INTO notes_fts(rowid, title, text) VALUES(new.rowid, new.title, new.text); END;
+CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN INSERT INTO notes_fts(notes_fts, rowid, title, text) VALUES('delete', old.rowid, old.title, old.text); END;
+CREATE TRIGGER notes_au AFTER UPDATE OF title,text ON notes BEGIN INSERT INTO notes_fts(notes_fts, rowid, title, text) VALUES('delete', old.rowid, old.title, old.text); INSERT INTO notes_fts(rowid, title, text) VALUES(new.rowid, new.title, new.text); END;

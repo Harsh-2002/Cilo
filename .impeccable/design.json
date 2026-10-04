@@ -1,1 +1,444 @@
-{"mode":"operate","colors":{"background":"#ffffff","foreground":"#171717","muted":"#737373","border":"#e5e5e5","darkBackground":"#111111","darkForeground":"#ededed"},"spacing":{"rail":216,"list":300,"editorMeasure":740},"radius":{"control":8,"panel":12},"typography":{"interface":14,"prose":16,"title":32}}
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T15:02:54Z",
+  "title": "Design System: Cilo",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(1 0 0)",
+        "cssVariable": "--background",
+        "darkModeValue": "#111111",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.145 0 0)",
+        "cssVariable": "--foreground",
+        "darkModeValue": "#ededed",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Deep Ink",
+        "canonical": "oklch(0.205 0 0)",
+        "cssVariable": "--primary",
+        "darkModeValue": "oklch(0.922 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "neutral",
+        "displayName": "Inverse Paper",
+        "canonical": "oklch(0.985 0 0)",
+        "cssVariable": "--primary-foreground",
+        "darkModeValue": "oklch(0.205 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Soft Gray",
+        "canonical": "oklch(0.97 0 0)",
+        "cssVariable": "--muted",
+        "darkModeValue": "oklch(0.269 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Quiet Gray",
+        "canonical": "#686868",
+        "cssVariable": "--muted-foreground",
+        "darkModeValue": "#a3a3a3",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Fine Rule",
+        "canonical": "oklch(0.922 0 0)",
+        "cssVariable": "--border",
+        "darkModeValue": "#2b2b2b",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Input Edge",
+        "canonical": "oklch(0.922 0 0)",
+        "cssVariable": "--input",
+        "darkModeValue": "#3b3b3b",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Focus Gray",
+        "canonical": "oklch(0.708 0 0)",
+        "cssVariable": "--ring",
+        "darkModeValue": "oklch(0.556 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Selected Gray",
+        "canonical": "oklch(0.97 0 0)",
+        "cssVariable": "--accent",
+        "darkModeValue": "oklch(0.269 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "accent-foreground": {
+        "role": "neutral",
+        "displayName": "Selected Ink",
+        "canonical": "oklch(0.205 0 0)",
+        "cssVariable": "--accent-foreground",
+        "darkModeValue": "oklch(0.985 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Paper",
+        "canonical": "#fafafa",
+        "cssVariable": "--sidebar",
+        "darkModeValue": "#151515",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "cssVariable": "--destructive",
+        "darkModeValue": "oklch(0.704 0.191 22.216)",
+        "tonalRamp": [
+          "oklch(15% 0.245 27.325)",
+          "oklch(25% 0.245 27.325)",
+          "oklch(35% 0.245 27.325)",
+          "oklch(45% 0.245 27.325)",
+          "oklch(55% 0.245 27.325)",
+          "oklch(65% 0.245 27.325)",
+          "oklch(75% 0.245 27.325)",
+          "oklch(95% 0.245 27.325)"
+        ]
+      },
+      "popover": {
+        "role": "neutral",
+        "displayName": "Popover Surface",
+        "canonical": "oklch(1 0 0)",
+        "cssVariable": "--popover",
+        "darkModeValue": "oklch(0.205 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "popover-foreground": {
+        "role": "neutral",
+        "displayName": "Popover Ink",
+        "canonical": "oklch(0.145 0 0)",
+        "cssVariable": "--popover-foreground",
+        "darkModeValue": "oklch(0.985 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Writing Headline",
+        "purpose": "Note titles; the mobile headline steps down on narrow screens."
+      },
+      "body": {
+        "displayName": "Prose",
+        "purpose": "The reading and writing scale for BlockNote content."
+      },
+      "interface": {
+        "displayName": "Interface",
+        "purpose": "The baseline used by the workspace and settings."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "A medium interface weight for primary and secondary actions."
+      },
+      "navigation": {
+        "displayName": "Navigation",
+        "purpose": "Compact destinations in the workspace rail and menus."
+      },
+      "search": {
+        "displayName": "Search",
+        "purpose": "Compact desktop search field text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tags, timestamps, note counts, and supporting labels."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Source and code blocks use a system monospace stack."
+      }
+    },
+    "shadows": [
+      {
+        "name": "popover-shadow",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Open dropdown and select menus."
+      },
+      {
+        "name": "sheet-shadow",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "The mobile navigation sheet."
+      }
+    ],
+    "motion": [
+      {
+        "name": "standard-control-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default timing used by button and input state transitions."
+      },
+      {
+        "name": "dialog-transition",
+        "value": "100ms",
+        "purpose": "Short opening and closing transitions for dialogs and popovers."
+      },
+      {
+        "name": "sheet-transition",
+        "value": "200ms ease-in-out",
+        "purpose": "Movement of the navigation sheet."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Reduces animations and transitions for users who request reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "editor-density",
+        "value": "1100px"
+      },
+      {
+        "name": "rail-collapse",
+        "value": "1023px"
+      },
+      {
+        "name": "mobile-pane-switch",
+        "value": "767px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact inverse action for creating or confirming.",
+      "html": "<button class=\"ds-button-primary\">New note</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--primary);color:var(--primary-foreground);font:500 14px/1 var(--font-sans);white-space:nowrap;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-button-primary:hover{background:color-mix(in oklch,var(--primary) 80%,transparent)}\n.ds-button-primary:focus-visible{outline:2px solid var(--foreground);outline-offset:3px;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}\n.ds-button-primary:active{transform:translateY(1px)}\n.ds-button-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Quiet secondary action with a visible border.",
+      "html": "<button class=\"ds-button-outline\">Try again</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font:500 14px/1 var(--font-sans);white-space:nowrap;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-button-outline:hover{background:var(--muted);color:var(--foreground)}\n.ds-button-outline:focus-visible{outline:2px solid var(--foreground);outline-offset:3px;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}\n.ds-button-outline:active{transform:translateY(1px)}\n.ds-button-outline:disabled{opacity:.5;cursor:not-allowed}\n:host-context(.dark) .ds-button-outline{border-color:var(--input);background:color-mix(in oklch,var(--input) 30%,transparent)}\n:host-context(.dark) .ds-button-outline:hover{background:color-mix(in oklch,var(--input) 50%,transparent)}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Borderless navigation and toolbar action.",
+      "html": "<button class=\"ds-button-ghost\">Favorites</button>",
+      "css": ".ds-button-ghost{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:transparent;color:var(--foreground);font:500 14px/1 var(--font-sans);white-space:nowrap;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-button-ghost:hover{background:var(--muted);color:var(--foreground)}\n.ds-button-ghost:focus-visible{outline:2px solid var(--foreground);outline-offset:3px;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}\n.ds-button-ghost:active{transform:translateY(1px)}\n.ds-button-ghost:disabled{opacity:.5;cursor:not-allowed}\n:host-context(.dark) .ds-button-ghost:hover{background:color-mix(in oklch,var(--muted) 50%,transparent)}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Muted search surface for finding notes.",
+      "html": "<input class=\"ds-search-field\" type=\"search\" aria-label=\"Search notes\" placeholder=\"Search your notes…\">",
+      "css": ".ds-search-field{display:block;width:100%;height:34px;padding:0 43px 0 32px;border:1px solid transparent;border-radius:7px;background:var(--muted);color:var(--foreground);font:400 12px var(--font-sans);transition:color 150ms cubic-bezier(0.4,0,0.2,1),background-color 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-search-field::placeholder{color:var(--muted-foreground)}\n.ds-search-field:focus-visible{outline:2px solid var(--foreground);outline-offset:3px;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}\n:host-context(.dark) .ds-search-field{background:color-mix(in oklch,var(--input) 30%,transparent)}\n@media(max-width:767px){.ds-search-field{height:40px;font-size:14px}}"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "tag-chip",
+      "description": "Compact neutral label attached to a note.",
+      "html": "<span class=\"ds-tag-chip\">Ideas <button type=\"button\" aria-label=\"Remove Ideas tag\"><svg aria-hidden=\"true\" width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></span>",
+      "css": ".ds-tag-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:4px;background:var(--muted);color:var(--muted-foreground);font:400 10px var(--font-sans)}\n.ds-tag-chip button{padding:1px;border:0;border-radius:2px;background:transparent;color:inherit}\n.ds-tag-chip button:hover{background:color-mix(in oklch,var(--foreground) 8%,transparent)}\n.ds-tag-chip button:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation-item",
+      "description": "Compact workspace destination with quiet hover and active states.",
+      "html": "<button class=\"ds-navigation-item ds-is-active\">All notes</button>",
+      "css": ".ds-navigation-item{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;padding:9px 11px;border:0;border-radius:6px;background:transparent;color:var(--muted-foreground);text-align:left;font:450 13px var(--font-sans);transition:color 150ms cubic-bezier(0.4,0,0.2,1),background-color 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-navigation-item:hover,.ds-navigation-item.ds-is-active{background:var(--muted);color:var(--foreground)}\n.ds-navigation-item.ds-is-active{font-weight:550}\n.ds-navigation-item:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
+    },
+    {
+      "name": "Note List Item",
+      "kind": "card",
+      "refersTo": "note-list-item",
+      "description": "Text-first note summary, highlighted only while selected or hovered.",
+      "html": "<button class=\"ds-note-list-item ds-is-selected\"><strong>A place for unfinished ideas</strong><p>Good notes leave room for what comes next.</p><small>Oct 4</small></button>",
+      "css": ".ds-note-list-item{display:block;width:100%;margin-bottom:3px;padding:16px 14px;border:0;border-radius:7px;background:transparent;color:var(--foreground);text-align:left;font-family:var(--font-sans);transition:background-color 150ms cubic-bezier(0.4,0,0.2,1)}\n.ds-note-list-item:hover{background:var(--muted)}\n.ds-note-list-item.ds-is-selected{background:var(--accent)}\n.ds-note-list-item strong{display:block;overflow:hidden;font-size:13px;font-weight:550;text-overflow:ellipsis;white-space:nowrap}\n.ds-note-list-item p{display:-webkit-box;margin:6px 0 10px;overflow:hidden;color:var(--muted-foreground);font-size:12px;line-height:1.65;-webkit-box-orient:vertical;-webkit-line-clamp:2}\n.ds-note-list-item small{color:var(--muted-foreground);font-size:10px}\n.ds-note-list-item:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
+    },
+    {
+      "name": "Writing Surface",
+      "kind": "custom",
+      "description": "Centered note title and open prose area with no card background.",
+      "html": "<article class=\"ds-writing-surface\"><time>October 4, 2026</time><textarea rows=\"1\" aria-label=\"Note title\" class=\"ds-note-title\">A place for unfinished ideas</textarea><div class=\"ds-note-body\"><p>Good notes leave room for what comes next.</p><pre><code>const idea = \"write something worth keeping\";</code></pre></div></article>",
+      "css": ".ds-writing-surface{max-width:800px;margin:0 auto;padding:58px 52px 100px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 32px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:2px solid var(--ring);outline-offset:6px;border-radius:4px}\n.ds-note-body{font:400 16px/1.7 var(--font-sans)}\n.ds-note-body p{margin:0 0 12px}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:13px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:29px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Page",
+    "overview": "Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.\n\nThe desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, and highlighted code, with semantic color reserved for destructive actions.",
+    "keyCharacteristics": [
+      "Writing stays visually dominant inside the workspace.",
+      "Neutral surfaces, thin separators, and compact controls organize the app.",
+      "Color belongs to note artifacts or a clear semantic action."
+    ],
+    "rules": [
+      {
+        "name": "The Content-Color Rule",
+        "body": "Keep normal workspace chrome neutral; let color arrive inside the owner's drawings, diagrams, and highlighted code, with semantic destructive coloring confined to that action state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat-at-Rest Rule",
+        "body": "Workspace planes stay flat at rest; soft shadows appear on transient menus and the navigation sheet.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep navigation, the list, and the editor distinct with thin neutral separators.",
+      "Do use the locally bundled Geist family for interface, titles, and prose.",
+      "Do preserve visible keyboard focus and reduced-motion support.",
+      "Do let drawings, diagrams, and syntax keep their own color.",
+      "Do keep note actions touch-sized on narrow screens."
+    ],
+    "donts": [
+      "Don't turn the writing workspace into a card dashboard or decorative landing hero.",
+      "Don't add decorative gradients or a visible construction grid to the app chrome.",
+      "Don't let application chrome compete with the note's content."
+    ]
+  }
+}

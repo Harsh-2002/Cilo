@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.env*
+data
+.impeccable
+.playwright-mcp
+test-results
+playwright-report
+public/excalidraw
+*.tsbuildinfo
+Dockerfile
+compose.yaml
+*.md
+docs
+tests
+.github

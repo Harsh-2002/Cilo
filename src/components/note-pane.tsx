@@ -1,0 +1,553 @@
+"use client";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import dynamic from "next/dynamic";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Download,
+  FileText,
+  Loader2,
+  MoreHorizontal,
+  Paperclip,
+  RotateCcw,
+  Star,
+  Tag as TagIcon,
+  Trash2,
+  X,
+  AlertCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { api, ApiError, downloadRequest } from "@/lib/client";
+import type { Note, Tag } from "@/lib/types";
+import type { EditorTools } from "./editor";
+
+const Editor = dynamic(() => import("./editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="editor-skeleton">
+      <span />
+      <span />
+      <span />
+    </div>
+  ),
+});
+type Props = {
+  initial: Note;
+  tags: Tag[];
+  onSaved: (note: Note) => void;
+  onBack: () => void;
+  onOpen: (note: Note) => void;
+  onDeleted: () => void;
+  registerGuard: (guard: () => Promise<boolean>) => void;
+};
+export function NotePane({
+  initial,
+  tags,
+  onSaved,
+  onBack,
+  onOpen,
+  onDeleted,
+  registerGuard,
+}: Props) {
+  const [note, setNote] = useState(initial);
+  const current = useRef(initial);
+  const [state, setState] = useState<
+    "saved" | "saving" | "dirty" | "error" | "conflict"
+  >("saved");
+  const [error, setError] = useState("");
+  const version = useRef(0);
+  const savedVersion = useRef(0);
+  const saving = useRef<Promise<boolean> | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+  const blocked = useRef(false);
+  const tools = useRef<EditorTools | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const title = titleRef.current;
+    if (!title) return;
+    const resize = () => {
+      title.style.height = "0px";
+      title.style.height = `${title.scrollHeight}px`;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [note.title]);
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
+  const setTools = useCallback((value: EditorTools) => {
+    tools.current = value;
+  }, []);
+  const flush = useCallback(async (): Promise<boolean> => {
+    if (timer.current) clearTimeout(timer.current);
+    if (saving.current) {
+      await saving.current;
+      if (blocked.current) return false;
+      return flushRef.current();
+    }
+    if (savedVersion.current === version.current) return true;
+    if (blocked.current) return false;
+    const snapshot = current.current;
+    const checkpoint = version.current;
+    setState("saving");
+    const promise = (async () => {
+      try {
+        const result = await api<Note>(`notes/${snapshot.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            revision: snapshot.revision,
+            title: snapshot.title,
+            document: snapshot.document,
+            favorite: snapshot.favorite,
+            tags: snapshot.tags.map((t) => t.id),
+          }),
+        });
+        savedVersion.current = checkpoint;
+        current.current = {
+          ...current.current,
+          revision: result.revision,
+          updatedAt: result.updatedAt,
+        };
+        if (mounted.current) {
+          setNote(current.current);
+          setState(checkpoint === version.current ? "saved" : "dirty");
+          setError("");
+        }
+        onSaved(result);
+        return true;
+      } catch (e) {
+        if (mounted.current) {
+          const conflict = e instanceof ApiError && e.status === 409;
+          setState(conflict ? "conflict" : "error");
+          setError((e as Error).message);
+          blocked.current = conflict;
+        }
+        return false;
+      } finally {
+        saving.current = null;
+      }
+    })();
+    saving.current = promise;
+    const success = await promise;
+    if (success && savedVersion.current !== version.current)
+      return flushRef.current();
+    return success;
+  }, [onSaved]);
+  useEffect(() => {
+    flushRef.current = flush;
+    registerGuard(flush);
+  }, [flush, registerGuard]);
+  useEffect(() => {
+    mounted.current = true;
+    const unload = (e: BeforeUnloadEvent) => {
+      if (version.current !== savedVersion.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    const reconnect = () => {
+      void flushRef.current();
+    };
+    window.addEventListener("beforeunload", unload);
+    window.addEventListener("online", reconnect);
+    return () => {
+      mounted.current = false;
+      if (timer.current) clearTimeout(timer.current);
+      window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("online", reconnect);
+    };
+  }, []);
+  function change(update: Partial<Note>) {
+    current.current = { ...current.current, ...update };
+    setNote(current.current);
+    version.current++;
+    setState(blocked.current ? "conflict" : "dirty");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      void flushRef.current();
+    }, 750);
+  }
+  async function action(run: () => Promise<void>, requireSave = true) {
+    try {
+      if (requireSave && !(await flush())) return;
+      await run();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+  async function toggleTrash() {
+    await action(async () => {
+      const result = await api<Note>(`notes/${note.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          revision: current.current.revision,
+          trashed: !note.trashedAt,
+        }),
+      });
+      current.current = result;
+      setNote(result);
+      onSaved(result);
+      onDeleted();
+    });
+  }
+  async function permanentDelete() {
+    if (
+      !window.confirm(
+        "Permanently delete this note and its files? This cannot be undone.",
+      )
+    )
+      return;
+    await action(async () => {
+      await api(`notes/${note.id}`, { method: "DELETE" });
+      onDeleted();
+    });
+  }
+  async function saveCopy() {
+    await action(async () => {
+      const result = await api<Note>(`notes/${note.id}/duplicate`, {
+        method: "POST",
+      });
+      let document = JSON.stringify(current.current.document);
+      const originalFiles = await api<{ id: string; name: string }[]>(
+        `files?note=${note.id}`,
+      );
+      const copiedFiles = await api<{ id: string; name: string }[]>(
+        `files?note=${result.id}`,
+      );
+      originalFiles.forEach((file, i) => {
+        if (copiedFiles[i])
+          document = document.replaceAll(file.id, copiedFiles[i].id);
+      });
+      const updated = await api<Note>(`notes/${result.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          revision: result.revision,
+          title: `${current.current.title || "Untitled"} (copy)`,
+          document: JSON.parse(document),
+        }),
+      });
+      savedVersion.current = version.current;
+      onSaved(updated);
+      onOpen(updated);
+      toast.success("Your edits were saved as a new note.");
+    }, false);
+  }
+  async function upload(file: File) {
+    await action(async () => {
+      const form = new FormData();
+      form.set("note", note.id);
+      form.set("file", file);
+      const result = await api<{ url: string; mime: string; name: string }>(
+        "files",
+        { method: "POST", body: form },
+      );
+      const type = result.mime.startsWith("image/") ? "image" : "file";
+      change({
+        document: {
+          ...current.current.document,
+          blocks: [
+            ...current.current.document.blocks,
+            {
+              type,
+              props: { url: result.url, name: result.name, caption: "" },
+            },
+            { type: "paragraph", content: [] },
+          ],
+        },
+      });
+      setEditorKey((n) => n + 1);
+      toast.success("File attached.");
+    });
+  }
+  const [editorKey, setEditorKey] = useState(0);
+  return (
+    <section className="note-pane" data-note-id={note.id}>
+      <header className="note-topbar">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mobile-back"
+            aria-label="Back to notes"
+            onClick={onBack}
+          >
+            <ArrowLeft size={18} />
+          </Button>
+          <span className="breadcrumb">
+            <FileText size={14} />
+            Notes<span>/</span>
+            <span>{note.title || "Untitled"}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className={`save-status ${state}`} role="status">
+            {state === "saving" ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : state === "saved" ? (
+              <Check size={12} />
+            ) : state === "error" || state === "conflict" ? (
+              <AlertCircle size={12} />
+            ) : null}
+            {state === "saved"
+              ? "Saved"
+              : state === "saving"
+                ? "Saving"
+                : "Unsaved"}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={
+              note.favorite ? "Remove from favorites" : "Add to favorites"
+            }
+            onClick={() => change({ favorite: !note.favorite })}
+            disabled={!!note.trashedAt}
+          >
+            <Star size={17} fill={note.favorite ? "currentColor" : "none"} />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Note actions">
+                <MoreHorizontal size={19} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() =>
+                  void action(async () => {
+                    const result = await api<Note>(
+                      `notes/${note.id}/duplicate`,
+                      { method: "POST" },
+                    );
+                    onSaved(result);
+                    onOpen(result);
+                  })
+                }
+              >
+                <Copy size={15} />
+                Duplicate note
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => uploadRef.current?.click()}
+                disabled={!!note.trashedAt}
+              >
+                <Paperclip size={15} />
+                Attach a file
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  void action(async () => {
+                    if (!tools.current)
+                      throw new Error("The editor is still loading.");
+                    await downloadRequest(
+                      `export/markdown/${note.id}`,
+                      `${note.title || "Untitled"}.zip`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          markdown: tools.current.markdown(),
+                        }),
+                      },
+                    );
+                  })
+                }
+              >
+                <Download size={15} />
+                Export Markdown package
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void toggleTrash()}>
+                {note.trashedAt ? (
+                  <>
+                    <RotateCcw size={15} />
+                    Restore note
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    Move to trash
+                  </>
+                )}
+              </DropdownMenuItem>
+              {note.trashedAt && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => void permanentDelete()}
+                >
+                  <Trash2 size={15} />
+                  Delete permanently
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      {error && (
+        <div className="save-error" role="alert">
+          <span>{error} Your edits are still here.</span>
+          <div>
+            {state !== "conflict" && (
+              <Button size="sm" variant="outline" onClick={() => void flush()}>
+                Try again
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => void saveCopy()}>
+              Save as new note
+            </Button>
+            {state === "conflict" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Reload this note and discard your unsaved edits?",
+                    )
+                  )
+                    void action(async () => {
+                      savedVersion.current = version.current;
+                      onOpen(await api<Note>(`notes/${note.id}`));
+                    }, false);
+                }}
+              >
+                Reload
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+      {note.trashedAt && (
+        <div className="trash-banner">
+          <span>This note is in trash.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void toggleTrash()}
+          >
+            <RotateCcw size={14} />
+            Restore
+          </Button>
+        </div>
+      )}
+      <div className="note-scroll">
+        <div className="writing-surface">
+          <div className="note-date">
+            {new Date(note.createdAt).toLocaleDateString(undefined, {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
+          <textarea
+            ref={titleRef}
+            rows={1}
+            className="note-title"
+            aria-label="Note title"
+            value={note.title}
+            onChange={(e) =>
+              change({ title: e.target.value.replaceAll("\n", " ") })
+            }
+            placeholder="Untitled"
+            maxLength={300}
+            disabled={!!note.trashedAt}
+          />
+          <div className="note-tags">
+            {note.tags.map((tag) => (
+              <span key={tag.id} className="tag-chip">
+                {tag.name}
+                {!note.trashedAt && (
+                  <button
+                    aria-label={`Remove ${tag.name} tag`}
+                    onClick={() =>
+                      change({ tags: note.tags.filter((t) => t.id !== tag.id) })
+                    }
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </span>
+            ))}
+            {!note.trashedAt && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="add-tag">
+                    <TagIcon size={13} />
+                    {note.tags.length ? "Add tag" : "Add tags"}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {tags.length ? (
+                    tags.map((tag) => (
+                      <DropdownMenuItem
+                        key={tag.id}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          change({
+                            tags: note.tags.some((t) => t.id === tag.id)
+                              ? note.tags.filter((t) => t.id !== tag.id)
+                              : [...note.tags, tag],
+                          });
+                        }}
+                      >
+                        <span className="flex-1">{tag.name}</span>
+                        {note.tags.some((t) => t.id === tag.id) && (
+                          <Check size={14} />
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="menu-hint">
+                      Create a tag in the sidebar first.
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+          <Editor
+            key={editorKey}
+            document={note.document}
+            noteId={note.id}
+            onChange={(document) => change({ document })}
+            onTools={setTools}
+            editable={!note.trashedAt}
+          />
+        </div>
+      </div>
+      <input
+        ref={uploadRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void upload(file);
+          e.target.value = "";
+        }}
+      />
+      <footer className="note-footer">
+        <span>{note.document.blocks.length} blocks</span>
+        <span>
+          Markdown shortcuts supported
+          <span className="desktop-hint"> · Type / for blocks</span>
+        </span>
+      </footer>
+    </section>
+  );
+}

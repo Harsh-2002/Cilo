@@ -1,0 +1,68 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, RefreshCw } from "lucide-react";
+import { useTheme } from "next-themes";
+import { api } from "@/lib/client";
+import type { Owner, Settings } from "@/lib/types";
+import { AuthScreen, Mark } from "./auth-screen";
+import { Workspace } from "./workspace";
+import { Button } from "./ui/button";
+export function Cilo() {
+  const [status, setStatus] = useState<{
+    setup: boolean;
+    owner: Owner | null;
+    settings: Settings | null;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const { setTheme } = useTheme();
+  const refresh = useCallback(async () => {
+    await Promise.resolve();
+    setError("");
+    try {
+      const result = await api<NonNullable<typeof status>>("status");
+      setStatus(result);
+      if (result.settings) setTheme(result.settings.theme);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [setTheme]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [refresh]);
+  if (!status)
+    return (
+      <main className="loading-page">
+        <Mark />
+        {error ? (
+          <>
+            <p role="alert">{error}</p>
+            <Button variant="outline" onClick={refresh}>
+              <RefreshCw size={16} />
+              Try again
+            </Button>
+          </>
+        ) : (
+          <Loader2
+            size={20}
+            className="animate-spin"
+            aria-label="Opening Cilo"
+          />
+        )}
+      </main>
+    );
+  return status.owner ? (
+    <Workspace
+      owner={status.owner}
+      initialSettings={status.settings!}
+      onSignOut={() => {
+        setStatus(null);
+        void refresh();
+      }}
+    />
+  ) : (
+    <AuthScreen setup={status.setup} onReady={refresh} />
+  );
+}
