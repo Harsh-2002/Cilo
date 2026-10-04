@@ -1,3 +1,14 @@
+import { bookmarkUrl, imageMime } from "@/lib/server/link-metadata";
+import { backupStatus, startBackup, verifyBackup } from "@/lib/server/backups";
+import {
+  bookmarkImage,
+  createBookmark,
+  exportBookmarkBundle,
+  deleteBookmark,
+  listBookmarks,
+  refreshBookmark,
+  updateBookmark,
+} from "@/lib/server/bookmarks";
 import {
   randomBytes,
   randomUUID,
@@ -286,6 +297,74 @@ async function handle(
           .prepare("UPDATE instance SET recovery_hash=? WHERE id=1")
           .run(recoveryHash(code));
         return response({ recoveryCode: code });
+      }
+    }
+    if (area === "backups") {
+      if (method === "GET" && !id) return response(await backupStatus());
+      if (method === "POST" && !id) {
+        throttle(`backup:${owner.id}`);
+        void startBackup().catch(() => undefined);
+        return response({ accepted: true }, 202);
+      }
+      if (method === "POST" && id && action === "verify") {
+        throttle(`backup:${owner.id}`);
+        return response(await verifyBackup(id));
+      }
+    }
+    if (area === "bookmarks") {
+      if (method === "GET" && !id)
+        return response(
+          listBookmarks(
+            owner.id,
+            new URL(request.url).searchParams.get("q") || "",
+          ),
+        );
+      if (
+        method === "GET" &&
+        id &&
+        (action === "thumbnail" || action === "icon")
+      )
+        return bookmarkImage(owner.id, id, action);
+      if (method === "POST" && !id) {
+        throttle(`bookmark:${owner.id}`);
+        const input = z
+          .object({
+            url: z.string().trim().min(1).max(4096),
+            collection: z.string().trim().max(80).default(""),
+          })
+          .strict()
+          .parse(await json(request));
+        return response(await createBookmark(owner.id, input), 201);
+      }
+      if (method === "PATCH" && id) {
+        const input = z
+          .object({
+            revision: z.number().int().positive(),
+            title: z.string().trim().min(1).max(300).optional(),
+            description: z.string().max(2000).optional(),
+            collection: z.string().trim().max(80).optional(),
+            favorite: z.boolean().optional(),
+          })
+          .strict()
+          .refine((v) => Object.keys(v).length > 1)
+          .parse(await json(request));
+        return response(updateBookmark(owner.id, id, input));
+      }
+      if (method === "POST" && id && action === "refresh") {
+        throttle(`bookmark:${owner.id}`);
+        const input = z
+          .object({ revision: z.number().int().positive() })
+          .strict()
+          .parse(await json(request));
+        return response(await refreshBookmark(owner.id, id, input.revision));
+      }
+      if (method === "DELETE" && id) {
+        const input = z
+          .object({ revision: z.number().int().positive() })
+          .strict()
+          .parse(await json(request));
+        await deleteBookmark(owner.id, id, input.revision);
+        return response({ ok: true });
       }
     }
     if (area === "tasks") {
@@ -583,13 +662,16 @@ async function handle(
       const attachments = database
         .prepare("SELECT * FROM attachments")
         .all() as Attachment[];
+      const bookmarkExport = await exportBookmarkBundle(owner.id);
       const files: Record<string, Uint8Array> = {
+        ...bookmarkExport.files,
         "manifest.json": strToU8(
           JSON.stringify({
             format: "cilo",
             version: 1,
             notes,
             tasks: listTasks(owner.id),
+            bookmarks: bookmarkExport.items,
             attachments: attachments.map((f) => ({
               id: f.id,
               note_id: f.note_id,
@@ -688,6 +770,28 @@ async function handle(
         .object({
           format: z.literal("cilo"),
           version: z.literal(1),
+          bookmarks: z
+            .array(
+              z.object({
+                url: z.string().max(4096).transform(bookmarkUrl),
+                title: z.string().trim().min(1).max(300),
+                description: z.string().max(2000),
+                siteName: z.string().max(100),
+                collection: z.string().trim().max(80),
+                favorite: z.boolean(),
+                metadataStatus: z.enum(["ready", "unavailable"]),
+                createdAt: z.number().int().nonnegative(),
+                updatedAt: z.number().int().nonnegative(),
+                thumbnail: z
+                  .object({ id: z.string().uuid(), mime: z.string() })
+                  .nullable(),
+                icon: z
+                  .object({ id: z.string().uuid(), mime: z.string() })
+                  .nullable(),
+              }),
+            )
+            .max(10000)
+            .default([]),
           tasks: z
             .array(
               z.object({
@@ -742,7 +846,48 @@ async function handle(
       )
         throw new HttpError(400, "The bundle contains duplicate identifiers.");
       const created: string[] = [];
+      const importedBookmarks: {
+        item: (typeof manifest.bookmarks)[number];
+        thumbnail: string | null;
+        icon: string | null;
+      }[] = [];
+      if (
+        new Set(manifest.bookmarks.map((b) => b.url)).size !==
+        manifest.bookmarks.length
+      )
+        throw new HttpError(400, "The bundle contains duplicate bookmarks.");
       try {
+        for (const item of manifest.bookmarks) {
+          if (
+            database
+              .prepare("SELECT 1 FROM bookmarks WHERE owner_id=? AND url=?")
+              .get(owner.id, item.url)
+          )
+            continue;
+          const assets: { thumbnail: string | null; icon: string | null } = {
+            thumbnail: null,
+            icon: null,
+          };
+          for (const kind of ["thumbnail", "icon"] as const) {
+            const asset = item[kind];
+            if (!asset) continue;
+            const bytes = entries[`files/${asset.id}`];
+            if (
+              !bytes ||
+              imageMime(Buffer.from(bytes)) !== asset.mime ||
+              bytes.length > 2 * 1024 * 1024
+            )
+              throw new HttpError(
+                400,
+                "The bundle has a missing or invalid bookmark preview.",
+              );
+            const key = randomUUID();
+            await storage.write(key, bytes);
+            created.push(key);
+            assets[kind] = key;
+          }
+          importedBookmarks.push({ item, ...assets });
+        }
         for (const file of manifest.attachments) {
           if (
             !noteIds.has(file.note_id) ||
@@ -756,6 +901,28 @@ async function handle(
         }
         database
           .transaction(() => {
+            for (const { item, thumbnail, icon } of importedBookmarks)
+              database
+                .prepare(
+                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                )
+                .run(
+                  randomUUID(),
+                  owner.id,
+                  item.url,
+                  item.title,
+                  item.description,
+                  item.siteName,
+                  item.collection,
+                  +item.favorite,
+                  item.metadataStatus,
+                  thumbnail,
+                  item.thumbnail?.mime || null,
+                  icon,
+                  item.icon?.mime || null,
+                  item.createdAt,
+                  item.updatedAt,
+                );
             for (const task of manifest.tasks) {
               const createdTask = createTask(owner.id, task.title);
               database
@@ -822,6 +989,7 @@ async function handle(
       return response({
         imported: manifest.notes.length,
         importedTasks: manifest.tasks.length,
+        importedBookmarks: importedBookmarks.length,
       });
     }
     throw new HttpError(404, "This action was not found.");

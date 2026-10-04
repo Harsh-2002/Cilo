@@ -181,3 +181,24 @@ export const twoFactor = sqliteTable(
     index("two_factor_secret_idx").on(t.secret),
   ],
 );
+
+export const bookmarks = sqliteTable("bookmarks", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  siteName: text("site_name").notNull().default(""),
+  collection: text("collection").notNull().default(""),
+  favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
+  metadataStatus: text("metadata_status").notNull().default("unavailable"),
+  thumbnailKey: text("thumbnail_key"),
+  thumbnailMime: text("thumbnail_mime"),
+  iconKey: text("icon_key"),
+  iconMime: text("icon_mime"),
+  revision: integer("revision").notNull().default(1),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});

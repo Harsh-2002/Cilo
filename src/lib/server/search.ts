@@ -20,7 +20,10 @@ export function editDistance(a: string, b: string, max: number) {
   }
   return previous[b.length];
 }
-export function fuzzyQuery(input: string) {
+export function fuzzyQuery(
+  input: string,
+  vocabulary: "notes" | "bookmarks" = "notes",
+) {
   const words = input
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -34,7 +37,7 @@ export function fuzzyQuery(input: string) {
     if (!max) return `"${word}"*`;
     const candidates = sqlite()
       .prepare(
-        "SELECT term FROM notes_fts_vocab WHERE length(term) BETWEEN ? AND ?",
+        `SELECT term FROM ${vocabulary === "bookmarks" ? "bookmarks_fts_vocab" : "notes_fts_vocab"} WHERE length(term) BETWEEN ? AND ?`,
       )
       .all(word.length - max, word.length + max) as { term: string }[];
     const matches = candidates

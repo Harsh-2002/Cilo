@@ -1,6 +1,6 @@
 # Cilo
 
-A quiet place to think, write, and remember. Cilo is a minimal, self-hosted notes and tasks app with rich text, Markdown import/export, tags, search, diagrams, drawings, and attachments.
+A quiet place to think, write, and remember. Cilo is a minimal, self-hosted notes, tasks, and bookmarks app with rich text, Markdown import/export, tags, search, diagrams, drawings, and attachments.
 
 ## Docker quick start
 
@@ -42,6 +42,6 @@ npm run build
 
 Next.js · TypeScript · shadcn/ui · Tailwind CSS v4 · BlockNote · SQLite/FTS5 · Drizzle · Better Auth · Excalidraw.
 
-Notes require a connection in this release. MinIO/RustFS-compatible S3 storage is optional. Batch import and read-only publishing are available. Offline editing and collaboration are deferred. See [architecture](docs/architecture.md), [self-hosting and backups](docs/self-hosting.md), and [contributing](CONTRIBUTING.md).
+Notes require a connection in this release. MinIO/RustFS-compatible S3 storage is optional. Bookmark preview cards, collections, batch import, and read-only publishing are available. Encrypted instance backups run daily by default and can target local storage or a separate S3-compatible destination. Offline editing and collaboration are deferred. See [architecture](docs/architecture.md), [self-hosting and backups](docs/self-hosting.md), and [contributing](CONTRIBUTING.md).
 
 MIT licensed. Bundled dependencies retain their own licenses; see [third-party notices](docs/third-party.md).

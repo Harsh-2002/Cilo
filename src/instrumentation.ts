@@ -6,5 +6,7 @@ export async function register() {
     await migrateStoredFiles();
     const { authSecret } = await import("./lib/server/auth");
     authSecret();
+    const { startBackupScheduler } = await import("./lib/server/backups");
+    startBackupScheduler();
   }
 }

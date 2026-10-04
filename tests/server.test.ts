@@ -110,6 +110,13 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           (await call("notes", "GET", undefined, false)).status,
           401,
         );
+        for (const route of ["bookmarks", "backups"]) {
+          assert.equal(
+            (await call(route, "GET", undefined, false)).status,
+            401,
+          );
+          assert.equal((await call(route, "POST", {}, false)).status, 401);
+        }
         const req = request("notes", "POST", {});
         req.headers.set("origin", "https://other.invalid");
         assert.equal(
@@ -908,6 +915,97 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           200,
         );
         assert.equal(listTasks(owner.id).length, 1);
+      },
+    );
+    await t.test(
+      "bookmark APIs preserve cached cards through bundles and enforce ownership",
+      async () => {
+        const result = await call("bookmarks", "POST", {
+          url: "http://127.0.0.1/reference",
+          collection: "Reading",
+        });
+        assert.equal(result.status, 201);
+        const item = await result.json();
+        const updated = await (
+          await call(`bookmarks/${item.id}`, "PATCH", {
+            revision: item.revision,
+            title: "Concurrency handbook",
+            description: "SQLite reference",
+            favorite: true,
+          })
+        ).json();
+        assert.equal(
+          (await (await call("bookmarks?q=concurency")).json()).length,
+          1,
+        );
+        assert.equal(
+          (
+            await call(`bookmarks/${item.id}/refresh`, "POST", {
+              revision: updated.revision,
+            })
+          ).status,
+          422,
+        );
+        assert.equal(
+          (
+            await call(
+              `bookmarks/${item.id}/thumbnail`,
+              "GET",
+              undefined,
+              false,
+            )
+          ).status,
+          401,
+        );
+        const image = randomUUID(),
+          bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+        const { storage } = await import("../src/lib/server/storage");
+        await storage.write(image, bytes);
+        sqlite()
+          .prepare(
+            "UPDATE bookmarks SET thumbnail_key=?,thumbnail_mime='image/png' WHERE id=?",
+          )
+          .run(image, item.id);
+        const exported = await call("export/bundle");
+        const archive = new Uint8Array(await exported.arrayBuffer());
+        const manifest = JSON.parse(
+          strFromU8(unzipSync(archive)["manifest.json"]),
+        );
+        assert.equal(manifest.bookmarks.length, 1);
+        assert.equal(
+          (
+            await call(`bookmarks/${item.id}`, "DELETE", {
+              revision: updated.revision,
+            })
+          ).status,
+          200,
+        );
+        const imported = await (
+          await call("import/bundle", "POST", archive)
+        ).json();
+        assert.equal(imported.importedBookmarks, 1);
+        const restored = (await (await call("bookmarks")).json())[0];
+        assert.equal(restored.title, updated.title);
+        assert.equal(restored.favorite, true);
+        assert.equal(restored.collection, "Reading");
+        assert.notEqual(restored.id, item.id);
+        const preview = await call(`bookmarks/${restored.id}/thumbnail`);
+        assert.equal(preview.status, 200);
+        assert.deepEqual(Buffer.from(await preview.arrayBuffer()), bytes);
+        assert.equal(
+          (await (await call("import/bundle", "POST", archive)).json())
+            .importedBookmarks,
+          0,
+        );
+        assert.equal(
+          (
+            await call(`bookmarks/${restored.id}`, "DELETE", {
+              revision: restored.revision,
+            })
+          ).status,
+          200,
+        );
+        assert.equal((await call("backups")).status, 200);
       },
     );
     await t.test(

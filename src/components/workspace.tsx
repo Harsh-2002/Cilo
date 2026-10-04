@@ -17,6 +17,7 @@ import {
   Loader2,
   ArrowRight,
   ListTodo,
+  Bookmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -42,6 +43,7 @@ import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
 import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
+import { BookmarksPanel } from "./bookmarks-panel";
 import { TasksPanel } from "./tasks-panel";
 
 export function Workspace({
@@ -188,6 +190,7 @@ export function Workspace({
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (view === "bookmarks") return;
         e.preventDefault();
         void (async () => {
           if (window.innerWidth < 768 && !(await guard.current())) return;
@@ -282,6 +285,13 @@ export function Workspace({
         >
           <ListTodo size={16} />
           Tasks
+        </button>
+        <button
+          className={`nav-item ${view === "bookmarks" ? "active" : ""}`}
+          onClick={() => void filter("bookmarks")}
+        >
+          <Bookmark size={16} />
+          Bookmarks
         </button>
       </nav>
       <div className="tags-heading">
@@ -392,6 +402,14 @@ export function Workspace({
       </Sheet>
       {view === "tasks" ? (
         <TasksPanel
+          key={generation}
+          registerGuard={registerGuard}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+        />
+      ) : view === "bookmarks" ? (
+        <BookmarksPanel
           key={generation}
           registerGuard={registerGuard}
           onNavigation={() =>
@@ -651,7 +669,8 @@ export function Workspace({
         beforeAction={() => guard.current()}
         onImported={async () => {
           await load();
-          if (view === "tasks") setGeneration((value) => value + 1);
+          if (view === "tasks" || view === "bookmarks")
+            setGeneration((value) => value + 1);
         }}
       />
     </main>

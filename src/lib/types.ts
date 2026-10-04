@@ -40,3 +40,18 @@ export const emptyDocument: Document = {
   schemaVersion: 1,
   blocks: [{ type: "paragraph", content: [] }],
 };
+export type Bookmark = {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  siteName: string;
+  collection: string;
+  favorite: boolean;
+  metadataStatus: "ready" | "unavailable";
+  thumbnail: string | null;
+  icon: string | null;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+};

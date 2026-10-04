@@ -1,4 +1,5 @@
 "use client";
+import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -616,8 +617,8 @@ export function SettingsPanel({
                       <div>
                         <h3>Export everything</h3>
                         <p>
-                          A Cilo bundle with notes, tags, drawings, and
-                          attachments.
+                          A Cilo bundle with notes, tasks, bookmarks, tags,
+                          drawings, and attachments.
                         </p>
                       </div>
                       <Button
@@ -640,7 +641,10 @@ export function SettingsPanel({
                     <div className="settings-row">
                       <div>
                         <h3>Restore a Cilo bundle</h3>
-                        <p>Add exported notes alongside your existing ones.</p>
+                        <p>
+                          Add exported content alongside your existing notes and
+                          tasks. Existing bookmark URLs are kept.
+                        </p>
                       </div>
                       <Button
                         variant="outline"
@@ -674,6 +678,7 @@ export function SettingsPanel({
                       e.target.value = "";
                     }}
                   />
+                  <BackupSettings beforeAction={beforeAction} />
                   <input
                     ref={bundleRef}
                     type="file"
@@ -686,6 +691,7 @@ export function SettingsPanel({
                           const result = await api<{
                             imported: number;
                             importedTasks?: number;
+                            importedBookmarks?: number;
                           }>("import/bundle", {
                             method: "POST",
                             body: file,
@@ -693,7 +699,7 @@ export function SettingsPanel({
                           });
                           await onImported();
                           toast.success(
-                            `${result.imported} notes${result.importedTasks ? ` and ${result.importedTasks} tasks` : ""} restored.`,
+                            `${result.imported} notes${result.importedTasks ? ` and ${result.importedTasks} tasks` : ""}${result.importedBookmarks ? ` and ${result.importedBookmarks} bookmarks` : ""} restored.`,
                           );
                         });
                       e.target.value = "";

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/verify-build.mjs",
+    "build": "next build && node scripts/build-backup-cli.mjs && node scripts/verify-build.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -13,7 +13,8 @@
     "prebuild": "node scripts/copy-assets.mjs",
     "predev": "node scripts/copy-assets.mjs",
     "format": "prettier --write src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
-    "format:check": "prettier --check src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml"
+    "format:check": "prettier --check src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
+    "backup": "tsx scripts/backup-cli.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
@@ -50,6 +51,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "drizzle-kit": "0.31.11",
+    "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
     "prettier": "3.9.9",

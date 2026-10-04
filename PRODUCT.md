@@ -12,7 +12,7 @@ Next.js, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, FTS
 
 ## Users
 
-One owner per self-hosted installation, writing personal notes on desktop, tablet, and mobile.
+One owner per self-hosted installation, saving personal notes, tasks, and bookmarks on desktop, tablet, and mobile.
 
 ## Product Purpose
 
@@ -24,7 +24,7 @@ Docker starts the app. First-run onboarding, account creation, appearance, and p
 
 ## Capabilities and Constraints
 
-Flat notes, dedicated tasks with creation/editing/completion/reopening/search, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Mandatory server-side encryption at rest for SQLite, stored attachments, published-file copies, and the authentication secret; an automatically generated key supports simple self-hosting, with external key configuration for separated backups. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots with reader preview, and environment-only local/S3-compatible file storage. Offline editing, collaboration, and shared workspaces are deferred.
+Flat notes, dedicated bookmarks with URL metadata cards, cached thumbnails/icons, collections, favorites, indexed and typo-tolerant search, editing, deletion and preview retry; dedicated tasks with creation/editing/completion/reopening/search, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Mandatory server-side encryption at rest for SQLite, stored attachments, published-file copies, and the authentication secret; an automatically generated key supports simple self-hosting, with external key configuration for separated backups. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots with reader preview, and environment-only local/S3-compatible file storage. Automatic encrypted full-instance backups to local or independent S3 storage, retention, manual backup/verification, and server CLI recovery into an empty local directory. Offline editing, collaboration, and shared workspaces are deferred.
 
 ## Brand Commitments
 
@@ -43,4 +43,4 @@ Keyboard-operable controls, visible focus, readable contrast, reduced-motion sup
 
 ## Next iteration
 
-Bookmarks with URL cards and browser-extension capture remain proposed. Tasks are a separate implemented section, backed by SQLite and included in lossless bundles. Task reminders, recurring tasks, offline editing, and collaboration remain deferred.
+Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Task reminders, recurring tasks, offline editing, and collaboration remain deferred.

@@ -157,10 +157,42 @@ export function createStorage(
   };
 }
 let adapter: EncryptedStorageAdapter | undefined;
+const runtime = globalThis as unknown as {
+  ciloFilePins?: Map<string, number>;
+  ciloDeferredDeletes?: Set<string>;
+};
+const pins = (runtime.ciloFilePins ||= new Map<string, number>());
+const deferred = (runtime.ciloDeferredDeletes ||= new Set<string>());
+export function pinStoredFiles(keys: string[]) {
+  for (const key of keys) pins.set(key, (pins.get(key) || 0) + 1);
+  return async () => {
+    const removals: string[] = [];
+    for (const key of keys) {
+      const count = (pins.get(key) || 1) - 1;
+      if (count) pins.set(key, count);
+      else {
+        pins.delete(key);
+        if (deferred.delete(key)) removals.push(key);
+      }
+    }
+    const results = await Promise.allSettled(
+      removals.map((key) => (adapter ||= createStorage()).delete(key)),
+    );
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length)
+      throw new Error("Some deferred file deletions could not be completed.");
+  };
+}
 export const storage: EncryptedStorageAdapter = {
   write: (key, data) => (adapter ||= createStorage()).write(key, data),
   read: (key) => (adapter ||= createStorage()).read(key),
-  delete: (key) => (adapter ||= createStorage()).delete(key),
+  delete: async (key) => {
+    if (pins.has(key)) {
+      deferred.add(key);
+      return;
+    }
+    await (adapter ||= createStorage()).delete(key);
+  },
   migrateLegacy: (key) => (adapter ||= createStorage()).migrateLegacy(key),
 };
 const migrations = new WeakMap<object, Promise<void>>();
