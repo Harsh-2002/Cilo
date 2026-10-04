@@ -78,7 +78,7 @@ Review the diff before committing. Flag data loss, missing authorization, extra-
 
 Keep the README short and put detailed references in `docs/`. Update the affected documentation when behavior, configuration, or commands change. Distinguish verified features from deferred work. Do not copy secrets, recovery codes, private notes, test credentials, data directories, or generated screenshots into Git or logs.
 
-Work on a feature branch and deliver application changes through a pull request. Do not push application changes directly to `main`. Create, publish, or merge only within the scope authorized in the conversation; this file grants no additional external-action permission.
+During initial development, commit and push verified changes directly to `main`; the owner has authorized this workflow and pull requests are optional. Preserve unrelated changes and check the remote before pushing. Revisit this workflow when the owner requests release or review gates. Create, publish, or merge only within the scope authorized in the conversation; this file grants no additional external-action permission.
 
 Report the resulting behavior, relevant validation, and any remaining limitations. Link the changed files or pull request. Do not claim deployment, publication, or passing tests without evidence.
 

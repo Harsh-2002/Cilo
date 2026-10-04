@@ -1,6 +1,6 @@
 # Contributing
 
-Read [AGENTS.md](AGENTS.md), [product scope](PRODUCT.md), and [design guidance](DESIGN.md). Use a feature branch and open a pull request describing the problem, resulting behavior, and relevant validation.
+Read [AGENTS.md](AGENTS.md), [product scope](PRODUCT.md), and [design guidance](DESIGN.md). During initial development, the owner may push verified changes directly to `main`. External contributors should open a pull request describing the problem, resulting behavior, and relevant validation.
 
 Use Node.js 24 and `npm ci`. Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`. Check desktop and mobile when changing the interface, and Docker persistence when changing storage or packaging. Tests create disposable data outside the repository; never point them at a real installation.
 
