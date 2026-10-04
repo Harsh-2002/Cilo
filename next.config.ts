@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  allowedDevOrigins: (process.env.CILO_DEV_ORIGINS || "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean),
   output: "standalone",
   agentRules: false,
   serverExternalPackages: ["better-sqlite3"],

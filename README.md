@@ -23,6 +23,14 @@ npm ci
 npm run dev
 ```
 
+For development from another device, allow the host IP so Next.js hot reload can connect:
+
+```sh
+CILO_DEV_ORIGINS=10.1.1.5 npm run dev -- --hostname 0.0.0.0 --port 3001
+```
+
+Replace the example IP with your host's address. `CILO_DEV_ORIGINS` accepts comma-separated hostnames or IPs without schemes or ports; restart the dev server after changing it.
+
 ```sh
 npm run typecheck
 npm run lint
