@@ -8,6 +8,7 @@ import { hashPassword } from "better-auth/crypto";
 import { APIError } from "better-auth/api";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 import { z } from "zod";
+import { remapDocument } from "@/lib/document";
 import { auth } from "@/lib/server/auth";
 import { sqlite } from "@/lib/server/db";
 import { storage } from "@/lib/server/storage";
@@ -27,7 +28,6 @@ import {
   response,
   throttle,
 } from "@/lib/server/http";
-import type { Document } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -320,7 +320,7 @@ async function handle(
           `${original.title || "Untitled"} (copy)`,
           original.document,
         );
-        let serialized = JSON.stringify(original.document);
+        const attachmentMap = new Map<string, string>();
         const created: string[] = [];
         try {
           for (const file of filesFor(id)) {
@@ -338,18 +338,27 @@ async function handle(
                 newId,
                 Date.now(),
               );
-            serialized = serialized.replaceAll(file.id, newId);
+            attachmentMap.set(file.id, newId);
           }
           database.transaction(() => {
             database
               .prepare("UPDATE notes SET document=? WHERE id=?")
-              .run(serialized, copy.id);
+              .run(
+                JSON.stringify(remapDocument(original.document, attachmentMap)),
+                copy.id,
+              );
             for (const tag of original.tags)
               database
                 .prepare("INSERT INTO note_tags VALUES(?,?)")
                 .run(copy.id, tag.id);
           })();
-          return response(needNote(copy.id), 201);
+          return response(
+            {
+              ...needNote(copy.id),
+              attachmentMap: Object.fromEntries(attachmentMap),
+            },
+            201,
+          );
         } catch (error) {
           database.prepare("DELETE FROM notes WHERE id=?").run(copy.id);
           await Promise.all(created.map((key) => storage.delete(key)));
@@ -630,10 +639,8 @@ async function handle(
         database
           .transaction(() => {
             for (const note of manifest.notes) {
-              let document = JSON.stringify(note.document);
-              for (const [oldId, newId] of fileIds)
-                document = document.replaceAll(oldId, newId);
-              const parsed = JSON.parse(document) as Document;
+              const parsed = remapDocument(note.document, fileIds);
+              const document = JSON.stringify(parsed);
               database
                 .prepare(
                   "INSERT INTO notes(id,owner_id,title,document,text,favorite,trashed_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",

@@ -286,6 +286,10 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
       async () => {
         const note = await (await call(`notes/${noteId}`)).json();
         note.document.blocks.push({
+          type: "paragraph",
+          content: [{ type: "text", text: fileId, styles: {} }],
+        });
+        note.document.blocks.push({
           type: "image",
           props: { url: `/api/cilo/files/${fileId}`, name: "image.png" },
         });
@@ -296,6 +300,43 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
               document: note.document,
             })
           ).status,
+          200,
+        );
+        const duplicate = await (
+          await call(`notes/${noteId}/duplicate`, "POST")
+        ).json();
+        assert.ok(
+          duplicate.document.blocks.some(
+            (block: { content?: { text?: string }[] }) =>
+              block.content?.some((part) => part.text === fileId),
+          ),
+        );
+        assert.ok(duplicate.attachmentMap[fileId]);
+        assert.notEqual(
+          duplicate.document.blocks.find(
+            (b: { type: string }) => b.type === "image",
+          ).props.url,
+          `/api/cilo/files/${fileId}`,
+        );
+        assert.equal(
+          (await call(`files/${duplicate.attachmentMap[fileId]}`)).status,
+          200,
+        );
+        assert.equal(
+          (await call(`notes/${duplicate.id}`, "DELETE")).status,
+          400,
+        );
+        assert.equal(
+          (
+            await call(`notes/${duplicate.id}`, "PATCH", {
+              revision: duplicate.revision,
+              trashed: true,
+            })
+          ).status,
+          200,
+        );
+        assert.equal(
+          (await call(`notes/${duplicate.id}`, "DELETE")).status,
           200,
         );
         const bundle = await call("export/bundle");
@@ -323,6 +364,12 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           (b: { type: string }) => b.type === "image",
         ).props.url;
         assert.notEqual(url, `/api/cilo/files/${fileId}`);
+        assert.ok(
+          copy.document.blocks.some(
+            (block: { content?: { text?: string }[] }) =>
+              block.content?.some((part) => part.text === fileId),
+          ),
+        );
         assert.equal((await call(url.replace("/api/cilo/", ""))).status, 200);
         const malformed = zipSync({
           "manifest.json": strToU8('{"format":"wrong"}'),

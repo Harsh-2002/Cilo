@@ -32,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { remapDocument } from "@/lib/document";
 import { api, ApiError, downloadRequest } from "@/lib/client";
 import type { Note, Tag } from "@/lib/types";
 import type { EditorTools } from "./editor";
@@ -220,26 +221,21 @@ export function NotePane({
   }
   async function saveCopy() {
     await action(async () => {
-      const result = await api<Note>(`notes/${note.id}/duplicate`, {
+      const result = await api<
+        Note & { attachmentMap: Record<string, string> }
+      >(`notes/${note.id}/duplicate`, {
         method: "POST",
       });
-      let document = JSON.stringify(current.current.document);
-      const originalFiles = await api<{ id: string; name: string }[]>(
-        `files?note=${note.id}`,
+      const document = remapDocument(
+        current.current.document,
+        new Map(Object.entries(result.attachmentMap)),
       );
-      const copiedFiles = await api<{ id: string; name: string }[]>(
-        `files?note=${result.id}`,
-      );
-      originalFiles.forEach((file, i) => {
-        if (copiedFiles[i])
-          document = document.replaceAll(file.id, copiedFiles[i].id);
-      });
       const updated = await api<Note>(`notes/${result.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           revision: result.revision,
           title: `${current.current.title || "Untitled"} (copy)`,
-          document: JSON.parse(document),
+          document,
         }),
       });
       savedVersion.current = version.current;
