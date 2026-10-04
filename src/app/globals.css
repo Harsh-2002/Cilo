@@ -1554,7 +1554,7 @@ button:disabled {
   }
   .search-field input {
     height: 40px;
-    font-size: 14px;
+    font-size: 16px;
   }
   .search-field > svg {
     top: 13px;
@@ -1660,6 +1660,13 @@ button:disabled {
   .settings-profile-fields {
     grid-template-columns: 1fr;
   }
+  .field [data-slot="input"],
+  .field [data-slot="textarea"],
+  .settings-content textarea,
+  .settings-form input,
+  .language-popover [data-slot="command-input"] {
+    font-size: 16px;
+  }
   .settings-row {
     gap: 12px;
   }
@@ -1719,9 +1726,39 @@ button:disabled {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .animate-spin,
+  .animate-pulse,
+  .task-skeleton span {
+    animation: none !important;
+  }
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="popover-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="select-content"] {
+    animation-name: reduced-fade !important;
+    animation-duration: 100ms !important;
+  }
+  [data-state="closed"][data-slot] {
+    animation-direction: reverse;
+  }
+  button {
+    transition-property:
+      color, background-color, border-color, opacity !important;
+  }
+  button:active {
+    translate: none !important;
+  }
+}
+@keyframes reduced-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

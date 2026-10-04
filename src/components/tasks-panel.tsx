@@ -42,6 +42,7 @@ export function TasksPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +73,26 @@ export function TasksPanel({
     );
     return () => registerGuard(async () => true);
   }, [busy, title, editing, editTitle, registerGuard, confirm]);
+  useEffect(() => {
+    const leaving = (e: BeforeUnloadEvent) => {
+      if (busy || title.trim() || (editing && editTitle !== editing.title)) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    const keyboard = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInput.current?.focus();
+      }
+    };
+    window.addEventListener("beforeunload", leaving);
+    window.addEventListener("keydown", keyboard);
+    return () => {
+      window.removeEventListener("beforeunload", leaving);
+      window.removeEventListener("keydown", keyboard);
+    };
+  }, [busy, title, editing, editTitle]);
   async function mutate(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -138,7 +159,7 @@ export function TasksPanel({
           variant="ghost"
           size="icon"
           aria-label="Refresh tasks"
-          disabled={busy || loading}
+          disabled={busy || loading || !!editing}
           onClick={() => void load()}
         >
           <RefreshCw size={16} />
@@ -157,10 +178,10 @@ export function TasksPanel({
               placeholder="What needs doing?"
               value={title}
               maxLength={300}
-              disabled={busy}
+              disabled={busy || !!editing}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <Button type="submit" disabled={busy || !title.trim()}>
+            <Button type="submit" disabled={busy || !!editing || !title.trim()}>
               <Plus size={16} />
               Add task
             </Button>
@@ -170,6 +191,7 @@ export function TasksPanel({
               <Button
                 variant="ghost"
                 aria-pressed={filter === "open"}
+                disabled={busy || !!editing}
                 onClick={() => setFilter("open")}
               >
                 Open<span>{openCount}</span>
@@ -177,6 +199,7 @@ export function TasksPanel({
               <Button
                 variant="ghost"
                 aria-pressed={filter === "completed"}
+                disabled={busy || !!editing}
                 onClick={() => setFilter("completed")}
               >
                 Completed<span>{tasks.length - openCount}</span>
@@ -185,6 +208,8 @@ export function TasksPanel({
             <div className="task-search">
               <Search size={15} />
               <Input
+                ref={searchInput}
+                disabled={busy || !!editing}
                 aria-label="Search tasks"
                 placeholder="Search tasks…"
                 value={query}
@@ -197,7 +222,7 @@ export function TasksPanel({
               <p>{error}</p>
               <Button
                 variant="outline"
-                disabled={busy}
+                disabled={busy || !!editing}
                 onClick={() => void load()}
               >
                 Retry
@@ -207,6 +232,7 @@ export function TasksPanel({
           {loading ? (
             <div
               className="task-skeleton"
+              role="status"
               aria-label="Loading tasks"
               aria-busy="true"
             >
@@ -227,7 +253,7 @@ export function TasksPanel({
                   <div className="task-check">
                     <Checkbox
                       checked={task.completedAt !== null}
-                      disabled={busy}
+                      disabled={busy || !!editing}
                       aria-label={`${task.completedAt !== null ? "Reopen" : "Complete"} ${task.title}`}
                       onCheckedChange={(checked) =>
                         void update(task, { completed: checked === true })
@@ -280,7 +306,7 @@ export function TasksPanel({
                         variant="ghost"
                         size="icon"
                         aria-label={`Actions for ${task.title}`}
-                        disabled={busy}
+                        disabled={busy || !!editing}
                       >
                         <MoreHorizontal size={16} />
                       </Button>

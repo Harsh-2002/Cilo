@@ -43,6 +43,7 @@ export default function CanvasDialog({
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const baseline = useRef<string | null>(null);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
@@ -79,6 +80,19 @@ export default function CanvasDialog({
       active = false;
     };
   }, [scene]);
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || !initial) return;
+    const labelMenu = () => {
+      surface
+        .querySelector(".main-menu-trigger")
+        ?.setAttribute("aria-label", "Drawing menu");
+    };
+    labelMenu();
+    const observer = new MutationObserver(labelMenu);
+    observer.observe(surface, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [initial]);
   const confirm = useConfirm();
   const close = async () => {
     if (
@@ -190,7 +204,7 @@ export default function CanvasDialog({
             </Button>
           </div>
         </header>
-        <div className="canvas-surface">
+        <div className="canvas-surface" ref={surfaceRef}>
           {initial ? (
             <Excalidraw
               initialData={initial}

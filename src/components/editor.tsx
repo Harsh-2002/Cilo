@@ -190,6 +190,12 @@ export default function Editor({
   const { resolvedTheme } = useTheme();
   const editor = useCreateBlockNote({
     schema: editorSchema,
+    domAttributes: {
+      editor: {
+        "aria-label": editable ? "Note content" : "Shared note content",
+        "aria-multiline": "true",
+      },
+    },
     initialContent: document.blocks as Blocks,
     extensions: [syntaxHighlighter],
     dictionary: { ...locales.en, diagram: diagramLocales.en },
@@ -206,6 +212,19 @@ export default function Editor({
       return data.url;
     },
   });
+  useEffect(() => {
+    const element = editor.domElement;
+    if (!element) return;
+    // BlockNote's suggestion menu adds aria-expanded to a textbox, where it is invalid.
+    const normalize = () => element.removeAttribute("aria-expanded");
+    normalize();
+    const observer = new MutationObserver(normalize);
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ["aria-expanded"],
+    });
+    return () => observer.disconnect();
+  }, [editor]);
   useEffect(() => {
     onTools({
       markdown: () => {

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { api } from "@/lib/client";
@@ -15,17 +15,21 @@ export function Cilo() {
   } | null>(null);
   const [error, setError] = useState("");
   const { setTheme } = useTheme();
+  const setThemeRef = useRef(setTheme);
+  useEffect(() => {
+    setThemeRef.current = setTheme;
+  }, [setTheme]);
   const refresh = useCallback(async () => {
     await Promise.resolve();
     setError("");
     try {
       const result = await api<NonNullable<typeof status>>("status");
       setStatus(result);
-      if (result.settings) setTheme(result.settings.theme);
+      if (result.settings) setThemeRef.current(result.settings.theme);
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [setTheme]);
+  }, []);
   useEffect(() => {
     const timer = setTimeout(() => {
       void refresh();

@@ -44,4 +44,6 @@ Next.js · TypeScript · shadcn/ui · Tailwind CSS v4 · BlockNote · SQLite/FTS
 
 Notes require a connection in this release. MinIO/RustFS-compatible S3 storage is optional. Bookmark preview cards, collections, batch import, and read-only publishing are available. Encrypted instance backups run daily by default and can target local storage or a separate S3-compatible destination. Offline editing and collaboration are deferred. See [architecture](docs/architecture.md), [self-hosting and backups](docs/self-hosting.md), and [contributing](CONTRIBUTING.md).
 
+The [verification record](docs/verification.md) lists executed checks, corrected defects, and remaining browser/device coverage.
+
 MIT licensed. Bundled dependencies retain their own licenses; see [third-party notices](docs/third-party.md).

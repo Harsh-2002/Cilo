@@ -190,7 +190,7 @@ export function Workspace({
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (view === "bookmarks") return;
+        if (view === "bookmarks" || view === "tasks") return;
         e.preventDefault();
         void (async () => {
           if (window.innerWidth < 768 && !(await guard.current())) return;
@@ -483,7 +483,11 @@ export function Workspace({
                   </Button>
                 </div>
               ) : loading && !notes.length ? (
-                <div className="list-skeleton">
+                <div
+                  className="list-skeleton"
+                  role="status"
+                  aria-label="Loading notes"
+                >
                   {[1, 2, 3].map((n) => (
                     <div key={n}>
                       <span />

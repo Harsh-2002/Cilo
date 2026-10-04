@@ -229,7 +229,7 @@ export function BookmarksPanel({
           variant="ghost"
           size="icon"
           aria-label="Refresh bookmarks"
-          disabled={busy || loading}
+          disabled={busy || loading || !!editing}
           onClick={() => void load()}
         >
           <RefreshCw size={16} />
@@ -252,7 +252,7 @@ export function BookmarksPanel({
                 placeholder="https://…"
                 value={url}
                 maxLength={4096}
-                disabled={busy}
+                disabled={busy || !!editing}
                 onChange={(e) => setUrl(e.target.value)}
                 required
               />
@@ -266,11 +266,11 @@ export function BookmarksPanel({
                 placeholder="e.g. Reading"
                 value={newCollection}
                 maxLength={80}
-                disabled={busy}
+                disabled={busy || !!editing}
                 onChange={(e) => setNewCollection(e.target.value)}
               />
             </div>
-            <Button type="submit" disabled={busy || !url.trim()}>
+            <Button type="submit" disabled={busy || !!editing || !url.trim()}>
               {busy ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
@@ -289,12 +289,17 @@ export function BookmarksPanel({
               <Button
                 variant="ghost"
                 aria-pressed={favorites}
+                disabled={busy || !!editing}
                 onClick={() => setFavorites(!favorites)}
               >
                 <Star size={15} fill={favorites ? "currentColor" : "none"} />
                 Favorites
               </Button>
-              <Select value={collection} onValueChange={setCollection}>
+              <Select
+                value={collection}
+                onValueChange={setCollection}
+                disabled={busy || !!editing}
+              >
                 <SelectTrigger aria-label="Filter bookmark collection">
                   <SelectValue />
                 </SelectTrigger>
@@ -313,6 +318,7 @@ export function BookmarksPanel({
               <Search size={15} />
               <Input
                 ref={searchInput}
+                disabled={busy || !!editing}
                 maxLength={300}
                 aria-label="Search bookmarks"
                 placeholder="Search links, titles, collections…"
@@ -326,7 +332,7 @@ export function BookmarksPanel({
               <p>{error || searchError}</p>
               <Button
                 variant="outline"
-                disabled={busy}
+                disabled={busy || !!editing}
                 onClick={() => void load()}
               >
                 Retry
@@ -336,6 +342,7 @@ export function BookmarksPanel({
           {loading ? (
             <div
               className="task-skeleton"
+              role="status"
               aria-label="Loading bookmarks"
               aria-busy="true"
             >

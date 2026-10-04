@@ -43,7 +43,7 @@ import { PublishDialog } from "./publish-dialog";
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
   loading: () => (
-    <div className="editor-skeleton">
+    <div className="editor-skeleton" role="status" aria-label="Loading editor">
       <span />
       <span />
       <span />

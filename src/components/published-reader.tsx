@@ -4,7 +4,7 @@ import type { Document } from "@/lib/types";
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
   loading: () => (
-    <div className="editor-skeleton" aria-label="Loading note">
+    <div className="editor-skeleton" role="status" aria-label="Loading note">
       <span />
       <span />
       <span />

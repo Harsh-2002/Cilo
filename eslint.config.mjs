@@ -9,7 +9,14 @@ const eslintConfig = defineConfig([
     files: ["src/components/editor.tsx"],
     rules: { "@next/next/no-img-element": "off" },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([
+    ".next/**",
+    ".playwright-mcp/**",
+    ".impeccable/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
 ]);
 
 export default eslintConfig;
