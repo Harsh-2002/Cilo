@@ -683,16 +683,18 @@ export function SettingsPanel({
                       const file = e.target.files?.[0];
                       if (file)
                         void run(async () => {
-                          const result = await api<{ imported: number }>(
-                            "import/bundle",
-                            {
-                              method: "POST",
-                              body: file,
-                              headers: { "Content-Type": "application/zip" },
-                            },
-                          );
+                          const result = await api<{
+                            imported: number;
+                            importedTasks?: number;
+                          }>("import/bundle", {
+                            method: "POST",
+                            body: file,
+                            headers: { "Content-Type": "application/zip" },
+                          });
                           await onImported();
-                          toast.success(`${result.imported} notes restored.`);
+                          toast.success(
+                            `${result.imported} notes${result.importedTasks ? ` and ${result.importedTasks} tasks` : ""} restored.`,
+                          );
                         });
                       e.target.value = "";
                     }}

@@ -822,6 +822,95 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
       },
     );
     await t.test(
+      "tasks require authentication, preserve revisions and completion, and survive bundles",
+      async () => {
+        assert.equal(
+          (await call("tasks", "GET", undefined, false)).status,
+          401,
+        );
+        assert.equal((await call("tasks", "POST", { title: "" })).status, 400);
+        const task = await (
+          await call("tasks", "POST", { title: "  Plan the next step  " })
+        ).json();
+        assert.equal(task.title, "Plan the next step");
+        assert.equal(task.completedAt, null);
+        const complete = await (
+          await call(`tasks/${task.id}`, "PATCH", {
+            revision: task.revision,
+            completed: true,
+          })
+        ).json();
+        assert.ok(complete.completedAt);
+        assert.equal(
+          (
+            await call(`tasks/${task.id}`, "PATCH", {
+              revision: task.revision,
+              title: "stale",
+            })
+          ).status,
+          409,
+        );
+        assert.equal(
+          (
+            await call(`tasks/${task.id}`, "DELETE", {
+              revision: task.revision,
+            })
+          ).status,
+          409,
+        );
+        const exportResponse = await call("export/bundle");
+        const bundle = new Uint8Array(await exportResponse.arrayBuffer());
+        const manifest = JSON.parse(
+          strFromU8(unzipSync(bundle)["manifest.json"]),
+        );
+        assert.equal(manifest.tasks[0].completedAt, complete.completedAt);
+        const imported = await (
+          await call("import/bundle", "POST", bundle)
+        ).json();
+        assert.equal(imported.importedTasks, 1);
+        const restored = await (await call("tasks")).json();
+        assert.equal(restored.length, 2);
+        assert.ok(
+          restored.every(
+            (item: { completedAt: number }) =>
+              item.completedAt === complete.completedAt,
+          ),
+        );
+        const reopened = await (
+          await call(`tasks/${task.id}`, "PATCH", {
+            revision: complete.revision,
+            completed: false,
+            title: "A better plan",
+          })
+        ).json();
+        assert.equal(reopened.completedAt, null);
+        assert.equal(reopened.title, "A better plan");
+        const owner = sqlite().prepare("SELECT id FROM user LIMIT 1").get() as {
+          id: string;
+        };
+        const { listTasks, updateTask } =
+          await import("../src/lib/server/tasks");
+        assert.equal(listTasks("another-owner").length, 0);
+        assert.throws(
+          () =>
+            updateTask("another-owner", task.id, {
+              revision: reopened.revision,
+              completed: true,
+            }),
+          /not found/,
+        );
+        assert.equal(
+          (
+            await call(`tasks/${task.id}`, "DELETE", {
+              revision: reopened.revision,
+            })
+          ).status,
+          200,
+        );
+        assert.equal(listTasks(owner.id).length, 1);
+      },
+    );
+    await t.test(
       "reopening SQLite preserves data and does not replay migrations",
       async () => {
         const count = (

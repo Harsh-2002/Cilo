@@ -12,7 +12,7 @@ import { tagColors } from "@/lib/tags";
 import { remapDocument } from "@/lib/document";
 import { auth } from "@/lib/server/auth";
 import { sqlite } from "@/lib/server/db";
-import { storage } from "@/lib/server/storage";
+import { storage, migrateStoredFiles } from "@/lib/server/storage";
 import { uploadLimit } from "@/lib/server/config";
 import {
   publicationFor,
@@ -21,6 +21,12 @@ import {
   revokePublication,
 } from "@/lib/server/publications";
 import { createNote, getNote, listNotes } from "@/lib/server/notes";
+import {
+  createTask,
+  deleteTask,
+  listTasks,
+  updateTask,
+} from "@/lib/server/tasks";
 import {
   documentInput,
   noteInput,
@@ -99,6 +105,7 @@ async function handle(
     const method = request.method;
     const url = new URL(request.url);
     const database = sqlite();
+    await migrateStoredFiles();
     if (method !== "GET") checkOrigin(request);
     if (area === "health" && method === "GET") {
       database.prepare("SELECT 1").get();
@@ -279,6 +286,36 @@ async function handle(
           .prepare("UPDATE instance SET recovery_hash=? WHERE id=1")
           .run(recoveryHash(code));
         return response({ recoveryCode: code });
+      }
+    }
+    if (area === "tasks") {
+      if (method === "GET" && !id) return response(listTasks(owner.id));
+      if (method === "POST" && !id) {
+        const input = z
+          .object({ title: z.string().trim().min(1).max(300) })
+          .strict()
+          .parse(await json(request));
+        return response(createTask(owner.id, input.title), 201);
+      }
+      if (method === "PATCH" && id) {
+        const input = z
+          .object({
+            revision: z.number().int().positive(),
+            title: z.string().trim().min(1).max(300).optional(),
+            completed: z.boolean().optional(),
+          })
+          .strict()
+          .refine((v) => v.title !== undefined || v.completed !== undefined)
+          .parse(await json(request));
+        return response(updateTask(owner.id, id, input));
+      }
+      if (method === "DELETE" && id) {
+        const input = z
+          .object({ revision: z.number().int().positive() })
+          .strict()
+          .parse(await json(request));
+        deleteTask(owner.id, id, input.revision);
+        return response({ ok: true });
       }
     }
     if (area === "tags") {
@@ -552,6 +589,7 @@ async function handle(
             format: "cilo",
             version: 1,
             notes,
+            tasks: listTasks(owner.id),
             attachments: attachments.map((f) => ({
               id: f.id,
               note_id: f.note_id,
@@ -650,6 +688,17 @@ async function handle(
         .object({
           format: z.literal("cilo"),
           version: z.literal(1),
+          tasks: z
+            .array(
+              z.object({
+                title: z.string().trim().min(1).max(300),
+                completedAt: z.number().int().nonnegative().nullable(),
+                createdAt: z.number().int().nonnegative(),
+                updatedAt: z.number().int().nonnegative(),
+              }),
+            )
+            .max(10000)
+            .default([]),
           notes: z
             .array(
               z.object({
@@ -707,6 +756,19 @@ async function handle(
         }
         database
           .transaction(() => {
+            for (const task of manifest.tasks) {
+              const createdTask = createTask(owner.id, task.title);
+              database
+                .prepare(
+                  "UPDATE tasks SET completed_at=?,created_at=?,updated_at=? WHERE id=?",
+                )
+                .run(
+                  task.completedAt,
+                  task.createdAt,
+                  task.updatedAt,
+                  createdTask.id,
+                );
+            }
             for (const note of manifest.notes) {
               const parsed = remapDocument(note.document, fileIds);
               const document = JSON.stringify(parsed);
@@ -757,7 +819,10 @@ async function handle(
         await Promise.all(created.map((key) => storage.delete(key)));
         throw error;
       }
-      return response({ imported: manifest.notes.length });
+      return response({
+        imported: manifest.notes.length,
+        importedTasks: manifest.tasks.length,
+      });
     }
     throw new HttpError(404, "This action was not found.");
   } catch (error) {

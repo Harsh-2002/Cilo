@@ -1,4 +1,6 @@
-import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
+import { runtimeFs } from "./runtime-fs";
+const { mkdir, readFile, writeFile, unlink, rename } = runtimeFs.promises;
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import {
   S3Client,
@@ -6,30 +8,67 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-import { dataDir } from "./db";
+import { dataDir, sqlite } from "./db";
+import {
+  isEncrypted,
+  masterKey,
+  seal,
+  unseal,
+  syncDirectory,
+} from "./encryption";
 export interface StorageAdapter {
   write(key: string, data: Uint8Array): Promise<void>;
   read(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
 }
+interface RawStorageAdapter extends StorageAdapter {
+  replace(key: string, data: Uint8Array): Promise<void>;
+}
+interface EncryptedStorageAdapter extends StorageAdapter {
+  migrateLegacy(key: string): Promise<void>;
+}
 function validateKey(key: string) {
   if (!/^[a-f0-9-]{36}$/.test(key)) throw new Error("Invalid storage key");
   return key;
 }
-export function createStorage(
+function createRawStorage(
   env: Record<string, string | undefined> = process.env,
-): StorageAdapter {
+): RawStorageAdapter {
   const backend = env.CILO_STORAGE_BACKEND || "local";
   if (backend === "local") {
-    const directory = path.join(dataDir, "uploads");
+    const directory = path.join(
+      /* turbopackIgnore: true */ path.resolve(env.CILO_DATA_DIR || dataDir),
+      "uploads",
+    );
     const file = (key: string) => path.join(directory, validateKey(key));
     return {
       async write(key, data) {
         await mkdir(directory, { recursive: true, mode: 0o700 });
-        await writeFile(file(key), data, { flag: "wx", mode: 0o600 });
+        await writeFile(file(key), data, {
+          flag: "wx",
+          mode: 0o600,
+          flush: true,
+        });
+        syncDirectory(directory);
       },
       async read(key) {
         return readFile(file(key));
+      },
+      async replace(key, data) {
+        const temporary = `${file(key)}.${randomUUID()}.tmp`;
+        try {
+          await writeFile(temporary, data, {
+            flag: "wx",
+            mode: 0o600,
+            flush: true,
+          });
+          await rename(temporary, file(key));
+          syncDirectory(directory);
+        } finally {
+          await unlink(temporary).catch((e) => {
+            if (e.code !== "ENOENT") throw e;
+          });
+        }
       },
       async delete(key) {
         await unlink(file(key)).catch((e) => {
@@ -79,6 +118,16 @@ export function createStorage(
       if (!result.Body) throw new Error("Stored file is empty.");
       return Buffer.from(await result.Body.transformToByteArray());
     },
+    async replace(key, data) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: objectKey(key),
+          Body: data,
+          ContentType: "application/octet-stream",
+        }),
+      );
+    },
     async delete(key) {
       await client.send(
         new DeleteObjectCommand({ Bucket: bucket, Key: objectKey(key) }),
@@ -86,9 +135,52 @@ export function createStorage(
     },
   };
 }
-let adapter: StorageAdapter | undefined;
-export const storage: StorageAdapter = {
+export function createStorage(
+  env: Record<string, string | undefined> = process.env,
+): EncryptedStorageAdapter {
+  const raw = createRawStorage(env);
+  const key = masterKey(path.resolve(env.CILO_DATA_DIR || dataDir), false, env);
+  return {
+    write: (id, bytes) =>
+      raw.write(id, seal(bytes, key, `object:${validateKey(id)}`)),
+    read: async (id) =>
+      unseal(await raw.read(id), key, `object:${validateKey(id)}`),
+    delete: (id) => raw.delete(id),
+    async migrateLegacy(id) {
+      const bytes = await raw.read(id);
+      if (isEncrypted(bytes)) {
+        unseal(bytes, key, `object:${validateKey(id)}`);
+        return;
+      }
+      await raw.replace(id, seal(bytes, key, `object:${validateKey(id)}`));
+    },
+  };
+}
+let adapter: EncryptedStorageAdapter | undefined;
+export const storage: EncryptedStorageAdapter = {
   write: (key, data) => (adapter ||= createStorage()).write(key, data),
   read: (key) => (adapter ||= createStorage()).read(key),
   delete: (key) => (adapter ||= createStorage()).delete(key),
+  migrateLegacy: (key) => (adapter ||= createStorage()).migrateLegacy(key),
 };
+const migrations = new WeakMap<object, Promise<void>>();
+export function migrateStoredFiles(): Promise<void> {
+  const database = sqlite();
+  let migration = migrations.get(database);
+  if (!migration) {
+    migration = (async () => {
+      const pending = database
+        .prepare("SELECT storage_key FROM encryption_pending_files")
+        .all() as { storage_key: string }[];
+      for (const item of pending) {
+        await storage.migrateLegacy(item.storage_key);
+        database
+          .prepare("DELETE FROM encryption_pending_files WHERE storage_key=?")
+          .run(item.storage_key);
+      }
+    })();
+    migrations.set(database, migration);
+    migration.catch(() => migrations.delete(database));
+  }
+  return migration;
+}

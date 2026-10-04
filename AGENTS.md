@@ -4,13 +4,13 @@ These instructions apply throughout this repository. Read any more specific `AGE
 
 ## Orientation and sources of truth
 
-Cilo is a single-owner, self-hosted note-taking web app. Its stack is Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, Better Auth, and Excalidraw.
+Cilo is a single-owner, self-hosted notes and tasks web app. Its stack is Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, Better Auth, and Excalidraw.
 
 - `PRODUCT.md`: product scope and confirmed user requirements.
 - `DESIGN.md`: interface direction, tokens, and responsive behavior.
 - `package.json` and `package-lock.json`: executable commands and dependency versions.
 - `src/app/`: routes, metadata, and application styles.
-- `src/components/`: onboarding, workspace, editor, drawings, and settings; `ui/` contains shadcn components.
+- `src/components/`: onboarding, workspace, editor, tasks, drawings, and settings; `ui/` contains shadcn components.
 - `src/lib/server/`: authentication, schema, persistence, storage, and validation.
 - `migrations/`: ordered SQL migrations, including FTS5 and the single-owner invariant.
 - `tests/`: automated behavior and persistence checks.
@@ -45,6 +45,7 @@ Docker delivery uses `docker compose up -d --build`. Inspect configuration with 
 - Keep revision checks and unsaved edits intact. Never silently resolve a conflict by overwriting the server document.
 - Owner creation must remain atomic and single-use. Public signup stays disabled. Authorize every private API and file request on the server.
 - Onboarding, appearance, account security, and import/export belong in the UI. Upload limits and local/S3 storage are configured only through environment variables; secrets are generated and persisted by the server.
+- Encryption at rest is mandatory. Keep the encryption-enabled SQLite driver, authenticated file encryption, object binding, and resumable legacy migration intact. Never add a disable switch or plaintext fallback. Keep keys out of Git, logs, and chat; use the configured secret manager for externally managed keys. Verify wrong-key, tamper, recovery, and migration behavior.
 - Keep uploads outside public assets behind the storage adapter. Enforce upload limits, generated storage keys, and safe serving of active file formats.
 - Use shadcn/ui or Cilo’s styled components for visible controls, including editor selectors and confirmations. Do not use native select menus, browser alerts, prompts, or confirm dialogs. Native file pickers remain the system integration behind styled upload buttons. Apply Impeccable to UI changes and verify consistent desktop/mobile behavior.
 - Keep the interface monochrome and responsive; user-selected tag and artifact colors are content metadata. Reuse existing shadcn controls, with labeled actions, visible focus, accessible dialogs, and explicit loading/error states.

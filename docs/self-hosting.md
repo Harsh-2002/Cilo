@@ -52,7 +52,7 @@ docker run --rm --user 0 -v cilo_cilo-data:/data -v "$PWD/../cilo-backups:/backu
 docker compose up -d
 ```
 
-Verify login, recovery availability, notes, a drawing, a file download, and search after restoring. Keep backups private: they contain the account password hash and authentication secret.
+Verify login, recovery availability, notes, tasks, a drawing, a file download, and search after restoring. Keep backups private: the default complete backup also includes the decryption key.
 
 ## Mobile and offline behavior
 
@@ -92,10 +92,24 @@ Restart after changing configuration. Switching backends does not migrate existi
 
 Settings → Import & export accepts up to 100 files per batch. Markdown and text files become notes. Selecting a folder retains relative paths, allowing selected images and attachments referenced by Markdown to be uploaded and relinked. Remaining files become their own attachment notes. Markdown files are limited to 8 MiB; attachments use the server-configured limit. Failed items are reported individually and incomplete note imports are cleaned up. Successful imports are retained.
 
-Choose Share & publish from a note, inspect Reader preview, then publish. The public `/p/<token>` link contains a read-only snapshot, with copies of referenced attachments and drawing previews. Editing the private note does not change that snapshot until Publish latest version is chosen. Stop sharing revokes the note and asset endpoints; republishing creates a new token. Moving a published note to trash also revokes its link. Public links are unlisted and marked noindex, but anyone with the link can read them. Publication state is part of a full instance backup; Cilo bundles restore notes privately and do not restore share links.
+Choose Share & publish from a note, inspect Reader preview, then publish. The public `/share/<token>` link contains a read-only snapshot, with copies of referenced attachments and drawing previews. Editing the private note does not change that snapshot until Publish latest version is chosen. Stop sharing revokes the note and asset endpoints; republishing creates a new token. Moving a published note to trash also revokes its link. Public links are unlisted and marked noindex, but anyone with the link can read them. Publication state is part of a full instance backup; Cilo bundles restore notes privately and do not restore share links.
 
 ## Optional authenticator MFA
 
 Settings → Account → Two-factor authentication starts TOTP enrollment. Confirm your current password, scan the QR code (or enter the setup key manually), and verify the six-digit code. MFA activates only after verification. Download and acknowledge the single-use backup codes before leaving setup. Other sessions are revoked when MFA is enabled or disabled.
 
 After activation, password sign-in creates a short-lived challenge; private notes remain inaccessible until a valid authenticator or backup code is supplied. Invalid attempts are rate-limited. Disabling MFA requires the current password. The original Cilo account recovery code resets the password, clears MFA enrollment and pending challenges, revokes sessions, and issues a replacement recovery code. Re-enroll MFA after recovery. Keep the authentication secret in backups: it encrypts the TOTP enrollment data.
+
+## Tasks
+
+Open Tasks from the navigation to add, edit, complete, reopen, search, or delete tasks. Open and Completed views show separate counts. Changes persist in SQLite; revision checks prevent another tab from silently overwriting a task. Lossless bundles include task titles, completion state, and timestamps; importing adds copies. Older bundles without tasks remain compatible. Full data-directory backups include tasks automatically.
+
+Shared notes show their content, a Shared note label, and the publication date without Cilo branding. Existing `/p/<token>` links redirect to `/share/<token>`.
+
+## Encryption and key custody
+
+Encryption at rest is mandatory, with no UI or environment switch to turn it off. SQLite (including search indexes and WAL), attachments in both storage backends, published-file copies, and the authentication secret are encrypted. Existing data is migrated on startup; keep the instance stopped during upgrades and wait for startup and health checks to finish before serving traffic. Migration requires existing objects to be reachable, so do not switch storage backends at the same time. Older backups, filesystem snapshots, and previous versions in versioned S3 buckets are not rewritten by this migration.
+
+The default setup creates a random 32-byte `encryption.key` in the data directory with owner-only permissions. That keeps a complete folder backup restorable. A backup containing both encrypted data and this key does not protect against someone obtaining the entire backup. For that threat, supply `CILO_ENCRYPTION_KEY` as a random 64-character hexadecimal key from a secret manager, or `CILO_ENCRYPTION_KEY_FILE` pointing to a separately mounted file of exactly 32 raw bytes. Compose forwards both variables; a key-file path also requires the corresponding read-only mount in your Compose override. Keep externally managed keys outside the data backup and retain them separately for recovery.
+
+Do not change or delete an established key: existing data requires the original key, including restored S3 objects. Incorrect or missing keys stop startup; Cilo never creates a replacement for an encrypted database. Key rotation is not yet an exposed operation. This protects stored data, not a compromised running server; use HTTPS for traffic. Authorized readers receive decrypted content, and share links intentionally expose their published snapshot. Explicit Markdown and bundle exports contain readable content for portability; protect downloaded exports separately.

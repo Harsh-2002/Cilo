@@ -1,6 +1,6 @@
 # Cilo
 
-A quiet place to think, write, and remember. Cilo is a minimal, self-hosted note-taking app with rich text, Markdown import/export, tags, search, diagrams, drawings, and attachments.
+A quiet place to think, write, and remember. Cilo is a minimal, self-hosted notes and tasks app with rich text, Markdown import/export, tags, search, diagrams, drawings, and attachments.
 
 ## Docker quick start
 
@@ -12,7 +12,9 @@ docker compose up -d --build
 
 Open <http://localhost:3000> and create your owner account in the browser. Save the recovery code. Account and appearance settings live in the UI; upload limits and local/S3 storage use environment variables.
 
-Docker persists the database, files, and generated authentication secret in the `cilo-data` volume. For another port, use `CILO_PORT=3001 docker compose up -d`. For remote access, configure the bind address and public URL, then use an HTTPS reverse proxy. See [self-hosting](docs/self-hosting.md).
+By default, Docker persists the database, files, generated authentication secret, and encryption key in the `cilo-data` volume. For another port, use `CILO_PORT=3001 docker compose up -d`. For remote access, configure the bind address and public URL, then use an HTTPS reverse proxy. See [self-hosting](docs/self-hosting.md).
+
+Cilo encrypts its database and stored files at rest, with no disable option. See [key custody and encrypted backups](docs/self-hosting.md#encryption-and-key-custody) before moving or restoring an instance.
 
 ## Development
 

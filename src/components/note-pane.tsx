@@ -88,13 +88,25 @@ export function NotePane({
   useLayoutEffect(() => {
     const title = titleRef.current;
     if (!title) return;
+    let frame = 0;
+    let width = 0;
     const resize = () => {
-      title.style.height = "0px";
+      title.style.height = "auto";
       title.style.height = `${title.scrollHeight}px`;
     };
     resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width <= 0 || entry.contentRect.width === width)
+        return;
+      width = entry.contentRect.width;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(resize);
+    });
+    observer.observe(title);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [note.title]);
   const flushRef = useRef<() => Promise<boolean>>(async () => true);
   const setTools = useCallback((value: EditorTools) => {

@@ -1,4 +1,12 @@
 export type Document = { schemaVersion: 1; blocks: Record<string, unknown>[] };
+export type Task = {
+  id: string;
+  title: string;
+  completedAt: number | null;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+};
 export type Note = {
   id: string;
   title: string;

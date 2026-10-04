@@ -1,6 +1,5 @@
 "use client";
 import dynamic from "next/dynamic";
-import { brandPath } from "@/lib/brand";
 import type { Document } from "@/lib/types";
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
@@ -58,13 +57,6 @@ export function PublishedReader({
   return (
     <main className="publication-page">
       <header className="publication-header">
-        <span className="publication-brand">
-          <svg viewBox="0 0 40 40" aria-hidden="true">
-            <rect width="40" height="40" rx="9" fill="currentColor" />
-            <path d={brandPath} fill="var(--background)" />
-          </svg>
-          Cilo
-        </span>
         <span>Shared note</span>
       </header>
       <NoteReading title={title} document={document} />

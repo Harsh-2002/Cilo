@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createCodeBlockSpec } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { codeBlockOptions } from "@blocknote/code-block";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
@@ -43,7 +43,12 @@ function LanguagePicker({
           <ChevronDown size={14} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="language-popover" align="start">
+      <PopoverContent
+        className="language-popover"
+        align="start"
+        sideOffset={8}
+        collisionPadding={12}
+      >
         <Command>
           <CommandInput placeholder="Search languages…" />
           <CommandList>
@@ -53,6 +58,7 @@ function LanguagePicker({
                 <CommandItem
                   key={item.id}
                   value={item.id}
+                  data-checked={language === item.id}
                   keywords={[item.name, ...item.aliases]}
                   onSelect={() => {
                     onChange(item.id);
@@ -60,9 +66,6 @@ function LanguagePicker({
                   }}
                 >
                   {item.name}
-                  {language === item.id && (
-                    <Check className="ml-auto" size={15} />
-                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

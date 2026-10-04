@@ -41,3 +41,13 @@ FTS5 covers note titles, prose, code, and drawing text, with prefix matching and
 Tags have a validated named color, defaulting to gray for existing data. Bundles retain colors for newly imported tags; a same-named existing tag keeps its local color. Tag colors are content metadata, while the interface remains monochrome.
 
 Better Auth's TOTP plugin stores encrypted secrets and backup-code data in SQLite. Enrollment must be verified before activation. Password-only sign-in has no private-note session when MFA is enabled. Single-use account recovery also clears MFA and outstanding verification challenges.
+
+## Tasks
+
+Tasks use a dedicated SQLite table and Drizzle queries scoped to the authenticated owner. Create, update, complete, reopen, and delete requests require the owner session and same-origin writes. Updates and deletion use revision checks. Tasks are separate from BlockNote checklist blocks and participate in lossless bundle export/import.
+
+## Mandatory encryption at rest
+
+The better-sqlite3 import is pinned to the SQLite3 Multiple Ciphers fork through an npm alias, preserving the Drizzle driver API. SQLite pages and WAL are encrypted with ChaCha20-Poly1305; temporary SQL storage stays in memory. A random 256-bit master key derives separate SQLite and file keys with HKDF-SHA256. Stored files and the authentication secret use AES-256-GCM with random nonces and authenticated object identifiers. Local and S3 adapters encrypt before writing and authenticate before returning plaintext.
+
+Startup upgrades legacy databases, records pending attachment/publication keys, encrypts legacy objects with atomic local replacement or S3 object replacement, and clears each pending row only after replacement. The migration resumes after interruption. Missing keys, incorrect keys, and authentication failures do not fall back to plaintext. Master-key configuration has no encryption-disable switch.

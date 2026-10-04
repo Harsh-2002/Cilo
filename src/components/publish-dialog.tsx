@@ -51,7 +51,7 @@ export function PublishDialog({
       setBusy(false);
     }
   }
-  const link = publication ? `${origin}/p/${publication.token}` : "";
+  const link = publication ? `${origin}/share/${publication.token}` : "";
   return (
     <Dialog
       open

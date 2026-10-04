@@ -201,6 +201,8 @@ Desktop uses a 216px navigation rail, a 300px searchable note list, and a fluid 
 
 The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system. Settings sits in a centered 600px dialog with horizontal Appearance, Account, and Import & export tabs; its content scrolls without visible scrollbar chrome. Publishing preview and the read-only public reader use a centered 800px shell with responsive gutters and the same quiet reading surface.
 
+Tasks is a separate view beside workspace navigation. Its text-first content sits in a centered 800px outer shell with 52px desktop and 20px mobile horizontal gutters; the header, inline creation form, status filters, search, task rows, and empty or error states stay within that pane.
+
 ## Elevation & Depth
 
 The workspace relies on tonal fills and one-pixel separators instead of resting card shadows. Hovered and selected rows use a quiet surface shift. Transient menus use the theme's medium shadow and the mobile navigation sheet uses its larger shadow; dialog surfaces use a fine outline. Motion stays brief and functional, and reduced-motion preferences collapse transitions and animation to near-zero duration.
@@ -246,13 +248,21 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 
 The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation.
 
+### Tasks
+
+The dedicated task view keeps one inline creation form above Open and Completed filters with counts, then search and text-first rows. The desktop search stays compact; on mobile the toolbar stacks and search spans the content width. A checkbox completes or reopens each task, while title edits stay inline and deletion uses the styled confirmation dialog. Task text wraps anywhere; checkbox and row-action targets are 44px, and mobile editing actions remain touch-sized. Keep loading, retryable error, and empty states inside the same reading flow.
+
+### Code Language Picker
+
+Use the shadcn Popover and Command pair with one search header. The menu is at most 280px wide and fits within 24px of the viewport width; its height stays within the available viewport. Options are 36px tall on desktop and 44px on mobile. Keep one keyboard-active option distinct from the check on the saved language.
+
 ### Brand Mark
 
-The folded-page C monogram uses the foreground on a compact rounded square and reverses against the theme background. Reuse the shared local vector path across the app, favicon, mobile icons, and published reader.
+The folded-page C monogram uses the foreground on a compact rounded square and reverses against the theme background. Reuse the shared local vector path across the branded app shell, favicon, and mobile icons. The public reader carries no Cilo name or mark; its metadata is limited to “Shared note” and the publication date.
 
 ### Writing Surface
 
-The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. BlockNote prose stays on the shared sans family, while source blocks use monospace. The editor preserves the draft during save errors and uses a visible save state; those interaction states stay close to the note rather than moving into a separate dashboard.
+The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. A ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. BlockNote prose stays on the shared sans family, while source blocks use monospace. The editor preserves the draft during save errors and uses a visible save state; those interaction states stay close to the note rather than moving into a separate dashboard.
 
 ## Do's and Don'ts
 
@@ -269,3 +279,4 @@ The title field stays borderless and uses a muted surface fill with a small radi
 - **Don't** turn the writing workspace into a card dashboard or decorative landing hero.
 - **Don't** add decorative gradients or a visible construction grid to the app chrome.
 - **Don't** let application chrome compete with the note's content.
+- **Don't** put the Cilo name or mark on the public reader; keep its metadata to “Shared note” and the publication date.

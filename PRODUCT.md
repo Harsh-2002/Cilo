@@ -24,7 +24,7 @@ Docker starts the app. First-run onboarding, account creation, appearance, and p
 
 ## Capabilities and Constraints
 
-Flat notes, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots with reader preview, and environment-only local/S3-compatible file storage. Offline editing, collaboration, and shared workspaces are deferred.
+Flat notes, dedicated tasks with creation/editing/completion/reopening/search, tags, favorites, trash, search, rich editing, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Mandatory server-side encryption at rest for SQLite, stored attachments, published-file copies, and the authentication secret; an automatically generated key supports simple self-hosting, with external key configuration for separated backups. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots with reader preview, and environment-only local/S3-compatible file storage. Offline editing, collaboration, and shared workspaces are deferred.
 
 ## Brand Commitments
 
@@ -43,4 +43,4 @@ Keyboard-operable controls, visible focus, readable contrast, reduced-motion sup
 
 ## Next iteration
 
-Dedicated Tasks and Bookmarks views are proposed next: completion/filtering for tasks and URL cards for bookmarks, using SQLite metadata and the same file adapter. Browser-extension capture follows later. These managers are not implemented in this iteration; checklist blocks and ordinary links already work inside notes.
+Bookmarks with URL cards and browser-extension capture remain proposed. Tasks are a separate implemented section, backed by SQLite and included in lossless bundles. Task reminders, recurring tasks, offline editing, and collaboration remain deferred.

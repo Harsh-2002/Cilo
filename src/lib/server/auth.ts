@@ -2,28 +2,54 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username, twoFactor } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { runtimeFs } from "./runtime-fs";
+const { readFileSync, writeFileSync } = runtimeFs;
 import path from "node:path";
 import { db, dataDir } from "./db";
 import * as schema from "./schema";
 import { requestOrigin } from "./http";
+import {
+  isEncrypted,
+  masterKey,
+  replaceFile,
+  seal,
+  unseal,
+  syncDirectory,
+} from "./encryption";
 
-function secret() {
+export function authSecret() {
   db();
-  const file = path.join(dataDir, "auth.secret");
+  const file = path.join(/* turbopackIgnore: true */ dataDir, "auth.secret");
+  const key = masterKey(dataDir);
   try {
-    return readFileSync(file, "utf8").trim();
+    const bytes = readFileSync(file);
+    if (isEncrypted(bytes))
+      return unseal(bytes, key, "auth-secret").toString("utf8").trim();
+    replaceFile(file, seal(bytes, key, "auth-secret"));
+    return bytes.toString("utf8").trim();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     try {
-      writeFileSync(file, randomBytes(48).toString("base64url"), {
-        flag: "wx",
-        mode: 0o600,
-      });
+      writeFileSync(
+        file,
+        seal(
+          Buffer.from(randomBytes(48).toString("base64url")),
+          key,
+          "auth-secret",
+        ),
+        {
+          flag: "wx",
+          mode: 0o600,
+          flush: true,
+        },
+      );
+      syncDirectory(dataDir);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
     }
-    return readFileSync(file, "utf8").trim();
+    return unseal(readFileSync(file), key, "auth-secret")
+      .toString("utf8")
+      .trim();
   }
 }
 export function auth(request?: Request) {
@@ -33,7 +59,7 @@ export function auth(request?: Request) {
   return betterAuth({
     appName: "Cilo",
     baseURL: origin,
-    secret: secret(),
+    secret: authSecret(),
     database: drizzleAdapter(db(), { provider: "sqlite", schema }),
     emailAndPassword: {
       enabled: true,

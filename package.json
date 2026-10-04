@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/verify-build.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -25,7 +25,7 @@
     "@excalidraw/excalidraw": "0.18.1",
     "@fontsource-variable/geist": "5.3.0",
     "better-auth": "1.7.7",
-    "better-sqlite3": "13.0.3",
+    "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@13.0.3",
     "class-variance-authority": "0.7.1",
     "cmdk": "1.1.1",
     "cn": "0.4.0",
@@ -62,7 +62,8 @@
     "esbuild@0.18.20": true,
     "esbuild@0.25.12": true,
     "esbuild@0.28.2": true,
-    "unrs-resolver@1.12.2": true
+    "unrs-resolver@1.12.2": true,
+    "better-sqlite3-multiple-ciphers@13.0.3": true
   },
   "overrides": {
     "lodash-es": "4.18.1",

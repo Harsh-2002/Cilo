@@ -15,13 +15,29 @@ const Context = createContext<Confirm | null>(null);
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<Request | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
+  const sequence = useRef(0);
   const confirm: Confirm = (request) =>
     new Promise((resolve) => {
       resolver.current?.(false);
       resolver.current = resolve;
-      setRequest(request);
+      const ticket = ++sequence.current;
+      const menu = document.querySelector(
+        '[data-slot="dropdown-menu-content"]',
+      );
+      if (menu) {
+        requestAnimationFrame(() => {
+          void Promise.allSettled(
+            menu.getAnimations().map((animation) => animation.finished),
+          ).then(() => {
+            requestAnimationFrame(() => {
+              if (ticket === sequence.current) setRequest(request);
+            });
+          });
+        });
+      } else setRequest(request);
     });
   function settle(value: boolean) {
+    sequence.current++;
     resolver.current?.(value);
     resolver.current = null;
     setRequest(null);

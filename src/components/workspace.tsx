@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Loader2,
   ArrowRight,
+  ListTodo,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -41,6 +42,7 @@ import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
 import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
+import { TasksPanel } from "./tasks-panel";
 
 export function Workspace({
   owner,
@@ -274,6 +276,13 @@ export function Workspace({
             {label}
           </button>
         ))}
+        <button
+          className={`nav-item ${view === "tasks" ? "active" : ""}`}
+          onClick={() => void filter("tasks")}
+        >
+          <ListTodo size={16} />
+          Tasks
+        </button>
       </nav>
       <div className="tags-heading">
         <span>Tags</span>
@@ -330,7 +339,13 @@ export function Workspace({
         )}
       </div>
       <footer className="navigation-footer">
-        <button className="nav-item" onClick={() => setSettingsOpen(true)}>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setDrawer(false);
+            setSettingsOpen(true);
+          }}
+        >
           <SettingsIcon size={16} />
           Settings
         </button>
@@ -375,197 +390,216 @@ export function Workspace({
           {navigation}
         </SheetContent>
       </Sheet>
-      <section className="notes-list">
-        <header className="list-header">
-          <div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="menu-toggle"
-              aria-label="Open navigation"
-              onClick={() =>
-                window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
-              }
-            >
-              <Menu size={18} />
-            </Button>
-            <h1>{title}</h1>
-            <span className="note-count">{notes.length}</span>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Sort notes">
-                <ArrowUpDown size={15} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {[
-                { value: "updated", label: "Last edited" },
-                { value: "created", label: "Date created" },
-                { value: "title", label: "Title" },
-              ].map((item) => (
-                <DropdownMenuItem
-                  key={item.value}
-                  onSelect={() => setSort(item.value)}
-                >
-                  {item.label}
-                  {sort === item.value && <span className="ml-auto">✓</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-        <div className="search-field">
-          <Search size={15} />
-          <Input
-            ref={searchRef}
-            aria-label="Search notes"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search your notes…"
-          />
-          <kbd>⌘ K</kbd>
-        </div>
-        <div className="note-list-scroll" aria-label="Note list">
-          {error ? (
-            <div className="list-empty">
-              <p role="alert">{error}</p>
-              <Button variant="outline" size="sm" onClick={load}>
-                <RefreshCw size={14} />
-                Try again
-              </Button>
-            </div>
-          ) : loading && !notes.length ? (
-            <div className="list-skeleton">
-              {[1, 2, 3].map((n) => (
-                <div key={n}>
-                  <span />
-                  <span />
-                </div>
-              ))}
-            </div>
-          ) : !notes.length ? (
-            <div className="list-empty">
-              <FileText size={25} />
-              <h2>
-                {query
-                  ? "No matching notes"
-                  : view === "trash"
-                    ? "Nothing in trash"
-                    : view === "favorites"
-                      ? "Keep good ideas close"
-                      : "A fresh page awaits"}
-              </h2>
-              <p>
-                {query
-                  ? "Try a different word or tag."
-                  : view === "favorites"
-                    ? "Star a note to find it here."
-                    : view === "trash"
-                      ? "Notes you delete will appear here."
-                      : "Start with a thought. The rest will follow."}
-              </p>
-              {view === "all" && !query && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void create()}
-                >
-                  <Plus size={14} />
-                  Create a note
-                </Button>
-              )}
-            </div>
-          ) : (
-            notes.map((note) => (
-              <button
-                className={`note-list-item ${active?.id === note.id ? "selected" : ""}`}
-                key={note.id}
-                onClick={() => void open(note)}
-              >
-                <div>
-                  <strong>{note.title || "Untitled"}</strong>
-                  {note.favorite && <Star size={12} fill="currentColor" />}
-                </div>
-                <p>
-                  {note.text.replace(/\s+/g, " ").slice(0, 110) ||
-                    "An idea waiting to happen…"}
-                </p>
-                <footer>
-                  <time>
-                    {new Date(note.updatedAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </time>
-                  {note.tags.slice(0, 2).map((tag) => (
-                    <span key={tag.id}>
-                      <span className="tag-dot" data-color={tag.color} />
-                      {tag.name}
-                    </span>
-                  ))}
-                </footer>
-              </button>
-            ))
-          )}
-        </div>
-        <footer className="list-footer">
-          <span>
-            {notes.length} {notes.length === 1 ? "note" : "notes"}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Create note"
-            onClick={() => void create()}
-          >
-            <Plus size={16} />
-          </Button>
-        </footer>
-      </section>
-      {active ? (
-        <NotePane
-          key={`${active.id}-${generation}`}
-          initial={active}
-          tags={tags}
-          onSaved={onSaved}
-          onBack={() => void back()}
-          onOpen={adopt}
-          onDeleted={() => {
-            setActive(null);
-            guard.current = async () => true;
-            void load();
-          }}
+      {view === "tasks" ? (
+        <TasksPanel
+          key={generation}
           registerGuard={registerGuard}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
         />
       ) : (
-        <section className="workspace-empty">
-          {opening ? (
-            <Loader2 className="animate-spin" aria-label="Opening note" />
-          ) : (
-            <>
-              <div className="empty-illustration">
-                <FileText size={38} strokeWidth={1} />
+        <>
+          <section className="notes-list">
+            <header className="list-header">
+              <div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="menu-toggle"
+                  aria-label="Open navigation"
+                  onClick={() =>
+                    window.innerWidth < 1024
+                      ? setDrawer(true)
+                      : setSidebar(true)
+                  }
+                >
+                  <Menu size={18} />
+                </Button>
+                <h1>{title}</h1>
+                <span className="note-count">{notes.length}</span>
               </div>
-              <h2>Room for your next idea.</h2>
-              <p>
-                Pick a note to keep going,
-                <br />
-                or start something new.
-              </p>
-              <Button variant="outline" onClick={() => void create()}>
-                Create a note
-                <ArrowRight size={15} />
-              </Button>
-              <span className="shortcut-hint">
-                <kbd>⌘</kbd>
-                <kbd>⌥</kbd>
-                <kbd>N</kbd>
-                <span>to create a note</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Sort notes">
+                    <ArrowUpDown size={15} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {[
+                    { value: "updated", label: "Last edited" },
+                    { value: "created", label: "Date created" },
+                    { value: "title", label: "Title" },
+                  ].map((item) => (
+                    <DropdownMenuItem
+                      key={item.value}
+                      onSelect={() => setSort(item.value)}
+                    >
+                      {item.label}
+                      {sort === item.value && (
+                        <span className="ml-auto">✓</span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </header>
+            <div className="search-field">
+              <Search size={15} />
+              <Input
+                ref={searchRef}
+                aria-label="Search notes"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search your notes…"
+              />
+              <kbd>⌘ K</kbd>
+            </div>
+            <div className="note-list-scroll" aria-label="Note list">
+              {error ? (
+                <div className="list-empty">
+                  <p role="alert">{error}</p>
+                  <Button variant="outline" size="sm" onClick={load}>
+                    <RefreshCw size={14} />
+                    Try again
+                  </Button>
+                </div>
+              ) : loading && !notes.length ? (
+                <div className="list-skeleton">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n}>
+                      <span />
+                      <span />
+                    </div>
+                  ))}
+                </div>
+              ) : !notes.length ? (
+                <div className="list-empty">
+                  <FileText size={25} />
+                  <h2>
+                    {query
+                      ? "No matching notes"
+                      : view === "trash"
+                        ? "Nothing in trash"
+                        : view === "favorites"
+                          ? "Keep good ideas close"
+                          : "A fresh page awaits"}
+                  </h2>
+                  <p>
+                    {query
+                      ? "Try a different word or tag."
+                      : view === "favorites"
+                        ? "Star a note to find it here."
+                        : view === "trash"
+                          ? "Notes you delete will appear here."
+                          : "Start with a thought. The rest will follow."}
+                  </p>
+                  {view === "all" && !query && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void create()}
+                    >
+                      <Plus size={14} />
+                      Create a note
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                notes.map((note) => (
+                  <button
+                    className={`note-list-item ${active?.id === note.id ? "selected" : ""}`}
+                    key={note.id}
+                    onClick={() => void open(note)}
+                  >
+                    <div>
+                      <strong>{note.title || "Untitled"}</strong>
+                      {note.favorite && <Star size={12} fill="currentColor" />}
+                    </div>
+                    <p>
+                      {note.text.replace(/\s+/g, " ").slice(0, 110) ||
+                        "An idea waiting to happen…"}
+                    </p>
+                    <footer>
+                      <time>
+                        {new Date(note.updatedAt).toLocaleDateString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )}
+                      </time>
+                      {note.tags.slice(0, 2).map((tag) => (
+                        <span key={tag.id}>
+                          <span className="tag-dot" data-color={tag.color} />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </footer>
+                  </button>
+                ))
+              )}
+            </div>
+            <footer className="list-footer">
+              <span>
+                {notes.length} {notes.length === 1 ? "note" : "notes"}
               </span>
-            </>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Create note"
+                onClick={() => void create()}
+              >
+                <Plus size={16} />
+              </Button>
+            </footer>
+          </section>
+          {active ? (
+            <NotePane
+              key={`${active.id}-${generation}`}
+              initial={active}
+              tags={tags}
+              onSaved={onSaved}
+              onBack={() => void back()}
+              onOpen={adopt}
+              onDeleted={() => {
+                setActive(null);
+                guard.current = async () => true;
+                void load();
+              }}
+              registerGuard={registerGuard}
+            />
+          ) : (
+            <section className="workspace-empty">
+              {opening ? (
+                <Loader2 className="animate-spin" aria-label="Opening note" />
+              ) : (
+                <>
+                  <div className="empty-illustration">
+                    <FileText size={38} strokeWidth={1} />
+                  </div>
+                  <h2>Room for your next idea.</h2>
+                  <p>
+                    Pick a note to keep going,
+                    <br />
+                    or start something new.
+                  </p>
+                  <Button variant="outline" onClick={() => void create()}>
+                    Create a note
+                    <ArrowRight size={15} />
+                  </Button>
+                  <span className="shortcut-hint">
+                    <kbd>⌘</kbd>
+                    <kbd>⌥</kbd>
+                    <kbd>N</kbd>
+                    <span>to create a note</span>
+                  </span>
+                </>
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
       <Dialog
         open={!!tagDialog}
@@ -615,7 +649,10 @@ export function Workspace({
         owner={owner}
         initial={initialSettings}
         beforeAction={() => guard.current()}
-        onImported={load}
+        onImported={async () => {
+          await load();
+          if (view === "tasks") setGeneration((value) => value + 1);
+        }}
       />
     </main>
   );
