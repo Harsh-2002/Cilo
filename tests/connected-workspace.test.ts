@@ -483,6 +483,23 @@ test("connected workspace retains private search, recovery, templates and schedu
       },
     );
     await t.test(
+      "recovery rejects a task search index that disagrees with its records",
+      async () => {
+        const backups = await import("../src/lib/server/backups");
+        sqlite()
+          .prepare("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')")
+          .run();
+        try {
+          const inconsistent = await backups.startBackup();
+          await assert.rejects(backups.verifyBackup(inconsistent.id));
+        } finally {
+          sqlite()
+            .prepare("INSERT INTO tasks_fts(tasks_fts) VALUES('rebuild')")
+            .run();
+        }
+      },
+    );
+    await t.test(
       "encrypted full-instance recovery includes connections, schedules, templates and versions",
       async () => {
         const backups = await import("../src/lib/server/backups");
@@ -529,6 +546,15 @@ test("connected workspace retains private search, recovery, templates and schedu
               .get() as { n: number }
           ).n,
           1,
+        );
+        assert.ok(
+          (
+            recovered
+              .prepare(
+                "SELECT count(*) AS n FROM tasks_fts WHERE tasks_fts MATCH ?",
+              )
+              .get("monthly") as { n: number }
+          ).n >= 2,
         );
         recovered.close();
       },

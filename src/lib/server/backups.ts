@@ -440,11 +440,20 @@ export async function restoreBackup(
         database.prepare("SELECT 1 FROM encryption_pending_files LIMIT 1").get()
       )
         throw new Error("The backup has unfinished encryption migration.");
-      database
-        .prepare(
-          "INSERT INTO bookmarks_fts(bookmarks_fts,rank) VALUES('integrity-check',1)",
+      for (const table of ["notes_fts", "bookmarks_fts", "tasks_fts"]) {
+        if (
+          database
+            .prepare(
+              "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            )
+            .get(table)
         )
-        .run();
+          database
+            .prepare(
+              `INSERT INTO ${table}(${table},rank) VALUES('integrity-check',1)`,
+            )
+            .run();
+      }
     } finally {
       database.close();
     }
