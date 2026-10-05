@@ -68,9 +68,10 @@ export type Bookmark = {
 };
 export type SearchResult = {
   id: string;
-  type: "note" | "task" | "bookmark";
+  type: "note" | "task" | "bookmark" | "artifact";
   title: string;
   excerpt: string;
+  artifactKind?: "text" | "image" | "file";
   updatedAt: number;
   completed?: boolean;
   titleMatches?: import("./search-context").TextRange[];
@@ -103,3 +104,22 @@ export type Overview = {
 };
 export type Page<T> = { items: T[]; next: string | null };
 export type TaskFilter = "open" | "completed" | "today" | "upcoming";
+export type Artifact = {
+  id: string;
+  kind: "text" | "image" | "file";
+  title: string;
+  name: string;
+  mime: string;
+  size: number;
+  width: number;
+  height: number;
+  preview: string;
+  thumbnail: boolean;
+  extraction: "none" | "pending" | "done" | "failed";
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+  excerpt?: string;
+  excerptMatches?: import("./search-context").TextRange[];
+};
+export type ArtifactDetail = Artifact & { content: string };

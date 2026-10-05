@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import path from "node:path";
 import { runtimeFs } from "./runtime-fs";
 import { syncDirectory } from "./encryption";
@@ -26,27 +27,28 @@ function positive(
   return result;
 }
 export function backupConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = environment(),
 ): BackupConfig {
-  const backend = env.CILO_BACKUP_BACKEND || "local";
+  env = environment(env);
+  const backend = env.NIVRA_BACKUP_BACKEND || "local";
   if (backend !== "local" && backend !== "s3" && backend !== "off")
-    throw new Error("CILO_BACKUP_BACKEND must be local, s3, or off.");
-  const keep = positive(env.CILO_BACKUP_KEEP, 7, "CILO_BACKUP_KEEP", 365);
+    throw new Error("NIVRA_BACKUP_BACKEND must be local, s3, or off.");
+  const keep = positive(env.NIVRA_BACKUP_KEEP, 7, "NIVRA_BACKUP_KEEP", 365);
   if (!Number.isInteger(keep))
-    throw new Error("CILO_BACKUP_KEEP must be an integer.");
+    throw new Error("NIVRA_BACKUP_KEEP must be an integer.");
   return {
     backend,
     keep,
     intervalHours: positive(
-      env.CILO_BACKUP_INTERVAL_HOURS,
+      env.NIVRA_BACKUP_INTERVAL_HOURS,
       24,
-      "CILO_BACKUP_INTERVAL_HOURS",
+      "NIVRA_BACKUP_INTERVAL_HOURS",
       8760,
     ),
     directory: path.resolve(
-      /* turbopackIgnore: true */ env.CILO_BACKUP_DIR ||
+      /* turbopackIgnore: true */ env.NIVRA_BACKUP_DIR ||
         path.join(
-          /* turbopackIgnore: true */ env.CILO_DATA_DIR || "./data",
+          /* turbopackIgnore: true */ env.NIVRA_DATA_DIR || "./data",
           "backups",
         ),
     ),
@@ -62,8 +64,9 @@ export interface BackupRepository {
   remove(key: string): Promise<void>;
 }
 export function backupRepository(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = environment(),
 ): BackupRepository {
+  env = environment(env);
   const config = backupConfig(env);
   function valid(key: string) {
     if (!objectPattern.test(key)) throw new Error("Invalid backup object.");
@@ -145,28 +148,28 @@ export function backupRepository(
       },
     };
   }
-  const bucket = env.CILO_BACKUP_S3_BUCKET,
-    accessKeyId = env.CILO_BACKUP_S3_ACCESS_KEY_ID,
-    secretAccessKey = env.CILO_BACKUP_S3_SECRET_ACCESS_KEY;
+  const bucket = env.NIVRA_BACKUP_S3_BUCKET,
+    accessKeyId = env.NIVRA_BACKUP_S3_ACCESS_KEY_ID,
+    secretAccessKey = env.NIVRA_BACKUP_S3_SECRET_ACCESS_KEY;
   if (!bucket || !accessKeyId || !secretAccessKey)
     throw new Error("S3 backups require a bucket and backup credentials.");
   if (
-    env.CILO_BACKUP_S3_ENDPOINT &&
-    !/^https?:\/\//.test(env.CILO_BACKUP_S3_ENDPOINT)
+    env.NIVRA_BACKUP_S3_ENDPOINT &&
+    !/^https?:\/\//.test(env.NIVRA_BACKUP_S3_ENDPOINT)
   )
     throw new Error("Backup S3 endpoint must be HTTP or HTTPS.");
-  const prefix = (env.CILO_BACKUP_S3_PREFIX || "cilo-backups").replace(
+  const prefix = (env.NIVRA_BACKUP_S3_PREFIX || "cilo-backups").replace(
     /^\/+|\/+$/g,
     "",
   );
   if (!prefix || prefix.split("/").some((p) => p === "." || p === ".."))
     throw new Error("Use a dedicated, nonempty backup prefix.");
   if (
-    env.CILO_STORAGE_BACKEND === "s3" &&
-    bucket === env.CILO_S3_BUCKET &&
-    (env.CILO_BACKUP_S3_ENDPOINT || "") === (env.CILO_S3_ENDPOINT || "")
+    env.NIVRA_STORAGE_BACKEND === "s3" &&
+    bucket === env.NIVRA_S3_BUCKET &&
+    (env.NIVRA_BACKUP_S3_ENDPOINT || "") === (env.NIVRA_S3_ENDPOINT || "")
   ) {
-    const media = (env.CILO_S3_PREFIX || "cilo").replace(/^\/+|\/+$/g, "");
+    const media = (env.NIVRA_S3_PREFIX || "cilo").replace(/^\/+|\/+$/g, "");
     if (
       !media ||
       prefix === media ||
@@ -176,9 +179,9 @@ export function backupRepository(
       throw new Error("Backup and media prefixes must be separate.");
   }
   const client = new S3Client({
-    endpoint: env.CILO_BACKUP_S3_ENDPOINT || undefined,
-    region: env.CILO_BACKUP_S3_REGION || "us-east-1",
-    forcePathStyle: env.CILO_BACKUP_S3_FORCE_PATH_STYLE !== "false",
+    endpoint: env.NIVRA_BACKUP_S3_ENDPOINT || undefined,
+    region: env.NIVRA_BACKUP_S3_REGION || "us-east-1",
+    forcePathStyle: env.NIVRA_BACKUP_S3_FORCE_PATH_STYLE !== "false",
     credentials: { accessKeyId, secretAccessKey },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",

@@ -154,8 +154,8 @@ export function BookmarksPanel({
       if (unfiltered)
         setBookmarks((items) => mergeBookmarks(items, [result.item]));
     };
-    window.addEventListener("cilo:captured", received);
-    return () => window.removeEventListener("cilo:captured", received);
+    window.addEventListener("nivra:captured", received);
+    return () => window.removeEventListener("nivra:captured", received);
   }, [unfiltered, refreshSummary]);
   useEffect(() => {
     if (focusCreate) input.current?.focus();
@@ -672,7 +672,7 @@ export function BookmarksPanel({
                                     await confirm({
                                       title: "Delete this bookmark?",
                                       description:
-                                        "This removes the saved link and its preview from Cilo.",
+                                        "This removes the saved link and its preview from Nivra.",
                                       action: "Delete bookmark",
                                     })
                                   )
@@ -725,7 +725,7 @@ export function BookmarksPanel({
               <p>
                 {query || favorites || collection !== "all"
                   ? "Try another search or collection."
-                  : "Paste a link above. Cilo will save the details and preview."}
+                  : "Paste a link above. Nivra will save the details and preview."}
               </p>
             </div>
           )}

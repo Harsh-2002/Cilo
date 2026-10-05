@@ -46,7 +46,7 @@ test("the public reader sends rich text, tables, lists, code and drawings as HTM
           type: "canvas",
           props: {
             preview:
-              "/api/cilo/published/" +
+              "/api/nivra/published/" +
               "a".repeat(48) +
               "/files/" +
               "b".repeat(36),
@@ -109,7 +109,7 @@ test("public reader escapes imported content and rejects executable or private U
   assert.match(html, /&lt;script&gt;/);
   assert.match(html, /rel="noopener noreferrer nofollow"/);
   assert.equal(readerUrl("/?note=private"), undefined);
-  assert.equal(readerUrl("/api/cilo/settings"), undefined);
+  assert.equal(readerUrl("/api/nivra/settings"), undefined);
   assert.equal(
     readerUrl("https://example.org/a\njavascript:alert(1)"),
     undefined,
@@ -191,7 +191,7 @@ test("reader code highlighting preserves content and both theme palettes", async
 
 test("shared media has styled accessible controls and a no-script file fallback", () => {
   const token = "a".repeat(48);
-  const url = `/api/cilo/published/${token}/files/${"b".repeat(36)}`;
+  const url = `/api/nivra/published/${token}/files/${"b".repeat(36)}`;
   const html = renderToStaticMarkup(
     createElement(NoteContent, {
       blocks: [

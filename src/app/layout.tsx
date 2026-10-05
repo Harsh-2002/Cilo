@@ -5,10 +5,10 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cilo — a quiet place to think",
+  title: "Nivra — a quiet place to think",
   description:
     "Your notes, diagrams, and ideas. A minimal, self-hosted workspace.",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Cilo" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Nivra" },
   icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 export const viewport: Viewport = {
@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
-          id="cilo-theme-bootstrap"
+          id="nivra-theme-bootstrap"
           dangerouslySetInnerHTML={{ __html: themeBootstrap }}
         />
       </head>

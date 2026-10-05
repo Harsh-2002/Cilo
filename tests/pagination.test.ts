@@ -8,7 +8,7 @@ import path from "node:path";
 test("tasks and bookmarks page by stable cursors with server-side filters", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-pagination-"));
   process.env.CILO_DATA_DIR = directory;
-  const routes = await import("../src/app/api/cilo/[...path]/route");
+  const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
   const call = (
@@ -18,7 +18,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
     authenticated = true,
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/cilo/${route}`, {
+      new Request(`http://localhost:3000/api/nivra/${route}`, {
         method,
         headers: {
           host: "localhost:3000",

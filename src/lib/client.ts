@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const result = await fetch(`/api/cilo/${path}`, {
+  const result = await fetch(`/api/nivra/${path}`, {
     ...init,
     headers: {
       ...(init?.body instanceof FormData
@@ -37,7 +37,7 @@ export async function downloadRequest(
   name: string,
   init?: RequestInit,
 ) {
-  const result = await fetch(`/api/cilo/${path}`, init);
+  const result = await fetch(`/api/nivra/${path}`, init);
   if (!result.ok) {
     const body = await result.json();
     throw new Error(body.error);

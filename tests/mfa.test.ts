@@ -28,7 +28,7 @@ function totp(uri: string) {
 test("optional TOTP verifies enrollment, challenges login, consumes backup codes, and recovers safely", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-mfa-test-"));
   process.env.CILO_DATA_DIR = directory;
-  const routes = await import("../src/app/api/cilo/[...path]/route");
+  const routes = await import("../src/app/api/nivra/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const cookies = new Map<string, string>();
@@ -59,7 +59,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
   };
   const cilo = async (route: string, body?: unknown) =>
     saveCookies(
-      await routes.GET(makeRequest(`/api/cilo/${route}`, body), {
+      await routes.GET(makeRequest(`/api/nivra/${route}`, body), {
         params: Promise.resolve({ path: route.split("/") }),
       }),
     );

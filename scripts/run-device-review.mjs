@@ -603,9 +603,9 @@ async function pwaRun() {
   await audit(page, "Standalone mode", "desktop", "light");
   // cache growth: every build adds new hashed assets that are never evicted
   const count = await page.evaluate(
-    async () => (await (await caches.open("cilo-static-v1")).keys()).length,
+    async () => (await (await caches.open("nivra-static-v1")).keys()).length,
   );
-  note("pwa", "info", `cilo-static-v1 holds ${count} entries`, "");
+  note("pwa", "info", `nivra-static-v1 holds ${count} entries`, "");
   await browser.close();
 }
 

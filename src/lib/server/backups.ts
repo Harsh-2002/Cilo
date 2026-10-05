@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import Database from "better-sqlite3";
@@ -96,12 +97,21 @@ function openSnapshot(file: string, key: Buffer, readonly = true) {
   }
 }
 export function referencedFiles(database: Database.Database): string[] {
+  const hasArtifacts = !!database
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type='table' AND name='artifacts'",
+    )
+    .get();
   return (
     database
       .prepare(
         `SELECT storage_key AS key FROM attachments UNION SELECT storage_key FROM publication_files
     UNION SELECT thumbnail_key FROM bookmarks WHERE thumbnail_key IS NOT NULL
-    UNION SELECT icon_key FROM bookmarks WHERE icon_key IS NOT NULL`,
+    UNION SELECT icon_key FROM bookmarks WHERE icon_key IS NOT NULL${
+      hasArtifacts
+        ? " UNION SELECT storage_key FROM artifacts WHERE storage_key IS NOT NULL UNION SELECT thumb_key FROM artifacts WHERE thumb_key IS NOT NULL"
+        : ""
+    }`,
       )
       .all() as { key: string }[]
   ).map((r) => {
@@ -193,7 +203,7 @@ function info(data: Manifest): BackupInfo {
   };
 }
 export async function listBackups(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = environment(),
   key = masterKey(dataDir, true),
 ): Promise<BackupInfo[]> {
   const repository = backupRepository(env);
@@ -256,7 +266,7 @@ export async function createBackup(): Promise<BackupInfo> {
       version: 1,
       id,
       createdAt: Date.now(),
-      storage: process.env.CILO_STORAGE_BACKEND === "s3" ? "s3" : "local",
+      storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
       objects: [],
     };
     async function write(name: string, bytes: Buffer) {
@@ -345,7 +355,7 @@ export async function backupStatus(): Promise<BackupStatus> {
   const current = state();
   return {
     backend: config.backend,
-    storage: process.env.CILO_STORAGE_BACKEND === "s3" ? "s3" : "local",
+    storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
     intervalHours: config.intervalHours,
     keep: config.keep,
     running: !!runtime.ciloBackupJob || leaseIsAlive(),
@@ -385,10 +395,11 @@ async function readObject(
 export async function restoreBackup(
   id: string,
   destination: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = environment(),
 ): Promise<BackupInfo> {
+  env = environment(env);
   const key = masterKey(
-    path.resolve(/* turbopackIgnore: true */ env.CILO_DATA_DIR || "./data"),
+    path.resolve(/* turbopackIgnore: true */ env.NIVRA_DATA_DIR || "./data"),
     true,
     env,
   );
@@ -440,7 +451,12 @@ export async function restoreBackup(
         database.prepare("SELECT 1 FROM encryption_pending_files LIMIT 1").get()
       )
         throw new Error("The backup has unfinished encryption migration.");
-      for (const table of ["notes_fts", "bookmarks_fts", "tasks_fts"]) {
+      for (const table of [
+        "notes_fts",
+        "bookmarks_fts",
+        "tasks_fts",
+        "artifacts_fts",
+      ]) {
         if (
           database
             .prepare(
@@ -475,7 +491,7 @@ export async function restoreBackup(
       key,
       { mode: 0o600, flag: "wx", flush: true },
     );
-    const local = createStorage({ CILO_DATA_DIR: stage });
+    const local = createStorage({ NIVRA_DATA_DIR: stage });
     for (const file of files) {
       await local.write(
         file,
@@ -528,14 +544,14 @@ export function startBackupScheduler() {
 }
 
 export async function copyStoredFiles(backend: "local" | "s3") {
-  if (backend === (process.env.CILO_STORAGE_BACKEND || "local"))
+  if (backend === (environment().NIVRA_STORAGE_BACKEND || "local"))
     throw new Error("Choose a different file backend.");
   await migrateStoredFiles();
   const unlock = lease();
   try {
     const target = createStorage({
       ...process.env,
-      CILO_STORAGE_BACKEND: backend,
+      NIVRA_STORAGE_BACKEND: backend,
     });
     const files = referencedFiles(sqlite());
     for (const file of files) {

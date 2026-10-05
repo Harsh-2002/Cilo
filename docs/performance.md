@@ -1,6 +1,6 @@
 # Library performance and browser review
 
-Cilo keeps SQLite local and encrypted. The active browser session loads note previews in pages of 60, with full documents fetched only when opened. Tag lookups are batched. Linked task and bookmark titles use joins rather than one extra lookup per item. Tasks and bookmarks are paged by the server in 60-row pages using stable keyset cursors, with a Load more action. Status filters, search, favorites, collection filters, counts and the collection list are computed in SQLite, so the browser never holds the complete section. Migration 0012 adds the matching ordering indexes.
+Nivra keeps SQLite local and encrypted. The active browser session loads note previews in pages of 60, with full documents fetched only when opened. Tag lookups are batched. Linked task and bookmark titles use joins rather than one extra lookup per item. Tasks and bookmarks are paged by the server in 60-row pages using stable keyset cursors, with a Load more action. Status filters, search, favorites, collection filters, counts and the collection list are computed in SQLite, so the browser never holds the complete section. Migration 0012 adds the matching ordering indexes.
 
 Migration 0011 adds covering search-order indexes. Global search chooses bounded result IDs before fetching FTS5 snippets for those results. Match markers become plain text and character ranges, rendered by React; imported content is never inserted as search-result HTML. A bounded 128-entry fuzzy-query cache invalidates after writes from this connection or another SQLite connection.
 
@@ -57,7 +57,7 @@ Seeking no longer scales with file size. A full chunked download is slower than 
 
 ## Browser harness
 
-The browser review uses a separate owner and encrypted instance on port 3004, configured with `CILO_PUBLIC_URL=http://localhost:3004` to match the runner origin. `scripts/seed-library-review.ts` refuses other directories or owners. `scripts/run-capture-review.mjs` uses a protected temporary session file and runs the same interactions through Playwright Chromium, Firefox and WebKit; browser binaries can be installed with `npx playwright install firefox webkit`, plus the platform dependencies where needed. The review context blocks service workers so injected network failures are intercepted consistently; this run does not verify the PWA service worker. Playwright is a development dependency and is excluded from the runtime image.
+The browser review uses a separate owner and encrypted instance on port 3004, configured with `NIVRA_PUBLIC_URL=http://localhost:3004` to match the runner origin. `scripts/seed-library-review.ts` refuses other directories or owners. `scripts/run-capture-review.mjs` uses a protected temporary session file and runs the same interactions through Playwright Chromium, Firefox and WebKit; browser binaries can be installed with `npx playwright install firefox webkit`, plus the platform dependencies where needed. The review context blocks service workers so injected network failures are intercepted consistently; this run does not verify the PWA service worker. Playwright is a development dependency and is excluded from the runtime image.
 
 ```sh
 npx tsx scripts/seed-library-review.ts /tmp/cilo-capture-review-EXAMPLE

@@ -7,7 +7,7 @@ export default function GlobalError() {
     <html lang="en">
       <body>
         <SystemPage
-          title="Cilo couldn’t start."
+          title="Nivra couldn’t start."
           actions={
             <Button onClick={() => window.location.reload()}>Try again</Button>
           }

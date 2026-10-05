@@ -22,10 +22,10 @@ jobs:
       - run: npm run build
       - name: Docker startup and persistence smoke check
         run: |
-          docker compose -p cilo-ci up -d --build --wait
-          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/cilo/health
-          docker compose -p cilo-ci exec -T cilo node backup-cli.cjs list
-          docker compose -p cilo-ci up -d --force-recreate --wait
-          curl --fail http://127.0.0.1:3000/api/cilo/health
+          docker compose -p nivra-ci up -d --build --wait
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:3000/api/nivra/health
+          docker compose -p nivra-ci exec -T nivra node backup-cli.cjs list
+          docker compose -p nivra-ci up -d --force-recreate --wait
+          curl --fail http://127.0.0.1:3000/api/nivra/health
       - if: always()
-        run: docker compose -p cilo-ci down
+        run: docker compose -p nivra-ci down

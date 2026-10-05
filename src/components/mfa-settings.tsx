@@ -77,11 +77,11 @@ export function MfaSettings({
               download(
                 new Blob(
                   [
-                    `Cilo MFA backup codes\n\n${setup.codes.join("\n")}\n\nEach code is single-use. Keep these private.\n`,
+                    `Nivra MFA backup codes\n\n${setup.codes.join("\n")}\n\nEach code is single-use. Keep these private.\n`,
                   ],
                   { type: "text/plain" },
                 ),
-                "cilo-mfa-backup-codes.txt",
+                "nivra-mfa-backup-codes.txt",
               );
               setSaved(true);
             }}

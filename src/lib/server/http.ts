@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -51,8 +52,8 @@ export async function json(request: Request) {
   }
 }
 export function requestOrigin(request: Request) {
-  if (process.env.CILO_PUBLIC_URL)
-    return new URL(process.env.CILO_PUBLIC_URL).origin;
+  const publicUrl = environment().NIVRA_PUBLIC_URL;
+  if (publicUrl) return new URL(publicUrl).origin;
   const url = new URL(request.url);
   return `${url.protocol}//${request.headers.get("host") || url.host}`;
 }

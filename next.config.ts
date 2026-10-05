@@ -1,16 +1,25 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
-  allowedDevOrigins: (process.env.CILO_DEV_ORIGINS || "")
+  allowedDevOrigins: (
+    (process.env.NIVRA_DEV_ORIGINS ?? process.env.CILO_DEV_ORIGINS) ||
+    ""
+  )
     .split(",")
     .map((host) => host.trim())
     .filter(Boolean),
   output: "standalone",
   agentRules: false,
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "tesseract.js", "unpdf"],
   outputFileTracingIncludes: {
     "/*": [
       "./migrations/**/*",
       "./node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+      // The OCR engine starts worker threads from its own files and reads local language data.
+      "./node_modules/unpdf/**/*",
+      "./node_modules/tesseract.js/**/*",
+      "./node_modules/tesseract.js-core/**/*",
+      "./node_modules/@tesseract.js-data/eng/4.0.0_best_int/**/*",
+      "./node_modules/{bmp-js,idb-keyval,is-url,node-fetch,regenerator-runtime,wasm-feature-detect,zlibjs}/**/*",
     ],
   },
   outputFileTracingExcludes: {

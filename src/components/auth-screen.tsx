@@ -58,11 +58,11 @@ export function RecoveryCard({
           download(
             new Blob(
               [
-                `Cilo recovery code\n\n${code}\n\nKeep this private. Using it resets your password and replaces the code.\n`,
+                `Nivra recovery code\n\n${code}\n\nKeep this private. Using it resets your password and replaces the code.\n`,
               ],
               { type: "text/plain" },
             ),
-            "cilo-recovery-code.txt",
+            "nivra-recovery-code.txt",
           );
           setSaved(true);
         }}
@@ -169,7 +169,7 @@ export function AuthScreen({
     <main className="auth-page">
       <header className="auth-brand">
         <Mark small />
-        <span>Cilo</span>
+        <span>Nivra</span>
       </header>
       <section className="auth-panel">
         {setup && (

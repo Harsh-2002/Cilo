@@ -45,7 +45,7 @@ test("existing templates move to trash instead of being deleted, and old bundles
   connection.close();
 
   const { sqlite } = await import("../src/lib/server/db");
-  const routes = await import("../src/app/api/cilo/[...path]/route");
+  const routes = await import("../src/app/api/nivra/[...path]/route");
   try {
     const rows = sqlite()
       .prepare("SELECT id,kind,trashed_at FROM notes ORDER BY id")
@@ -73,7 +73,7 @@ test("existing templates move to trash instead of being deleted, and old bundles
       json = false,
     ) =>
       routes.GET(
-        new Request(`http://localhost:3000/api/cilo/${route}`, {
+        new Request(`http://localhost:3000/api/nivra/${route}`, {
           method,
           headers: {
             host: "localhost:3000",
@@ -87,7 +87,7 @@ test("existing templates move to trash instead of being deleted, and old bundles
       );
     sqlite().exec("DELETE FROM notes; DELETE FROM user");
     const setup = await routes.GET(
-      new Request("http://localhost:3000/api/cilo/setup", {
+      new Request("http://localhost:3000/api/nivra/setup", {
         method: "POST",
         headers: {
           host: "localhost:3000",

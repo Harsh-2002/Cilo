@@ -14,7 +14,7 @@ export default async function verifySearchPalette(page) {
   const listener = (error) => errors.push(error.name);
   page.on("pageerror", listener);
   const dialog = () =>
-    page.getByRole("dialog", { name: "Search Cilo", exact: true });
+    page.getByRole("dialog", { name: "Search Nivra", exact: true });
   const input = () =>
     dialog().getByRole("combobox", { name: "Search everything" });
   const open = async () => {

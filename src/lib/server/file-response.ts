@@ -44,14 +44,27 @@ async function body(source: FileSource, start: number, end: number) {
     },
   });
 }
-function mediaMime(bytes: Uint8Array) {
+export function mediaMime(bytes: Uint8Array) {
   const header = new TextDecoder().decode(bytes.subarray(0, 12));
   if (header.startsWith("RIFF") && header.slice(8, 12) === "WAVE")
     return "audio/wav";
   if (header.startsWith("ID3")) return "audio/mpeg";
+  if (
+    bytes[0] === 0xff &&
+    (bytes[1] & 0xe0) === 0xe0 &&
+    (bytes[1] & 0x06) !== 0
+  )
+    return "audio/mpeg";
   if (header.startsWith("fLaC")) return "audio/flac";
   if (header.startsWith("OggS")) return "audio/ogg";
-  if (header.slice(4, 8) === "ftyp") return "video/mp4";
+  if (header.slice(4, 8) === "ftyp") {
+    const brand = header.slice(8, 12);
+    if (/^(heic|heix|hevc|hevx|mif1|msf1|avif|avis)$/.test(brand))
+      return undefined;
+    if (/^M4[ABP] $/.test(brand)) return "audio/mp4";
+    if (/^(isom|iso[2-9]|mp4[12]|avc1|M4V |qt  |dash)$/.test(brand))
+      return "video/mp4";
+  }
   if (
     bytes[0] === 0x1a &&
     bytes[1] === 0x45 &&

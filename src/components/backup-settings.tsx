@@ -130,7 +130,7 @@ export function BackupSettings({
           </div>
           <p className="backup-state" role="status">
             {status.running
-              ? "Creating a complete recovery copy. You can keep using Cilo."
+              ? "Creating a complete recovery copy. You can keep using Nivra."
               : status.lastSuccess
                 ? `Last completed ${new Date(status.lastSuccess).toLocaleString()}`
                 : "No completed backup yet."}

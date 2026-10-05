@@ -1,4 +1,4 @@
-import { Cilo } from "@/components/cilo";
+import { Nivra } from "@/components/nivra";
 export default function Page() {
-  return <Cilo />;
+  return <Nivra />;
 }

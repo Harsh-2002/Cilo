@@ -95,7 +95,7 @@ test("service worker only caches public static assets and falls back offline for
   });
   await installed;
   assert.deepEqual(
-    [...worker.store.get("cilo-static-v1")!.keys()].map(
+    [...worker.store.get("nivra-static-v1")!.keys()].map(
       (url) => new URL(url).pathname,
     ),
     [
@@ -106,9 +106,9 @@ test("service worker only caches public static assets and falls back offline for
     ],
   );
   for (const [url, init] of [
-    ["https://cilo.test/api/cilo/notes", {}],
-    ["https://cilo.test/api/cilo/files/abc", {}],
-    ["https://cilo.test/api/cilo/published/token/files/abc", {}],
+    ["https://cilo.test/api/nivra/notes", {}],
+    ["https://cilo.test/api/nivra/files/abc", {}],
+    ["https://cilo.test/api/nivra/published/token/files/abc", {}],
     ["https://elsewhere.test/_next/static/a.js", {}],
     ["https://cilo.test/_next/static/a.js", { method: "POST" }],
     ["https://cilo.test/share/token", {}],
@@ -123,7 +123,7 @@ test("service worker only caches public static assets and falls back offline for
   });
   assert.equal(await shared!.text(), "/offline.html");
   assert.ok(
-    ![...worker.store.get("cilo-static-v1")!.keys()].some((url) =>
+    ![...worker.store.get("nivra-static-v1")!.keys()].some((url) =>
       /\/(api|share)\//.test(url),
     ),
   );
@@ -137,7 +137,7 @@ test("online navigations are never stored and static files are cached once with 
   });
   assert.equal(await page!.text(), "network");
   assert.ok(
-    ![...(worker.store.get("cilo-static-v1") ?? new Map()).keys()].includes(
+    ![...(worker.store.get("nivra-static-v1") ?? new Map()).keys()].includes(
       "https://cilo.test/",
     ),
   );
@@ -145,7 +145,7 @@ test("online navigations are never stored and static files are cached once with 
     await worker.dispatch(
       `https://cilo.test/_next/static/chunks/${String(i).padStart(3, "0")}.js`,
     );
-  const kept = [...worker.store.get("cilo-static-v1")!.keys()].map(
+  const kept = [...worker.store.get("nivra-static-v1")!.keys()].map(
     (url) => new URL(url).pathname,
   );
   assert.ok(kept.length <= 124, `kept ${kept.length}`);

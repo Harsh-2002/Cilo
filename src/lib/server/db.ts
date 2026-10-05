@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -17,7 +18,7 @@ import * as schema from "./schema";
 import { deriveKey, masterKey } from "./encryption";
 
 export const dataDir = path.resolve(
-  /* turbopackIgnore: true */ process.env.CILO_DATA_DIR || "./data",
+  /* turbopackIgnore: true */ environment().NIVRA_DATA_DIR || "./data",
 );
 const globalDb = globalThis as unknown as { ciloSqlite?: Database.Database };
 export function sqlite() {
@@ -45,7 +46,7 @@ export function sqlite() {
       connection.pragma("cipher = 'chacha20'");
       if (connection.pragma("cipher", { simple: true }) !== "chacha20") {
         connection.close();
-        throw new Error("Cilo requires an encryption-enabled SQLite driver.");
+        throw new Error("Nivra requires an encryption-enabled SQLite driver.");
       }
       if (!plaintext) connection.pragma(`key = '${key}'`);
       connection.prepare("SELECT count(*) FROM sqlite_master").get();

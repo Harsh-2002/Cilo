@@ -21,6 +21,7 @@ import {
   StickyNote,
   SquareCheckBig,
   LibraryBig,
+  Layers,
   Trash,
   Inbox,
 } from "lucide-react";
@@ -65,6 +66,7 @@ import { SettingsPanel } from "./settings-panel";
 import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
 import { OverviewPanel, prefetchOverview } from "./overview-panel";
 import { TasksPanel, prefetchTasks } from "./tasks-panel";
+import { ArtifactsPanel, prefetchArtifacts } from "./artifacts-panel";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
 import { Shortcut, ShortcutKeys } from "./shortcut";
@@ -102,12 +104,13 @@ export function Workspace({
   const capture = useRef<CaptureHandle>(null);
   const captured = (result: CapturedItem) => {
     if (result.type === "note") void load();
-    window.dispatchEvent(new CustomEvent("cilo:captured", { detail: result }));
+    window.dispatchEvent(new CustomEvent("nivra:captured", { detail: result }));
   };
   const [sectionTarget, setSectionTarget] = useState<{
     query: string;
     completed?: boolean;
     focusCreate?: boolean;
+    openId?: string;
   }>({ query: "" });
   const initialLink = useRef(false);
   const [tagDialog, setTagDialog] = useState<{
@@ -212,6 +215,7 @@ export function Workspace({
         prefetchOverview(),
         prefetchTasks(),
         prefetchBookmarks(),
+        prefetchArtifacts(),
         ...["all", "favorites", "journal", "trash"].map(async (name) => {
           const key = `notes:${name}||updated`;
           if (sectionCache.get(key)) return;
@@ -372,6 +376,12 @@ export function Workspace({
   async function selectResult(result: SearchResult) {
     if (result.type === "note")
       return navigateNote(result.id, result.matchTerms);
+    if (result.type === "artifact") {
+      if (!(await filter("artifacts"))) return false;
+      setSectionTarget({ query: "", openId: result.id });
+      setGeneration((n) => n + 1);
+      return true;
+    }
     if (!(await filter(result.type === "task" ? "tasks" : "bookmarks")))
       return false;
     setSectionTarget({ query: result.title, completed: result.completed });
@@ -463,7 +473,7 @@ export function Workspace({
     <div className="navigation">
       <header className="workspace-brand">
         <Mark small />
-        <span>Cilo</span>
+        <span>Nivra</span>
       </header>
       <Button className="new-note" onClick={() => void create()}>
         <Plus size={16} />
@@ -490,6 +500,7 @@ export function Workspace({
           { id: "journal", label: "Journal", Icon: NotebookPen },
           { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
           { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
+          { id: "artifacts", label: "Artifacts", Icon: Layers },
           { id: "trash", label: "Trash", Icon: Trash },
         ].map(({ id, label, Icon }) => (
           <button
@@ -658,6 +669,16 @@ export function Workspace({
           initialQuery={sectionTarget.query}
           focusCreate={sectionTarget.focusCreate}
           onOpenNote={navigateNote}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+        />
+      ) : view === "artifacts" ? (
+        <ArtifactsPanel
+          key={generation}
+          registerGuard={registerGuard}
+          initialQuery={sectionTarget.query}
+          openId={sectionTarget.openId}
           onNavigation={() =>
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }

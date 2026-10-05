@@ -1,4 +1,4 @@
-# Cilo
+# Nivra
 
 <!-- impeccable:product-schema 1 -->
 
@@ -24,11 +24,11 @@ Docker starts the app. First-run onboarding, account creation, appearance, and p
 
 ## Capabilities and Constraints
 
-A default Overview with a live local date/time, open tasks, recent notes and bookmarks, quick creation and inline task completion; flat notes, dedicated bookmarks with URL metadata cards, cached thumbnails/icons, collections, favorites, indexed and typo-tolerant search, editing, deletion and preview retry; dedicated tasks with creation/editing/completion/reopening/search, optional dates and daily/weekly/monthly recurrence, quick capture of notes/tasks/links without changing sections, unified search across notes/tasks/bookmarks with matching-passage highlights and relevant-block navigation, note checkpoints and restoration, stable internal links and backlinks, optional task/bookmark note associations, daily Journal notes that start blank with optional user-selected templates, tags, favorites, trash, search, rich editing with per-note Standard/Wide width modes, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Cilo bundles. One owner with username/password and recovery code. Mandatory server-side encryption at rest for SQLite, stored attachments, published-file copies, and the authentication secret; an automatically generated key supports simple self-hosting, with external key configuration for separated backups. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots that preserve their published revision and are served in a minimal reader, and environment-only local/S3-compatible file storage. Automatic encrypted full-instance backups to local or independent S3 storage, retention, manual backup/verification, and server CLI recovery into an empty local directory. Offline editing, collaboration, and shared workspaces are deferred.
+A default Overview with a live local date/time, open tasks, recent notes and bookmarks, quick creation and inline task completion; flat notes, dedicated bookmarks with URL metadata cards, cached thumbnails/icons, collections, favorites, indexed and typo-tolerant search, editing, deletion and preview retry; dedicated tasks with creation/editing/completion/reopening/search, optional dates and daily/weekly/monthly recurrence, quick capture of notes/tasks/links without changing sections, unified search across notes/tasks/bookmarks/artifacts with matching-passage highlights and relevant-block navigation, note checkpoints and restoration, stable internal links and backlinks, optional task/bookmark note associations, daily Journal notes that start blank, separate from Notes, tags, favorites, trash, search, rich editing with per-note Standard/Wide width modes, Mermaid, Excalidraw, images, attachments, Markdown import/export, lossless Nivra bundles. One owner with username/password and recovery code. Mandatory server-side encryption at rest for SQLite, stored attachments, published-file copies, and the authentication secret; an automatically generated key supports simple self-hosting, with external key configuration for separated backups. Online notes in v1, batch Markdown/file/folder import, revocable public read-only snapshots that preserve their published revision and are served in a minimal reader, and environment-only local/S3-compatible file storage. Automatic encrypted full-instance backups to local or independent S3 storage, retention, manual backup/verification, and server CLI recovery into an empty local directory. Offline editing, collaboration, and shared workspaces are deferred.
 
 ## Brand Commitments
 
-Cilo, inspired by Clio. Minimal black-and-white interface with neutral gray, light/dark/system themes, restrained typography and borders. Syntax and user drawings can contain color.
+Nivra: a private personal brain and search engine. Minimal black-and-white interface with neutral gray, light/dark/system themes, restrained typography and borders. Syntax and user drawings can contain color.
 
 ## Product Principles
 
@@ -40,6 +40,10 @@ Cilo, inspired by Clio. Minimal black-and-white interface with neutral gray, lig
 ## Accessibility & Inclusion
 
 Keyboard-operable controls, visible focus, readable contrast, reduced-motion support, and touch-sized mobile actions.
+
+## Artifacts
+
+A private shelf for pasted text, screenshots, documents and media. Upload, paste or drop without mandatory folders or tags. Supported images use local English OCR; supported documents use bounded text extraction. Originals, thumbnails and extracted text remain encrypted locally or in configured compatible storage. Unsupported formats remain downloadable and searchable by name; media is not transcribed.
 
 ## Next iteration
 

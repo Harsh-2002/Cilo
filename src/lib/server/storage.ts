@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 const { mkdir, open, readFile, writeFile, unlink, rename } = runtimeFs.promises;
 import { randomUUID } from "node:crypto";
@@ -50,12 +51,13 @@ function validateKey(key: string) {
   return key;
 }
 function createRawStorage(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = environment(),
 ): RawStorageAdapter {
-  const backend = env.CILO_STORAGE_BACKEND || "local";
+  env = environment(env);
+  const backend = env.NIVRA_STORAGE_BACKEND || "local";
   if (backend === "local") {
     const directory = path.join(
-      /* turbopackIgnore: true */ path.resolve(env.CILO_DATA_DIR || dataDir),
+      /* turbopackIgnore: true */ path.resolve(env.NIVRA_DATA_DIR || dataDir),
       "uploads",
     );
     const file = (key: string) => path.join(directory, validateKey(key));
@@ -119,23 +121,23 @@ function createRawStorage(
     };
   }
   if (backend !== "s3")
-    throw new Error("CILO_STORAGE_BACKEND must be local or s3.");
-  const bucket = env.CILO_S3_BUCKET;
-  const accessKeyId = env.CILO_S3_ACCESS_KEY_ID;
-  const secretAccessKey = env.CILO_S3_SECRET_ACCESS_KEY;
+    throw new Error("NIVRA_STORAGE_BACKEND must be local or s3.");
+  const bucket = env.NIVRA_S3_BUCKET;
+  const accessKeyId = env.NIVRA_S3_ACCESS_KEY_ID;
+  const secretAccessKey = env.NIVRA_S3_SECRET_ACCESS_KEY;
   if (!bucket || !accessKeyId || !secretAccessKey)
     throw new Error(
-      "S3 storage requires CILO_S3_BUCKET, CILO_S3_ACCESS_KEY_ID, and CILO_S3_SECRET_ACCESS_KEY.",
+      "S3 storage requires NIVRA_S3_BUCKET, NIVRA_S3_ACCESS_KEY_ID, and NIVRA_S3_SECRET_ACCESS_KEY.",
     );
-  if (env.CILO_S3_ENDPOINT && !/^https?:\/\//.test(env.CILO_S3_ENDPOINT))
-    throw new Error("CILO_S3_ENDPOINT must be an HTTP or HTTPS URL.");
-  const prefix = (env.CILO_S3_PREFIX || "cilo/").replace(/^\/+|\/+$/g, "");
+  if (env.NIVRA_S3_ENDPOINT && !/^https?:\/\//.test(env.NIVRA_S3_ENDPOINT))
+    throw new Error("NIVRA_S3_ENDPOINT must be an HTTP or HTTPS URL.");
+  const prefix = (env.NIVRA_S3_PREFIX || "cilo/").replace(/^\/+|\/+$/g, "");
   const objectKey = (key: string) =>
     `${prefix ? `${prefix}/` : ""}${validateKey(key)}`;
   const client = new S3Client({
-    endpoint: env.CILO_S3_ENDPOINT || undefined,
-    region: env.CILO_S3_REGION || "us-east-1",
-    forcePathStyle: env.CILO_S3_FORCE_PATH_STYLE !== "false",
+    endpoint: env.NIVRA_S3_ENDPOINT || undefined,
+    region: env.NIVRA_S3_REGION || "us-east-1",
+    forcePathStyle: env.NIVRA_S3_FORCE_PATH_STYLE !== "false",
     credentials: { accessKeyId, secretAccessKey },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
@@ -198,10 +200,15 @@ function createRawStorage(
 const upgrades = new Map<string, Promise<void>>();
 let upgradeQueue: Promise<void> = Promise.resolve();
 export function createStorage(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = environment(),
 ): EncryptedStorageAdapter {
+  env = environment(env);
   const raw = createRawStorage(env);
-  const key = masterKey(path.resolve(env.CILO_DATA_DIR || dataDir), false, env);
+  const key = masterKey(
+    path.resolve(env.NIVRA_DATA_DIR || dataDir),
+    false,
+    env,
+  );
   const context = (id: string) => `object:${validateKey(id)}`;
   async function upgradeLegacy(id: string, plain: Buffer) {
     if (upgrades.has(id)) return;

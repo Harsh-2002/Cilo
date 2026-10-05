@@ -1,5 +1,5 @@
 ---
-name: Cilo
+name: Nivra
 description: "A quiet personal workspace for notes, writing, and collected ideas."
 colors:
   background: "oklch(1 0 0)"
@@ -170,13 +170,13 @@ components:
     typography: "{typography.label}"
 ---
 
-# Design System: Cilo
+# Design System: Nivra
 
 ## Overview
 
 **Creative North Star: "The Quiet Page"**
 
-Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.
+Nivra keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.
 
 The desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, highlighted code, named tag-color metadata, and clear semantic states.
 
@@ -287,7 +287,7 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 
 ### Navigation
 
-The desktop rail sits beside the note index. Search comes first, followed by Overview, Favorites, Notes, Journal, Tasks, Bookmarks, and Trash, with Capture pinned last above the footer; use the shared Lucide line-icon family throughout. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet, while the Overview keeps a navigation button visible above its content. Settings sits in the rail footer beside the sidebar collapse control, with no avatar or account strip. Shortcut labels follow the platform: Ctrl, Alt and Shift on Windows and Linux; ⌘, ⌥ and ⇧ on Apple devices. Sign out is in Settings → Account, separate from signing out other sessions. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation. Dropdown menus size to their labels within viewport bounds; action and selector labels stay on one line, with 36px rows on desktop and 44px touch targets on phones. Rich search results retain separate title and description rows.
+The desktop rail sits beside the note index. Search comes first, followed by Overview, Favorites, Notes, Journal, Tasks, Bookmarks, Artifacts, and Trash, with Capture pinned last above the footer; use the shared Lucide line-icon family throughout. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet, while the Overview keeps a navigation button visible above its content. Settings sits in the rail footer beside the sidebar collapse control, with no avatar or account strip. Shortcut labels follow the platform: Ctrl, Alt and Shift on Windows and Linux; ⌘, ⌥ and ⇧ on Apple devices. Sign out is in Settings → Account, separate from signing out other sessions. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation. Dropdown menus size to their labels within viewport bounds; action and selector labels stay on one line, with 36px rows on desktop and 44px touch targets on phones. Rich search results retain separate title and description rows.
 
 ### Overview
 
@@ -301,17 +301,21 @@ The global search dialog uses the shared shadcn Dialog, Command, Button and Popo
 
 The dedicated task view keeps one inline creation form above Open and Completed filters with counts, then search and text-first rows. The desktop search stays compact; on mobile the toolbar stacks and search spans the content width. A checkbox completes or reopens each task, while title edits stay inline and deletion uses the styled confirmation dialog. Task text wraps anywhere; checkbox and row-action targets are 44px, and mobile editing actions remain touch-sized. Keep loading, retryable error, and empty states inside the same reading flow.
 
+### Artifacts
+
+The private shelf inherits the same neutral surfaces, Geist typography and shared shadcn controls. A dashed intake area offers Paste, Upload and Add text without requiring folders or tags. Type filters and search lead into a bordered preview shelf; image/video thumbnails reserve their space, text snippets stay readable, and unsupported files use a file card. Pending extraction, failure/retry and failed uploads remain explicit without replacing saved content. Desktop uses adaptive columns and mobile uses two columns with responsive gutters. A bounded, scrollable viewer shows the original, extracted text, rename, copy, download and delete actions; audio/video use the shared player. Protect unsaved text when closing. Card menus sit in their own flow below previews so they cannot cover text or images. Preserve keyboard focus, 44px touch actions and long-filename truncation.
+
 ### Code Language Picker
 
 Use the shadcn Popover and Command pair with one search header. The menu is at most 280px wide and fits within 24px of the viewport width; its height stays within the available viewport. Options are 36px tall on desktop and 44px on mobile. Keep one keyboard-active option distinct from the check on the saved language.
 
 ### Brand Mark
 
-The folded-page C monogram uses the foreground on a compact rounded square and reverses against the theme background. Reuse the shared local vector path across the branded app shell, favicon, and mobile icons. The public reader carries no Cilo name or mark; its metadata is limited to “Shared note” and the publication date.
+The N monogram uses the foreground on a compact rounded square and reverses against the theme background. Reuse the shared local vector path across the branded app shell, favicon, and mobile icons. The public reader carries no Nivra name or mark; its metadata is limited to “Shared note” and the publication date.
 
 ### Writing Surface
 
-The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. It uses the headline token at 26px on desktop and 24px on mobile; a ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. Desktop BlockNote prose uses the 14px body token with 1.65 line spacing, while mobile prose returns to 16px for comfortable touch reading. Body headings follow the `editor-h1` through `editor-h6` tokens, with the mobile H5/H6 tokens, and remain scoped to note content, including nested content. The explicit sizes prevent headings from inheriting BlockNote’s 3em/2em multipliers. BlockNote blocks have 4px vertical padding, and editor source blocks use the 12px monospace token. The public reader retains 16px prose with 1.75 line spacing and its existing title and code sizes. Daily Journal notes begin as blank pages; templates are optional and selected deliberately. Formatting and slash-menu controls stay available through editor interactions. Do not add a bottom status strip or persistent insertion toolbar. The editor preserves the draft during save errors and keeps its save state close to the note.
+The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. It uses the headline token at 26px on desktop and 24px on mobile; a ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. Desktop BlockNote prose uses the 14px body token with 1.65 line spacing, while mobile prose returns to 16px for comfortable touch reading. Body headings follow the `editor-h1` through `editor-h6` tokens, with the mobile H5/H6 tokens, and remain scoped to note content, including nested content. The explicit sizes prevent headings from inheriting BlockNote’s 3em/2em multipliers. BlockNote blocks have 4px vertical padding, and editor source blocks use the 12px monospace token. The public reader retains 16px prose with 1.75 line spacing and its existing title and code sizes. Journal notes begin as blank pages and stay separate from Notes; template creation is removed. Formatting and slash-menu controls stay available through editor interactions. Do not add a bottom status strip or persistent insertion toolbar. The editor preserves the draft during save errors and keeps its save state close to the note.
 
 ### Public Reader and System Pages
 
@@ -333,4 +337,4 @@ The public reader presents the publication date, “Shared note” label, title,
 - **Don't** turn the writing workspace into a card dashboard or decorative landing hero.
 - **Don't** add decorative gradients or a visible construction grid to the app chrome.
 - **Don't** let application chrome compete with the note's content.
-- **Don't** put the Cilo name or mark on the public reader; keep its metadata to “Shared note” and the publication date.
+- **Don't** put the Nivra name or mark on the public reader; keep its metadata to “Shared note” and the publication date.

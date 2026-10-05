@@ -71,9 +71,9 @@ function expose(row: Row & { linkedTitle?: string | null }): Bookmark {
     favorite: !!row.favorite,
     metadataStatus: row.metadata_status,
     thumbnail: row.thumbnail_key
-      ? `/api/cilo/bookmarks/${row.id}/thumbnail`
+      ? `/api/nivra/bookmarks/${row.id}/thumbnail`
       : null,
-    icon: row.icon_key ? `/api/cilo/bookmarks/${row.id}/icon` : null,
+    icon: row.icon_key ? `/api/nivra/bookmarks/${row.id}/icon` : null,
     revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

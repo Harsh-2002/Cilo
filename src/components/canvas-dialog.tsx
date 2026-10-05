@@ -60,7 +60,7 @@ export default function CanvasDialog({
         dataURL?: string;
       }[]) {
         if (file.attachmentId) {
-          const response = await fetch(`/api/cilo/files/${file.attachmentId}`);
+          const response = await fetch(`/api/nivra/files/${file.attachmentId}`);
           if (!response.ok)
             throw new Error("An image in this drawing could not be loaded.");
           const blob = await response.blob();

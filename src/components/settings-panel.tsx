@@ -635,7 +635,7 @@ export function SettingsPanel({
                       <div>
                         <h3>Export everything</h3>
                         <p>
-                          A Cilo bundle with notes, tasks, bookmarks, tags,
+                          A Nivra bundle with notes, tasks, bookmarks, tags,
                           drawings, and attachments.
                         </p>
                       </div>
@@ -647,7 +647,7 @@ export function SettingsPanel({
                           void run(() =>
                             downloadRequest(
                               "export/bundle",
-                              `cilo-${new Date().toISOString().slice(0, 10)}.zip`,
+                              `nivra-${new Date().toISOString().slice(0, 10)}.zip`,
                             ),
                           )
                         }
@@ -658,7 +658,7 @@ export function SettingsPanel({
                     </div>
                     <div className="settings-row">
                       <div>
-                        <h3>Restore a Cilo bundle</h3>
+                        <h3>Restore a Nivra bundle</h3>
                         <p>
                           Add exported content alongside your existing notes and
                           tasks. Existing bookmark URLs are kept.

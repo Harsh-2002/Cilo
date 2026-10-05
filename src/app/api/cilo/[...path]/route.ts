@@ -47,6 +47,18 @@ import { workspaceOverview } from "@/lib/server/overview";
 import { searchWorkspace } from "@/lib/server/unified-search";
 import { dailyNote } from "@/lib/server/journal";
 import {
+  artifactFile,
+  artifactSummary,
+  createFileArtifact,
+  createTextArtifact,
+  deleteArtifact,
+  getArtifact,
+  listArtifactPage,
+  retryExtraction,
+  updateArtifact,
+} from "@/lib/server/artifacts";
+import { resumeOcr } from "@/lib/server/ocr";
+import {
   createTask,
   deleteTask,
   listTaskPage,
@@ -173,7 +185,7 @@ async function handle(
     if (area === "setup" && method === "POST") {
       throttle("setup");
       if (owner)
-        throw new HttpError(409, "Cilo is already set up. Sign in instead.");
+        throw new HttpError(409, "Nivra is already set up. Sign in instead.");
       const input = setupInput.parse(await json(request));
       const password = await hashPassword(input.password);
       const userId = randomUUID();
@@ -184,7 +196,7 @@ async function handle(
           if (database.prepare("SELECT 1 FROM user").get())
             throw new HttpError(
               409,
-              "Cilo is already set up. Sign in instead.",
+              "Nivra is already set up. Sign in instead.",
             );
           database
             .prepare(
@@ -396,6 +408,96 @@ async function handle(
           .strict()
           .parse(await json(request));
         await deleteBookmark(owner.id, id, input.revision);
+        return response({ ok: true });
+      }
+    }
+    if (area === "artifacts") {
+      resumeOcr();
+      if (method === "GET" && !id) {
+        const params = url.searchParams;
+        if (params.get("summary") === "1")
+          return response(artifactSummary(owner.id));
+        return response(
+          listArtifactPage(owner.id, {
+            query: params.get("q") || "",
+            kind: z
+              .enum(["text", "image", "file"])
+              .optional()
+              .parse(params.get("kind") ?? undefined),
+            limit: pageLimit(params.get("limit")),
+            after: params.get("after"),
+          }),
+        );
+      }
+      if (
+        method === "GET" &&
+        id &&
+        (action === "file" || action === "thumbnail")
+      )
+        return await artifactFile(request, owner.id, id, action);
+      if (method === "GET" && id) return response(getArtifact(owner.id, id));
+      if (method === "POST" && !id) {
+        if (
+          (request.headers.get("content-type") || "").startsWith(
+            "application/json",
+          )
+        ) {
+          const input = z
+            .object({ text: z.string().max(400000) })
+            .strict()
+            .parse(await json(request));
+          return response(createTextArtifact(owner.id, input.text), 201);
+        }
+        const limit = (settings() as { uploadLimit: number }).uploadLimit;
+        const data = await readLimited(request, limit + 1024 * 1024);
+        const form = await new Request(request.url, {
+          method: "POST",
+          headers: {
+            "content-type": request.headers.get("content-type") || "",
+          },
+          body: new Uint8Array(data),
+        }).formData();
+        const file = form.get("file");
+        const thumb = form.get("thumb");
+        if (!(file instanceof File))
+          throw new HttpError(400, "Choose a file to save.");
+        if (file.size > limit)
+          throw new HttpError(413, "This file exceeds your attachment limit.");
+        return response(
+          await createFileArtifact(
+            owner.id,
+            {
+              name: file.name,
+              mime: file.type,
+              bytes: new Uint8Array(await file.arrayBuffer()),
+            },
+            thumb instanceof File
+              ? new Uint8Array(await thumb.arrayBuffer())
+              : undefined,
+          ),
+          201,
+        );
+      }
+      if (method === "POST" && id && action === "extract")
+        return response(retryExtraction(owner.id, id));
+      if (method === "PATCH" && id) {
+        const input = z
+          .object({
+            revision: z.number().int().positive(),
+            title: z.string().max(300).optional(),
+            content: z.string().max(400000).optional(),
+          })
+          .strict()
+          .refine((v) => Object.keys(v).length > 1)
+          .parse(await json(request));
+        return response(updateArtifact(owner.id, id, input));
+      }
+      if (method === "DELETE" && id) {
+        const input = z
+          .object({ revision: z.number().int().positive() })
+          .strict()
+          .parse(await json(request));
+        await deleteArtifact(owner.id, id, input.revision);
         return response({ ok: true });
       }
     }
@@ -719,7 +821,7 @@ async function handle(
         return response(
           {
             id: fileId,
-            url: `/api/cilo/files/${fileId}`,
+            url: `/api/nivra/files/${fileId}`,
             name: file.name,
             mime,
           },
@@ -767,7 +869,7 @@ async function handle(
         files[`files/${file.id}`] = await storage.read(file.storage_key);
       return zipResponse(
         files,
-        `cilo-${new Date().toISOString().slice(0, 10)}`,
+        `nivra-${new Date().toISOString().slice(0, 10)}`,
       );
     }
     if (area === "export" && id === "markdown" && action && method === "POST") {
@@ -779,7 +881,9 @@ async function handle(
       for (const file of filesFor(action)) {
         const name = `files/${file.id}-${safeName(file.name)}`;
         files[name] = await storage.read(file.storage_key);
-        markdown = markdown.replaceAll(`/api/cilo/files/${file.id}`, name);
+        markdown = markdown
+          .replaceAll(`/api/nivra/files/${file.id}`, name)
+          .replaceAll(`/api/cilo/files/${file.id}`, name);
       }
       const visit = async (blocks: Record<string, unknown>[]) => {
         for (const block of blocks) {
@@ -842,10 +946,10 @@ async function handle(
         });
       } catch (error) {
         if (error instanceof HttpError) throw error;
-        throw new HttpError(400, "This file is not a valid Cilo archive.");
+        throw new HttpError(400, "This file is not a valid Nivra archive.");
       }
       if (!entries["manifest.json"])
-        throw new HttpError(400, "Choose a Cilo export bundle.");
+        throw new HttpError(400, "Choose a Nivra export bundle.");
       const manifest = z
         .object({
           format: z.literal("cilo"),
@@ -1247,11 +1351,11 @@ async function handle(
         409,
       );
     console.error(
-      "Cilo request failed:",
+      "Nivra request failed:",
       error instanceof Error ? error.message : "Unknown error",
     );
     return response(
-      { error: "Cilo could not complete this action. Try again." },
+      { error: "Nivra could not complete this action. Try again." },
       500,
     );
   }

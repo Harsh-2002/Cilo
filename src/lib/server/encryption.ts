@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import {
   createCipheriv,
@@ -23,22 +24,23 @@ const magic = Buffer.from("CILOENC1");
 export function masterKey(
   directory: string,
   requireExisting = false,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = environment(),
 ): Buffer {
-  if (env.CILO_ENCRYPTION_KEY) {
-    if (!/^[a-f0-9]{64}$/i.test(env.CILO_ENCRYPTION_KEY))
+  env = environment(env);
+  if (env.NIVRA_ENCRYPTION_KEY) {
+    if (!/^[a-f0-9]{64}$/i.test(env.NIVRA_ENCRYPTION_KEY))
       throw new Error(
-        "CILO_ENCRYPTION_KEY must contain exactly 64 hexadecimal characters.",
+        "NIVRA_ENCRYPTION_KEY must contain exactly 64 hexadecimal characters.",
       );
-    return Buffer.from(env.CILO_ENCRYPTION_KEY, "hex");
+    return Buffer.from(env.NIVRA_ENCRYPTION_KEY, "hex");
   }
   const file =
-    env.CILO_ENCRYPTION_KEY_FILE ||
+    env.NIVRA_ENCRYPTION_KEY_FILE ||
     path.join(/* turbopackIgnore: true */ directory, "encryption.key");
   if (!existsSync(file)) {
-    if (requireExisting || env.CILO_ENCRYPTION_KEY_FILE)
+    if (requireExisting || env.NIVRA_ENCRYPTION_KEY_FILE)
       throw new Error(
-        "The encryption key is missing. Restore the original key before starting Cilo.",
+        "The encryption key is missing. Restore the original key before starting Nivra.",
       );
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     try {
@@ -55,7 +57,7 @@ export function masterKey(
   const key = readFileSync(file);
   if (key.length !== 32)
     throw new Error("The encryption key file must contain exactly 32 bytes.");
-  if (!env.CILO_ENCRYPTION_KEY_FILE) chmodSync(file, 0o600);
+  if (!env.NIVRA_ENCRYPTION_KEY_FILE) chmodSync(file, 0o600);
   return key;
 }
 export function deriveKey(master: Buffer, purpose: string): Buffer {
@@ -109,7 +111,7 @@ export function chunkedLayout(
     size > 1024 * 1024 ||
     body < tagLength
   )
-    throw new Error("Stored data is not a valid encrypted Cilo object.");
+    throw new Error("Stored data is not a valid encrypted Nivra object.");
   const chunks = Math.ceil(body / (size + tagLength));
   return {
     chunkSize: size,
@@ -173,7 +175,7 @@ export function openChunk(
 ): Buffer {
   const buffer = Buffer.from(stored);
   if (buffer.length < tagLength)
-    throw new Error("Stored data is not a valid encrypted Cilo object.");
+    throw new Error("Stored data is not a valid encrypted Nivra object.");
   const decipher = createDecipheriv(
     "aes-256-gcm",
     (layout.key ||= chunkCipherKey(master, layout.salt)),
@@ -222,7 +224,7 @@ export function unseal(
   context: string,
 ): Buffer {
   if (!isSingleMessage(bytes) || bytes.length < 36)
-    throw new Error("Stored data is not a valid encrypted Cilo object.");
+    throw new Error("Stored data is not a valid encrypted Nivra object.");
   const buffer = Buffer.from(bytes);
   const decipher = createDecipheriv(
     "aes-256-gcm",

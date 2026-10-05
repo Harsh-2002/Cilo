@@ -18,7 +18,7 @@ Global search shows a matching passage and highlights actual FTS matches, includ
 
 ## Version history
 
-Choose **Note actions → Version history** to preview earlier content and restore it. Before a content change, Cilo keeps a checkpoint at most once per five-minute editing window and retains the latest 100 checkpoints per note. These are editing checkpoints, rather than every keystroke or every autosave.
+Choose **Note actions → Version history** to preview earlier content and restore it. Before a content change, Nivra keeps a checkpoint at most once per five-minute editing window and retains the latest 100 checkpoints per note. These are editing checkpoints, rather than every keystroke or every autosave.
 
 Restoration preserves the current content first, checks the current revision and replaces the title and document. Tags, favorites and daily identity stay attached to the note. Restore a trashed note before restoring its history. Attachments belonging to the note remain available to older versions until permanent note deletion.
 
@@ -46,7 +46,7 @@ Templates were removed. Migration 0013 moves any existing template notes to Tras
 
 ## Portability
 
-Version-two Cilo bundles preserve histories, journal dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
+Version-two Nivra bundles preserve histories, journal dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
 
 Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
 

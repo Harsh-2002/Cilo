@@ -1,4 +1,4 @@
-Cilo source: https://github.com/Harsh-2002/Cilo (MIT).
+Nivra source: https://github.com/Harsh-2002/Nivra (MIT).
 BlockNote core, React, shadcn, code-block and diagram-block: MPL-2.0.
 Unmodified covered source: https://github.com/TypeCellOS/BlockNote
 License: MPL-2.0.txt in this directory.

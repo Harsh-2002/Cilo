@@ -75,8 +75,8 @@ export function OverviewPanel({
   }, []);
   useEffect(() => {
     const captured = () => void refresh();
-    window.addEventListener("cilo:captured", captured);
-    return () => window.removeEventListener("cilo:captured", captured);
+    window.addEventListener("nivra:captured", captured);
+    return () => window.removeEventListener("nivra:captured", captured);
   }, [refresh]);
   useEffect(() => {
     let clock: ReturnType<typeof setTimeout>;

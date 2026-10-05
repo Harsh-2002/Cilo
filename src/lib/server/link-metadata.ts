@@ -97,7 +97,7 @@ export async function fetchPublic(
       {
         signal,
         headers: {
-          "User-Agent": "Cilo-LinkPreview/1.0",
+          "User-Agent": "Nivra-LinkPreview/1.0",
           Accept: "text/html,image/*",
           "Accept-Encoding": "identity",
         },

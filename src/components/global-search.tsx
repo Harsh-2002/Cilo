@@ -10,6 +10,8 @@ import {
   Bookmark,
   CalendarDays,
   FileText,
+  Image as ImageIcon,
+  Layers,
   ListTodo,
   Loader2,
   Plus,
@@ -156,7 +158,7 @@ export function GlobalSearch({
           opener.current = null;
         }}
       >
-        <DialogTitle className="sr-only">Search Cilo</DialogTitle>
+        <DialogTitle className="sr-only">Search Nivra</DialogTitle>
         <DialogDescription className="sr-only">
           Find notes, tasks and bookmarks, or create something new.
         </DialogDescription>
@@ -210,7 +212,11 @@ export function GlobalSearch({
                         ? FileText
                         : result.type === "task"
                           ? ListTodo
-                          : Bookmark;
+                          : result.type === "artifact"
+                            ? result.artifactKind === "image"
+                              ? ImageIcon
+                              : Layers
+                            : Bookmark;
                     return (
                       <CommandItem
                         disabled={busy || loading}
@@ -225,7 +231,9 @@ export function GlobalSearch({
                                 : ".note-title"
                               : result.type === "task"
                                 ? 'input[aria-label="Search tasks"]'
-                                : 'input[aria-label="Search bookmarks"]',
+                                : result.type === "artifact"
+                                  ? 'input[aria-label="Search artifacts"]'
+                                  : 'input[aria-label="Search bookmarks"]',
                           )
                         }
                       >
@@ -249,7 +257,9 @@ export function GlobalSearch({
                             ? "Note"
                             : result.type === "task"
                               ? "Task"
-                              : "Bookmark"}
+                              : result.type === "artifact"
+                                ? "Artifact"
+                                : "Bookmark"}
                           {result.completed ? " · done" : ""}
                         </span>
                       </CommandItem>
@@ -347,6 +357,12 @@ export function GlobalSearch({
                 <dt>Bookmarks</dt>
                 <dd>
                   <code>type:bookmark</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Artifacts</dt>
+                <dd>
+                  <code>type:artifact</code>
                 </dd>
               </div>
               <div>

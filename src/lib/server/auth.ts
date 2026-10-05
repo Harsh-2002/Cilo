@@ -1,3 +1,4 @@
+import { environment } from "./environment";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username, twoFactor } from "better-auth/plugins";
@@ -55,9 +56,9 @@ export function authSecret() {
 export function auth(request?: Request) {
   const origin = request
     ? requestOrigin(request)
-    : process.env.CILO_PUBLIC_URL || "http://localhost:3000";
+    : environment().NIVRA_PUBLIC_URL || "http://localhost:3000";
   return betterAuth({
-    appName: "Cilo",
+    appName: "Nivra",
     baseURL: origin,
     secret: authSecret(),
     database: drizzleAdapter(db(), { provider: "sqlite", schema }),
@@ -67,7 +68,7 @@ export function auth(request?: Request) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
-    plugins: [username(), twoFactor({ issuer: "Cilo" })],
+    plugins: [username(), twoFactor({ issuer: "Nivra" })],
     trustedOrigins: [origin],
     rateLimit: { enabled: true, window: 60, max: 30 },
     session: { expiresIn: 60 * 60 * 24 * 14 },

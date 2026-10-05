@@ -62,7 +62,7 @@ function CanvasPreview({
       attachmentId?: string;
     }[]) {
       if (file.attachmentId) {
-        const blob = await fetch(`/api/cilo/files/${file.attachmentId}`).then(
+        const blob = await fetch(`/api/nivra/files/${file.attachmentId}`).then(
           (r) => r.blob(),
         );
         file.dataURL = await new Promise<string>((resolve) => {
@@ -221,7 +221,7 @@ export default function Editor({
       const form = new FormData();
       form.set("file", file);
       form.set("note", noteId);
-      const result = await fetch("/api/cilo/files", {
+      const result = await fetch("/api/nivra/files", {
         method: "POST",
         body: form,
       });

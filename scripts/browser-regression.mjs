@@ -1,4 +1,4 @@
-export default async function verifyCilo(page, phase) {
+export default async function verifyNivra(page, phase) {
   const base = new URL(page.url());
   if (base.port !== "3004")
     throw new Error("Use the disposable review server on port 3004.");
@@ -314,7 +314,7 @@ export default async function verifyCilo(page, phase) {
       check(
         text.includes("Shared note") &&
           text.includes("A durable searchable thought") &&
-          !text.includes("Cilo"),
+          !text.includes("Nivra"),
         "Anonymous sharing is readable without branding",
       );
       check(

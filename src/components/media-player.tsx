@@ -25,7 +25,7 @@ export function mediaTime(seconds: number) {
 function safeMediaSource(value: string) {
   try {
     return ["http:", "https:"].includes(
-      new URL(value, "https://cilo.invalid").protocol,
+      new URL(value, "https://nivra.invalid").protocol,
     )
       ? value
       : undefined;
@@ -116,7 +116,7 @@ export function MediaPlayer({
         const url = new URL(src, window.location.href);
         if (
           url.origin === window.location.origin &&
-          /^\/api\/cilo\/(?:files\/|published\/[a-f0-9]{48}\/files\/)/.test(
+          /^\/api\/(?:nivra|cilo)\/(?:files\/|artifacts\/[^/]+\/file|published\/[a-f0-9]{48}\/files\/)/.test(
             url.pathname,
           )
         ) {

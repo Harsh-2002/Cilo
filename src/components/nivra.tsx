@@ -7,7 +7,7 @@ import type { Owner, Settings } from "@/lib/types";
 import { AuthScreen, Mark } from "./auth-screen";
 import { Workspace } from "./workspace";
 import { Button } from "./ui/button";
-export function Cilo() {
+export function Nivra() {
   const [status, setStatus] = useState<{
     setup: boolean;
     owner: Owner | null;
@@ -52,7 +52,7 @@ export function Cilo() {
           <Loader2
             size={20}
             className="animate-spin"
-            aria-label="Opening Cilo"
+            aria-label="Opening Nivra"
           />
         )}
       </main>

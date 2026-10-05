@@ -26,7 +26,7 @@ export function editDistance(a: string, b: string, max: number) {
 }
 export function fuzzyQuery(
   input: string,
-  vocabulary: "notes" | "bookmarks" | "tasks" = "notes",
+  vocabulary: "notes" | "bookmarks" | "tasks" | "artifacts" = "notes",
 ) {
   const words = input
     .normalize("NFD")

@@ -21,9 +21,9 @@ export function remapDocument(
     }
     if (["url", "href", "preview"].includes(key))
       return value.replace(
-        /^\/api\/cilo\/files\/([a-f0-9-]{36})(?=[?#]|$)/,
+        /^\/api\/(?:nivra|cilo)\/files\/([a-f0-9-]{36})(?=[?#]|$)/,
         (url, id: string) =>
-          files.has(id) ? `/api/cilo/files/${files.get(id)}` : url,
+          files.has(id) ? `/api/nivra/files/${files.get(id)}` : url,
       );
     return value;
   };

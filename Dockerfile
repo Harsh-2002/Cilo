@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 FROM base AS build
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-ENV CILO_DATA_DIR=/tmp/cilo-build-data
+ENV NIVRA_DATA_DIR=/tmp/cilo-build-data
 RUN npm run build
 
 FROM dependencies AS runtime-binary
@@ -20,7 +20,7 @@ RUN strip --strip-unneeded /usr/local/bin/node
 
 FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS production
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 CILO_DATA_DIR=/app/data PORT=3000 HOSTNAME=0.0.0.0
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NIVRA_DATA_DIR=/app/data PORT=3000 HOSTNAME=0.0.0.0
 RUN apk add --no-cache libstdc++ ca-certificates \
     && addgroup -g 1000 node && adduser -D -u 1000 -G node node \
     && mkdir -m 700 /app/data && chown node:node /app/data

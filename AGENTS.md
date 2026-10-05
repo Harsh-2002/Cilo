@@ -1,10 +1,10 @@
-# Cilo repository guidance
+# Nivra repository guidance
 
 These instructions apply throughout this repository. Read any more specific `AGENTS.md` or `AGENTS.override.md` before changing files in its directory. Current user instructions take precedence over repository defaults.
 
 ## Orientation and sources of truth
 
-Cilo is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its stack is Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, Better Auth, and Excalidraw.
+Nivra is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its stack is Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, Better Auth, and Excalidraw.
 
 - `PRODUCT.md`: product scope and confirmed user requirements.
 - `DESIGN.md`: interface direction, tokens, and responsive behavior.
@@ -41,7 +41,7 @@ Docker delivery uses `docker compose up -d --build`. Inspect configuration with 
 - Use TypeScript with explicit boundaries and runtime validation for untrusted input. Keep server modules out of browser bundles.
 - SQLite is the only supported database. Use the Drizzle schema for ordinary model access and parameterized SQL for FTS5 and SQLite-specific operations.
 - Add an ordered migration for schema changes. Never rewrite a migration that has shipped; verify upgrade behavior on existing data.
-- BlockNote JSON is canonical. Markdown export is intentionally lossy; Cilo bundles must preserve document and attachment data.
+- BlockNote JSON is canonical. Markdown export is intentionally lossy; Nivra bundles must preserve document and attachment data.
 - Keep revision checks and unsaved edits intact. Never silently resolve a conflict by overwriting the server document.
 - Owner creation must remain atomic and single-use. Public signup stays disabled. Authorize every private API and file request on the server.
 - Onboarding, appearance, account security, and import/export belong in the UI. Upload limits and local/S3 storage are configured only through environment variables; secrets are generated and persisted by the server.
@@ -49,7 +49,7 @@ Docker delivery uses `docker compose up -d --build`. Inspect configuration with 
 - Fetch bookmark metadata only from public HTTP(S) destinations. Pin validated DNS addresses, revalidate redirects and preview assets, enforce deadlines and response limits, and serve cached previews through authenticated encrypted storage. Never proxy arbitrary private-network URLs.
 - Full-instance backups must include all referenced local/S3 files and account/publication state. Commit manifests last, verify recovery before publishing an empty destination, and never overwrite a running installation or place a master key in remote backup objects.
 - Keep uploads outside public assets behind the storage adapter. Enforce upload limits, generated storage keys, and safe serving of active file formats.
-- Use shadcn/ui or Cilo’s styled components for visible controls, including editor selectors and confirmations. Do not use native select menus, browser alerts, prompts, or confirm dialogs. Native file pickers remain the system integration behind styled upload buttons. Apply Impeccable to UI changes and verify consistent desktop/mobile behavior.
+- Use shadcn/ui or Nivra’s styled components for visible controls, including editor selectors and confirmations. Do not use native select menus, browser alerts, prompts, or confirm dialogs. Native file pickers remain the system integration behind styled upload buttons. Apply Impeccable to UI changes and verify consistent desktop/mobile behavior.
 - Keep dropdown actions and selector options on one line. Size menus to their labels within viewport bounds; preserve separate title/description layouts for rich search results. Fields use one visible focus border; do not stack an outer outline and focus ring.
 - Typography changes must verify the actual editor H1–H6 hierarchy, nested content, prose, lists, and source blocks at desktop/mobile sizes and 100%/90% browser zoom. Do not infer heading sizes from the note title or prose alone.
 - Keep the interface monochrome and responsive; user-selected tag and artifact colors are content metadata. Reuse existing shadcn controls, with labeled actions, visible focus, accessible dialogs, and explicit loading/error states.

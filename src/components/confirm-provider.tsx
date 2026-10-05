@@ -16,10 +16,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<Request | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
   const sequence = useRef(0);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const confirm: Confirm = (request) =>
     new Promise((resolve) => {
       resolver.current?.(false);
       resolver.current = resolve;
+      returnFocus.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       const ticket = ++sequence.current;
       const menu = document.querySelector(
         '[data-slot="dropdown-menu-content"]',
@@ -51,7 +56,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           if (!open) settle(false);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            const target = returnFocus.current;
+            if (target?.isConnected && target !== document.body) {
+              event.preventDefault();
+              target.focus({ preventScroll: true });
+            }
+          }}
+        >
           <AlertDialogTitle>{request?.title}</AlertDialogTitle>
           <AlertDialogDescription>
             {request?.description}

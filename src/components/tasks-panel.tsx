@@ -124,8 +124,8 @@ export function TasksPanel({
       if (filter === "open" && !query.trim() && next === null)
         setTasks((items) => mergeTasks(items, [result.item]));
     };
-    window.addEventListener("cilo:captured", received);
-    return () => window.removeEventListener("cilo:captured", received);
+    window.addEventListener("nivra:captured", received);
+    return () => window.removeEventListener("nivra:captured", received);
   }, [filter, query, next, refreshCounts]);
   const editDirty =
     !!editing &&

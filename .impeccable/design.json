@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-05T08:11:06Z",
-  "title": "Design System: Cilo",
+  "title": "Design System: Nivra",
   "extensions": {
     "colorMeta": {
       "background": {
@@ -562,8 +562,8 @@
     {
       "name": "Brand Mark",
       "kind": "custom",
-      "description": "Folded-page C monogram for the branded app shell, favicon, and mobile icons; the public reader stays unbranded.",
-      "html": "<span class=\"ds-brand-mark\" aria-hidden=\"true\"><svg viewBox=\"0 0 40 40\"><rect width=\"40\" height=\"40\" rx=\"9\" fill=\"var(--foreground)\"/><path d=\"M21 8h-6a8 8 0 0 0-8 8v8a8 8 0 0 0 8 8h14v-6H15a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h6V8Zm2 0v8h8l-8-8Z\" fill=\"var(--background)\"/></svg></span>",
+      "description": "N monogram for the branded app shell, favicon, and mobile icons; the public reader stays unbranded.",
+      "html": "<span class=\"ds-brand-mark\" aria-hidden=\"true\"><svg viewBox=\"0 0 40 40\"><rect width=\"40\" height=\"40\" rx=\"9\" fill=\"var(--foreground)\"/><path d=\"M9 8h6l10 16V8h6v24h-6L15 16v16H9V8Z\" fill=\"var(--background)\"/></svg></span>",
       "css": ".ds-brand-mark{display:inline-grid;width:40px;height:40px;place-items:center;flex-shrink:0;border-radius:9px;background:var(--foreground);color:var(--background)}\n.ds-brand-mark svg{display:block;width:40px;height:40px}"
     },
     {
@@ -581,6 +581,13 @@
       "css": ".ds-task-row{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;border-bottom:1px solid var(--border);color:var(--foreground);font-family:var(--font-sans)}\n.ds-task-check{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;padding:0;border:0;border-radius:4px;background:transparent;color:var(--foreground)}\n.ds-task-check span{width:20px;height:20px;border:1px solid var(--input);border-radius:4px;background:var(--background)}\n.ds-task-check[aria-checked=\"true\"] span{border-color:var(--primary);background:var(--primary)}\n.ds-task-title{min-width:0;flex:1;overflow-wrap:anywhere;font-size:14px;line-height:1.6}\n.ds-task-action{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;padding:0;border:0;border-radius:var(--radius);background:transparent;color:var(--foreground)}\n.ds-task-action:hover{background:var(--muted)}\n.ds-task-check:focus-visible,.ds-task-action:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}"
     },
     {
+      "name": "Artifact Shelf",
+      "kind": "custom",
+      "description": "Neutral intake and saved-item previews for collecting private text, screenshots and files without organizational overhead.",
+      "html": "<section class=\"ds-artifact-shelf\" aria-label=\"Artifacts\"><div class=\"ds-artifact-drop\"><p>Paste, upload, or drop anything.</p><div class=\"ds-artifact-actions\"><button type=\"button\">Paste</button><button type=\"button\">Upload</button><button type=\"button\">Add text</button></div></div><ul class=\"ds-artifact-grid\" aria-label=\"Saved artifacts\"><li class=\"ds-artifact-card\"><button class=\"ds-artifact-open\" type=\"button\"><span class=\"ds-artifact-snippet\">A few lines of saved text stay readable in the preview.</span><span class=\"ds-artifact-caption\"><strong>Trip notes.txt</strong><small>Text</small></span></button></li></ul></section>",
+      "css": ".ds-artifact-shelf{color:var(--foreground);font-family:var(--font-sans)}\n.ds-artifact-drop{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;padding:28px 20px;border:1px dashed var(--border);border-radius:var(--radius);color:var(--muted-foreground);font-size:13px;text-align:center}\n.ds-artifact-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}\n.ds-artifact-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font:500 14px var(--font-sans);white-space:nowrap}\n.ds-artifact-actions button:hover{background:var(--muted)}\n.ds-artifact-actions button:focus-visible{outline:2px solid var(--foreground);outline-offset:3px}\n.ds-artifact-grid{margin:0;padding:0;list-style:none;column-width:232px;column-gap:16px}\n.ds-artifact-card{break-inside:avoid;margin:0 0 16px;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--background)}\n.ds-artifact-open{display:flex;flex-direction:column;width:100%;border:0;background:transparent;color:var(--foreground);text-align:left}\n.ds-artifact-open:hover{background:var(--muted)}\n.ds-artifact-open:focus-visible{outline:2px solid var(--foreground);outline-offset:-2px}\n.ds-artifact-snippet{display:-webkit-box;padding:14px 16px;overflow:hidden;font-size:13px;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap;-webkit-box-orient:vertical;-webkit-line-clamp:4}\n.ds-artifact-caption{display:grid;gap:4px;padding:10px 14px 12px;color:var(--muted-foreground);font-size:12px;line-height:1.5}\n.ds-artifact-caption strong{color:var(--foreground);font-size:13px;font-weight:550}\n.ds-artifact-caption small{font-size:11px}\n@media(max-width:767px){.ds-artifact-drop{padding:22px 14px}.ds-artifact-grid{column-count:2;column-width:auto;column-gap:12px}.ds-artifact-card{margin-bottom:12px}.ds-artifact-actions button{min-height:44px}}"
+    },
+    {
       "name": "Code Language Picker",
       "kind": "custom",
       "description": "Searchable language menu with one keyboard-active option and an independent saved-language check.",
@@ -590,7 +597,7 @@
   ],
   "narrative": {
     "northStar": "The Quiet Page",
-    "overview": "Cilo keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.\n\nThe desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, highlighted code, named tag-color metadata, and clear semantic states.",
+    "overview": "Nivra keeps the surrounding workspace quiet so the note remains the largest, clearest surface. Bundled Geist, neutral light and dark grounds, fine separators, and restrained controls give it the familiar Vercel-like shadcn character chosen for this build.\n\nThe desktop workspace places navigation, a searchable note index, and a fluid editor side by side. On smaller screens, the app changes which pane is visible to protect the writing area. Color stays with user-authored drawings, diagrams, highlighted code, named tag-color metadata, and clear semantic states.",
     "keyCharacteristics": [
       "Writing stays visually dominant inside the workspace.",
       "Neutral surfaces, thin separators, and compact controls organize the app.",
@@ -620,7 +627,7 @@
       "Don't turn the writing workspace into a card dashboard or decorative landing hero.",
       "Don't add decorative gradients or a visible construction grid to the app chrome.",
       "Don't let application chrome compete with the note's content.",
-      "Don't put the Cilo name or mark on the public reader; keep its metadata to “Shared note” and the publication date."
+      "Don't put the Nivra name or mark on the public reader; keep its metadata to “Shared note” and the publication date."
     ]
   }
 }

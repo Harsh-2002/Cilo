@@ -39,7 +39,7 @@ export default async function verifyCaptureRetrieval(
     page.getByRole("dialog", { name: "Quick capture", exact: true });
   const input = () => capture().getByRole("textbox", { name: "Capture text" });
   const search = () =>
-    page.getByRole("dialog", { name: "Search Cilo", exact: true });
+    page.getByRole("dialog", { name: "Search Nivra", exact: true });
   const ready = async () => {
     await page.getByRole("button", { name: "Add task", exact: true }).waitFor();
   };

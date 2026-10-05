@@ -1,4 +1,4 @@
-const CACHE = "cilo-static-v1";
+const CACHE = "nivra-static-v1";
 const LIMIT = 120;
 // Every build adds new hashed assets, so evict the oldest build files to keep the cache bounded.
 async function trim(cache) {
@@ -29,7 +29,12 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("cilo-static-") && key !== CACHE)
+            .filter(
+              (key) =>
+                (key.startsWith("cilo-static-") ||
+                  key.startsWith("nivra-static-")) &&
+                key !== CACHE,
+            )
             .map((key) => caches.delete(key)),
         ),
       )

@@ -27,7 +27,7 @@ test("calendar recurrence preserves dates across leap years and short months", (
 test("connected workspace retains private search, recovery, journal and scheduled relationships", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-connected-"));
   process.env.CILO_DATA_DIR = directory;
-  const routes = await import("../src/app/api/cilo/[...path]/route");
+  const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { createStorage } = await import("../src/lib/server/storage");
   const { checkpoint } = await import("../src/lib/server/note-history");
@@ -46,7 +46,7 @@ test("connected workspace retains private search, recovery, journal and schedule
     if (body && !(body instanceof FormData) && !(body instanceof Uint8Array))
       headers["content-type"] = "application/json";
     return routes.GET(
-      new Request(`http://localhost:3000/api/cilo/${route}`, {
+      new Request(`http://localhost:3000/api/nivra/${route}`, {
         method,
         headers,
         body:

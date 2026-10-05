@@ -14,7 +14,7 @@ export const sectionCache = {
   },
 };
 if (typeof window !== "undefined")
-  window.addEventListener("cilo:captured", (event) => {
+  window.addEventListener("nivra:captured", (event) => {
     const type = (event as CustomEvent<{ type: string }>).detail?.type;
     sectionCache.clear(
       "overview",

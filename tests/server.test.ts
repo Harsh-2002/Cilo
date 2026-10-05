@@ -6,10 +6,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 
-test("Cilo protects ownership and preserves notes, artifacts, and recovery", async (t) => {
+test("Nivra protects ownership and preserves notes, artifacts, and recovery", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-test-"));
   process.env.CILO_DATA_DIR = directory;
-  const routes = await import("../src/app/api/cilo/[...path]/route");
+  const routes = await import("../src/app/api/nivra/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
@@ -30,7 +30,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
     if (authenticated) headers.cookie = cookie;
     if (body && !(body instanceof FormData) && !(body instanceof Uint8Array))
       headers["content-type"] = "application/json";
-    return new Request(`http://localhost:3000/api/cilo/${route}`, {
+    return new Request(`http://localhost:3000/api/nivra/${route}`, {
       method,
       headers,
       body:
@@ -315,7 +315,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
         });
         note.document.blocks.push({
           type: "image",
-          props: { url: `/api/cilo/files/${fileId}`, name: "image.png" },
+          props: { url: `/api/nivra/files/${fileId}`, name: "image.png" },
         });
         assert.equal(
           (
@@ -340,7 +340,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           duplicate.document.blocks.find(
             (b: { type: string }) => b.type === "image",
           ).props.url,
-          `/api/cilo/files/${fileId}`,
+          `/api/nivra/files/${fileId}`,
         );
         assert.equal(
           (await call(`files/${duplicate.attachmentMap[fileId]}`)).status,
@@ -387,14 +387,14 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
         const url = copy.document.blocks.find(
           (b: { type: string }) => b.type === "image",
         ).props.url;
-        assert.notEqual(url, `/api/cilo/files/${fileId}`);
+        assert.notEqual(url, `/api/nivra/files/${fileId}`);
         assert.ok(
           copy.document.blocks.some(
             (block: { content?: { text?: string }[] }) =>
               block.content?.some((part) => part.text === fileId),
           ),
         );
-        assert.equal((await call(url.replace("/api/cilo/", ""))).status, 200);
+        assert.equal((await call(url.replace("/api/nivra/", ""))).status, 200);
         const malformed = zipSync({
           "manifest.json": strToU8('{"format":"wrong"}'),
         });
@@ -469,7 +469,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           200,
         );
         const exported = await call(`export/markdown/${noteId}`, "POST", {
-          markdown: `![Image](/api/cilo/files/${fileId})`,
+          markdown: `![Image](/api/nivra/files/${fileId})`,
         });
         assert.equal(exported.status, 200);
         const entries = unzipSync(new Uint8Array(await exported.arrayBuffer()));
@@ -484,7 +484,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           Object.entries(entries).find(([name]) => name.endsWith(".md"))![1],
         );
         assert.ok(markdown.includes(`drawings/${canvas.id}.excalidraw`));
-        assert.ok(!markdown.includes("/api/cilo/files/"));
+        assert.ok(!markdown.includes("/api/nivra/files/"));
       },
     );
     await t.test(
@@ -550,10 +550,10 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           input: string | URL | Request,
           init?: RequestInit,
         ) => {
-          if (typeof input === "string" && input.startsWith("/api/cilo/")) {
+          if (typeof input === "string" && input.startsWith("/api/nivra/")) {
             const body = init?.body;
             return call(
-              input.slice("/api/cilo/".length),
+              input.slice("/api/nivra/".length),
               init?.method || "GET",
               body instanceof FormData
                 ? body
@@ -616,12 +616,15 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           ).json();
           assert.match(
             imported.document.blocks[0].props.url,
-            /^\/api\/cilo\/files\//,
+            /^\/api\/(?:nivra|cilo)\/files\//,
           );
           assert.equal(
             (
               await call(
-                imported.document.blocks[0].props.url.replace("/api/cilo/", ""),
+                imported.document.blocks[0].props.url.replace(
+                  "/api/nivra/",
+                  "",
+                ),
               )
             ).status,
             200,
@@ -665,7 +668,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
                   ],
                 },
                 { type: "image", props: { url: attachment.url } },
-                { type: "image", props: { url: `/api/cilo/files/${fileId}` } },
+                { type: "image", props: { url: `/api/nivra/files/${fileId}` } },
                 {
                   type: "canvas",
                   props: {
@@ -705,7 +708,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
         assert.equal(publicData.document.blocks[3].props.scene, "");
         assert.equal(JSON.stringify(publicData).includes(note.id), false);
         const sharedFileUrl = publicData.document.blocks[1].props.url;
-        const route = sharedFileUrl.replace("/api/cilo/", "");
+        const route = sharedFileUrl.replace("/api/nivra/", "");
         const file = await call(route, "GET", undefined, false);
         assert.equal(file.status, 200);
         assert.equal(file.headers.get("cache-control"), "no-store");

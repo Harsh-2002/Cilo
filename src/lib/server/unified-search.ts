@@ -14,7 +14,7 @@ export function parseSearch(input: string) {
         const value = quoted || plain;
         if (
           key.toLowerCase() === "type" &&
-          /^(notes?|tasks?|bookmarks?)$/i.test(value)
+          /^(notes?|tasks?|bookmarks?|artifacts?)$/i.test(value)
         ) {
           type = value.toLowerCase().replace(/s$/, "");
           return "";
@@ -33,10 +33,16 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
   const { type, tag, text } = parseSearch(input);
   const database = sqlite();
   const results: SearchResult[] = [];
-  for (const area of ["note", "task", "bookmark"] as const) {
+  for (const area of ["note", "task", "bookmark", "artifact"] as const) {
     if ((type && type !== area) || (tag && area !== "note")) continue;
     const table =
-      area === "note" ? "notes" : area === "task" ? "tasks" : "bookmarks";
+      area === "note"
+        ? "notes"
+        : area === "task"
+          ? "tasks"
+          : area === "bookmark"
+            ? "bookmarks"
+            : "artifacts";
     const conditions = ["owner_id=?"];
     const params: (string | number)[] = [owner];
     if (area === "note") conditions.push("trashed_at IS NULL AND kind='note'");
@@ -56,9 +62,19 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
         values.push(query);
       }
       const excerpt =
-        area === "note" ? "text" : area === "task" ? "title" : "description";
+        area === "note"
+          ? "text"
+          : area === "task"
+            ? "title"
+            : area === "artifact"
+              ? "content"
+              : "description";
       const completed =
-        area === "task" ? ",completed_at IS NOT NULL AS completed" : "";
+        area === "task"
+          ? ",completed_at IS NOT NULL AS completed"
+          : area === "artifact"
+            ? ",kind AS artifactKind"
+            : "";
       return database
         .prepare(
           `SELECT rowid AS searchRow,id,title,${query ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed} FROM ${table} INDEXED BY ${table}_search_order_idx WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT 12`,
@@ -109,7 +125,10 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     let usedQuery = query;
     let found = run(query);
     if (!found.length && query) {
-      const fuzzy = fuzzyQuery(text, table as "notes" | "tasks" | "bookmarks");
+      const fuzzy = fuzzyQuery(
+        text,
+        table as "notes" | "tasks" | "bookmarks" | "artifacts",
+      );
       if (fuzzy) {
         found = run(fuzzy);
         usedQuery = fuzzy;
