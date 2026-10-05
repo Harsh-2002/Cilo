@@ -7,7 +7,6 @@ import {
   Search,
   Plus,
   Settings as SettingsIcon,
-  LogOut,
   PanelLeftClose,
   Menu,
   MoreHorizontal,
@@ -283,13 +282,8 @@ export function Workspace({
     return true;
   }
   async function logout() {
-    if (!(await guard.current())) return;
-    try {
-      await authRequest("sign-out", {});
-      onSignOut();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await authRequest("sign-out", {});
+    onSignOut();
   }
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
@@ -483,26 +477,19 @@ export function Workspace({
           <SettingsIcon size={16} />
           Settings
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="owner-button">
-              <span className="avatar">
-                {owner.name.charAt(0).toUpperCase()}
-              </span>
-              <span>
-                <strong>{owner.name}</strong>
-                <small>Your personal space</small>
-              </span>
-              <MoreHorizontal size={16} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => void logout()}>
-              <LogOut size={15} />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="ghost"
+          className="account-settings-button"
+          aria-label="Open account settings"
+          onClick={() => {
+            setDrawer(false);
+            setSettingsOpen(true);
+          }}
+        >
+          <span className="avatar" aria-hidden="true">
+            {owner.name.charAt(0).toUpperCase()}
+          </span>
+        </Button>
       </footer>
     </div>
   );
@@ -835,6 +822,7 @@ export function Workspace({
         onClose={() => setSettingsOpen(false)}
         owner={owner}
         initial={initialSettings}
+        onSignOut={logout}
         beforeAction={() => guard.current()}
         onImported={async () => {
           await load();

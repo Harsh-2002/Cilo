@@ -177,6 +177,22 @@ button:not(:disabled) {
   outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select-trigger"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: var(--foreground);
+}
+[data-slot="button"]:focus-visible,
+[data-slot="dropdown-menu-trigger"]:focus-visible {
+  box-shadow: none;
+  outline-offset: -2px;
+}
+[data-variant="default"][data-slot="button"]:focus-visible,
+[data-variant="default"][data-slot="dropdown-menu-trigger"]:focus-visible {
+  outline-color: var(--primary-foreground);
+}
 input,
 textarea,
 [contenteditable] {
@@ -551,15 +567,11 @@ button:disabled {
   margin-top: auto;
   padding-top: 20px;
 }
-.owner-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  margin-top: 14px;
-  padding: 13px 5px 4px;
-  border-top: 1px solid var(--border);
+.account-settings-button[data-slot="button"] {
+  width: 44px;
+  height: 44px;
+  padding: 7px;
+  margin-top: 12px;
 }
 .avatar {
   display: grid;
@@ -571,25 +583,6 @@ button:disabled {
   font-size: 12px;
   font-weight: 550;
   flex-shrink: 0;
-}
-.owner-button > span:nth-child(2) {
-  flex: 1;
-  min-width: 0;
-}
-.owner-button strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 550;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.owner-button small {
-  font-size: 10px;
-  color: var(--muted-foreground);
-}
-.owner-button > svg {
-  color: var(--muted-foreground);
 }
 .notes-list {
   display: flex;
@@ -2483,7 +2476,20 @@ button:disabled {
   min-height: 0;
 }
 .global-search-dialog [data-slot="command-input-wrapper"] {
-  padding-right: 44px;
+  min-height: 60px;
+  padding: 16px 56px 16px 20px;
+  gap: 12px;
+  transition: background-color 150ms;
+}
+.global-search-dialog [data-slot="command-input"] {
+  height: 28px;
+  font-size: 16px;
+}
+[data-slot="command-input"]:focus-visible {
+  outline: none;
+}
+[data-slot="command-input-wrapper"]:focus-within {
+  background: var(--muted);
 }
 .global-search-dialog [data-slot="command-list"] {
   max-height: min(480px, calc(100dvh - 180px));
@@ -2491,6 +2497,22 @@ button:disabled {
 .global-search-dialog [data-slot="command-item"] {
   min-height: 48px;
   padding: 10px 12px;
+}
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="select-item"] {
+  min-height: 36px;
+}
+@media (max-width: 767px) {
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="dropdown-menu-radio-item"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="select-item"] {
+    min-height: 44px;
+  }
 }
 .search-hint {
   padding: 10px 16px;
@@ -2904,8 +2926,7 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 .overview-task-summary,
-.overview-more,
-.overview-updated {
+.overview-more {
   color: var(--muted-foreground);
   font-size: 12px;
 }
@@ -3042,9 +3063,6 @@ button:disabled {
 .overview-skeleton span + span {
   width: 40%;
   height: 8px;
-}
-.overview-updated {
-  margin-top: 24px;
 }
 @media (max-width: 1100px) {
   .overview-content {

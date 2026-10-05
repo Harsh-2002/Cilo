@@ -117,6 +117,18 @@ The earlier connected-workspace and live RustFS checks above remain historical e
 
 The Overview browser harness is `scripts/browser-overview.mjs`. It accepts a Playwright page and phases `functional`, `polling`, `hidden`, and `responsive`. Functional checks begin with empty notes/tasks/bookmarks; responsive checks accept `theme`, `widths`, `axePath`, and `captureDirectory`. It requires the disposable owner/port guard and must never target user data. Use a fresh artifact directory when replacing the production test build: reusing a runtime directory can retain previous Next.js route-cache entries.
 
+## Shared controls verification — October 5, 2026
+
+The account footer, settings sign-out, focus styling, global search header, and shared menu sizing were checked against a fresh standalone production build using disposable encrypted local data on port 3004. The running owner instance was not used for these mutations.
+
+- Type checking, lint, formatting, production build, and all 47 automated tests passed.
+- `scripts/browser-ui-polish.mjs` passed 131 Chromium checks across 1440×900, 768×900, 390×900, and 320×900 in verified light and dark themes. Checks cover single-line note/task/bookmark menu actions, bookmark collection options, viewport bounds, 36px desktop and 44px phone menu targets, one field focus border, global typo search returning all three content types, the compact account shortcut, and separate current/other-session actions.
+- Sign-out failure surfaced an error without dropping the session; successful sign-out returned to login and invalidated the server session. Keyboard navigation on the login form retained a visible single-border input focus state.
+- Rendered screenshots were inspected for desktop search and phone search, note actions, bookmark actions, and account settings in both themes. This pass does not extend the earlier accessibility scan or certify additional browser engines.
+- The existing host development instance remained on port 3000; `https://dev.l3b.cc.cd/api/cilo/health` returned healthy through the owner's reverse proxy.
+
+The browser harness requires the disposable `Review Owner` and three fixtures: note `Nebula research`, task `Review nebula`, and bookmark `Nebula reference` in `Research collection`, all indexed with the word `nebula`. It changes the fixture owner's theme and signs out at the end. Screenshots go under `/tmp/cilo-ui-refinement`. Never run it against the owner's real instance.
+
 ## Remaining verification limits
 
 - Browser coverage here is Chromium. Firefox, Safari/WebKit, physical iOS/Android, software keyboards, assistive technology and PWA installation on physical devices remain unverified.

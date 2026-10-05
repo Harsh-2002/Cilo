@@ -222,7 +222,7 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 - **Shape:** Gently softened controls with the shared control radius.
 - **Primary:** The default action inverts foreground and background; its hover reduces the fill opacity.
 - **Outline and ghost:** Outline buttons keep the surface and border; ghost buttons stay borderless and gain a muted hover fill.
-- **Hover / Focus:** Buttons make a small active press shift. Keyboard focus uses a visible neutral outline and component focus ring.
+- **Hover / Focus:** Buttons make a small active press shift. Keyboard focus uses one visible neutral inset outline.
 - **Touch use:** Note-topbar and insertion-toolbar actions reach a 44px control height on mobile.
 
 ### Chips
@@ -241,12 +241,12 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 ### Inputs / Fields
 
 - **Style:** Inputs use the theme's border and background roles; the search field sits on a muted fill.
-- **Focus:** Keyboard focus remains visible with a neutral outline and the component ring.
+- **Focus:** Focused fields use one foreground border without an outer ring. Search inputs use a muted header fill for focus.
 - **Error / Disabled:** Disabled controls reduce emphasis; destructive actions use the reserved semantic color.
 
 ### Navigation
 
-The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation.
+The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action. The rail footer keeps a compact avatar shortcut to Settings without an account name or account menu. Sign out is in Settings → Account, separate from signing out other sessions. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation. Dropdown menus size to their labels within viewport bounds; action and selector labels stay on one line, with 36px rows on desktop and 44px touch targets on phones. Rich search results retain separate title and description rows.
 
 ### Tasks
 

@@ -17,7 +17,11 @@ export default async function verifyOverview(page, phase, options = {}) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(base);
   const overview = page.getByRole("region", { name: "Overview", exact: true });
-  const ready = () => overview.locator(".overview-updated").waitFor();
+  const ready = () =>
+    overview
+      .locator(".overview-tasks:not(.overview-skeleton)")
+      .first()
+      .waitFor();
   const passed = [];
   const check = (condition, name) => {
     if (!condition) throw new Error(name);

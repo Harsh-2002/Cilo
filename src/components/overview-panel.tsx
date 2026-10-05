@@ -424,16 +424,6 @@ export function OverviewPanel({
               </div>
             )
           )}
-          {data && (
-            <p className="overview-updated">
-              Updated{" "}
-              {new Date(data.refreshedAt).toLocaleTimeString(undefined, {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              · Refreshes while you’re here
-            </p>
-          )}
         </div>
       </div>
     </section>

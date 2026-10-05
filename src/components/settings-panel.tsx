@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Check,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,6 +41,7 @@ export function SettingsPanel({
   initial,
   beforeAction,
   onImported,
+  onSignOut,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,6 +49,7 @@ export function SettingsPanel({
   initial: Settings;
   beforeAction: () => Promise<boolean>;
   onImported: () => Promise<void>;
+  onSignOut: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<Section>("appearance");
   const [accountView, setAccountView] = useState<AccountView>("profile");
@@ -385,6 +388,21 @@ export function SettingsPanel({
                               })
                             }
                           >
+                            Sign out others
+                          </Button>
+                        </div>
+                        <div className="settings-row">
+                          <div>
+                            <h3>This session</h3>
+                            <p>Sign out of this browser.</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy || mfaGuard}
+                            onClick={() => void run(onSignOut)}
+                          >
+                            <LogOut size={15} />
                             Sign out
                           </Button>
                         </div>
