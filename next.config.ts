@@ -27,6 +27,17 @@ const config: NextConfig = {
         ],
       },
       {
+        source: "/share/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          {
+            key: "Content-Security-Policy",
+            value: `default-src 'none'; script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' https: http:; media-src 'self' https: http:; font-src 'self'; connect-src 'self'${process.env.NODE_ENV === "development" ? " ws: wss:" : ""}; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'`,
+          },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [
           {

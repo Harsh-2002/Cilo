@@ -22,7 +22,7 @@ import {
   getDiagramSlashMenuItems,
 } from "@blocknote/diagram-block";
 import * as locales from "@blocknote/core/locales";
-import { PencilLine, Download, Table2, Loader2, FileText } from "lucide-react";
+import { PencilLine, Download, Loader2, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 import { codeBlockSpec } from "./code-block";
 import { checklistBlockSpec } from "./checklist-block";
@@ -207,7 +207,11 @@ export default function Editor({
     },
     initialContent: document.blocks as Blocks,
     extensions: [syntaxHighlighter],
-    dictionary: { ...locales.en, diagram: diagramLocales.en },
+    dictionary: {
+      ...locales.en,
+      placeholders: { ...locales.en.placeholders, default: "Start writing…" },
+      diagram: diagramLocales.en,
+    },
     uploadFile: async (file) => {
       const form = new FormData();
       form.set("file", file);
@@ -249,22 +253,10 @@ export default function Editor({
       },
     });
   }, [editor, onTools]);
-  const insert = (type: "canvas" | "codeBlock" | "diagram" | "table") => {
-    const current = editor.getTextCursorPosition().block;
-    const defaults =
-      type === "diagram"
-        ? { content: "flowchart LR\n  Idea --> Note\n  Note --> Action" }
-        : type === "table"
-          ? {
-              content: {
-                type: "tableContent" as const,
-                rows: [{ cells: ["", "", ""] }, { cells: ["", "", ""] }],
-              },
-            }
-          : {};
+  const insert = (type: "canvas") => {
     editor.insertBlocks(
-      [{ type, ...defaults } as Blocks[number]],
-      current,
+      [{ type }],
+      editor.getTextCursorPosition().block,
       "after",
     );
     editor.focus();
@@ -295,18 +287,6 @@ export default function Editor({
         }
       }}
     >
-      {editable && (
-        <div className="insert-toolbar" aria-label="Insert a block">
-          <Button variant="ghost" size="sm" onClick={() => insert("canvas")}>
-            <PencilLine size={15} />
-            Drawing
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => insert("table")}>
-            <Table2 size={15} />
-            Table
-          </Button>
-        </div>
-      )}
       <BlockNoteView
         editor={editor}
         theme={resolvedTheme === "dark" ? "dark" : "light"}

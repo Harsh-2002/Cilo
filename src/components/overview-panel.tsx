@@ -10,7 +10,6 @@ import {
   Loader2,
   Menu,
   Plus,
-  RefreshCw,
   Repeat2,
 } from "lucide-react";
 import { api } from "@/lib/client";
@@ -125,27 +124,6 @@ export function OverviewPanel({
   );
   return (
     <section className="overview-panel" aria-label="Overview">
-      <header className="tasks-header">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="menu-toggle"
-          aria-label="Open navigation"
-          onClick={onNavigation}
-        >
-          <Menu size={18} />
-        </Button>
-        <h1>Overview</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Refresh overview"
-          disabled={loading || !!busy}
-          onClick={() => void refresh()}
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </Button>
-      </header>
       <div
         className="overview-scroll"
         tabIndex={0}
@@ -153,11 +131,16 @@ export function OverviewPanel({
         aria-label="Your overview"
       >
         <div className="overview-content">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="menu-toggle overview-navigation"
+            aria-label="Open navigation"
+            onClick={onNavigation}
+          >
+            <Menu size={18} />
+          </Button>
           <div className="overview-intro">
-            <div>
-              <h2>Your day, at a glance.</h2>
-              <p>Pick up a thought. Finish a task. Find a saved link.</p>
-            </div>
             <div className="overview-clock">
               <time dateTime={today || undefined} aria-label="Today's date">
                 {now
@@ -195,7 +178,7 @@ export function OverviewPanel({
             </Button>
             <Button variant="ghost" onClick={() => onCreate("daily")}>
               <CalendarDays size={16} />
-              Today’s note
+              Journal
             </Button>
           </div>
           {error && (

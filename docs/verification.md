@@ -138,3 +138,19 @@ The browser harness requires the disposable `Review Owner` and three fixtures: n
 - Automated accessibility checks do not establish full WCAG conformance. Performance under very large collections, long-duration use, interrupted browser processes, and every possible input/state combination is not proven.
 
 Future release verification should run the same regression checks against the exact shipping revision, add the missing browser/device coverage, exercise the chosen production S3 target when configured, and verify HTTPS on the chosen deployment origin. Follow functional verification with the established Impeccable polish pass when a release changes UI.
+
+## Minimal workspace and reader refinement — 2026-10-05
+
+The production standalone build was inspected in a disposable encrypted instance on port 3004. The real owner installation was preserved. Automated checks passed: 52 tests, type checking, lint, formatting, and production build including the private-data tracing guard. Runtime dependency audit reported zero advisories; this does not cover the development toolchain.
+
+Browser checks cover the sidebar order, absence of avatar/status strips, blank Journal creation, global note/task results, and Overview/search layouts at 1440, 768, 390 and 320px in both themes. Delaying search responses by 400ms reproduced an 18px vertical movement before the change; the fixed viewport showed 0px position and height change afterwards. Search owns its open state so it does not rerender the workspace/editor. Click-to-first-paint samples varied with machine load; these synthetic Chromium measurements are not field INP or a physical-device frame-rate guarantee. Search uses a plain dimmed backdrop.
+
+Computed editor sizing was 26px title/14px prose/12px source on desktop and 24px title/16px prose on mobile. The public reader retains its independent reading sizes. The code-language picker and slash Drawing command remained available. Keyboard focus on the language picker showed no outer outline or shadow and one visible foreground border.
+
+Anonymous JavaScript-disabled browsing verified that published text, code and tables arrive as initial HTML. JavaScript enhancement verified syntax coloring and sanitized diagrams with visible SVG labels. Shared responses carry no-store and scoped CSP headers; unknown routes and revoked publications returned HTTP 404. The browser reported no hydration, theme-script-remount or CSP errors. A deliberately malformed publication in the disposable database returned a quiet HTTP 500 error page without exception details; restoring it and choosing Try again recovered the actual server-rendered reader. Root-layout fatal-error UI is compiled but was not separately fault-injected.
+
+The reader unit checks cover escaped text, rejected executable URLs, lists, nested content, tables, drawing previews, checklist state, duplicate title handling, theme initialization and light/dark syntax tokens. Direct image rendering is a narrow lint exception for protected attachment URLs and imported external images; it avoids server-side image optimization/proxying of those resources.
+
+These checks used Chromium 153 and emulated viewport sizes. Physical keyboards, iOS Safari and Android hardware require separate device testing. Historical audit records above describe their original scope; they are not substituted for these checks.
+
+A fresh Impeccable finish reviewer returned **ship** for the supplied Overview/search viewport matrix, editor and language picker, public reader, and fallback captures, with no material findings. The documenter updated the approved editor-specific typography and writing-surface metadata in DESIGN.md and its sidecar; unrelated tokens were preserved. This verdict covers the reviewed surfaces and evidence, rather than every app feature or device.

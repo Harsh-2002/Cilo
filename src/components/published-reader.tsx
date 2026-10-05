@@ -1,17 +1,7 @@
-"use client";
-import dynamic from "next/dynamic";
 import type { Document } from "@/lib/types";
-const Editor = dynamic(() => import("./editor"), {
-  ssr: false,
-  loading: () => (
-    <div className="editor-skeleton" role="status" aria-label="Loading note">
-      <span />
-      <span />
-      <span />
-    </div>
-  ),
-});
-const noop = () => {};
+import { readingBlocks } from "@/lib/reader";
+import { NoteContent } from "./note-content";
+
 export function NoteReading({
   title,
   document,
@@ -19,29 +9,10 @@ export function NoteReading({
   title: string;
   document: Document;
 }) {
-  const first = document.blocks[0];
-  const heading = Array.isArray(first?.content)
-    ? first.content
-        .map((item) => (typeof item.text === "string" ? item.text : ""))
-        .join("")
-    : "";
-  const readingDocument =
-    first?.type === "heading" &&
-    (first.props as { level?: number } | undefined)?.level === 1 &&
-    heading.trim() === title.trim() &&
-    (!Array.isArray(first.children) || first.children.length === 0)
-      ? { ...document, blocks: document.blocks.slice(1) }
-      : document;
   return (
     <article className="note-reading">
       <h1>{title || "Untitled"}</h1>
-      <Editor
-        document={readingDocument}
-        onChange={noop}
-        onTools={noop}
-        editable={false}
-        noteId=""
-      />
+      <NoteContent blocks={readingBlocks(title, document)} />
     </article>
   );
 }
@@ -58,10 +29,6 @@ export function PublishedReader({
     <main className="publication-page">
       <header className="publication-header">
         <span>Shared note</span>
-      </header>
-      <NoteReading title={title} document={document} />
-      <footer className="publication-footer">
-        Published{" "}
         <time dateTime={new Date(publishedAt).toISOString()}>
           {new Date(publishedAt).toLocaleDateString("en", {
             month: "long",
@@ -70,7 +37,8 @@ export function PublishedReader({
             timeZone: "UTC",
           })}
         </time>
-      </footer>
+      </header>
+      <NoteReading title={title} document={document} />
     </main>
   );
 }

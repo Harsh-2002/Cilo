@@ -88,9 +88,7 @@ export default async function verifyOverview(page, phase, options = {}) {
     const bookmark = await api("bookmarks", "POST", {
       url: `https://example.com/?overview=${stamp}`,
     });
-    await overview
-      .getByRole("button", { name: "Refresh overview", exact: true })
-      .click();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await overview
       .getByRole("checkbox", { name: `Complete ${title}`, exact: true })
       .waitFor();
@@ -173,9 +171,9 @@ export default async function verifyOverview(page, phase, options = {}) {
     check(true, "Save link focuses the existing URL field");
     await back();
     await overview
-      .getByRole("button", { name: "Today’s note", exact: true })
+      .getByRole("button", { name: "Journal", exact: true })
       .click();
-    await page.getByText("Daily note", { exact: false }).waitFor();
+    await page.getByText("Journal", { exact: false }).waitFor();
     check(true, "Today's note opens the daily note");
     await back();
     await overview
@@ -200,9 +198,7 @@ export default async function verifyOverview(page, phase, options = {}) {
         body: JSON.stringify({ error: "Test server unavailable" }),
       }),
     );
-    await overview
-      .getByRole("button", { name: "Refresh overview", exact: true })
-      .click();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await overview.getByRole("alert").waitFor();
     check(
       await overview.getByText("Recent notes", { exact: true }).isVisible(),
@@ -250,10 +246,7 @@ export default async function verifyOverview(page, phase, options = {}) {
       delete document.visibilityState;
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    await page.waitForFunction(
-      () =>
-        !document.querySelector('[aria-label="Refresh overview"]')?.disabled,
-    );
+    await overview.locator(".overview-tasks:not(.overview-skeleton)").waitFor();
     await page.waitForTimeout(200);
     check(requests > 0, "Returning to the tab refreshes immediately");
     page.off("request", listener);

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { unzipSync, strFromU8, zipSync, strToU8 } from "fflate";
@@ -361,6 +361,38 @@ test("connected workspace retains private search, recovery, templates and schedu
         const builtins = await value<Note[]>("templates");
         assert.equal(builtins.length, 3);
         assert.equal((await value<Note[]>("templates")).length, 3);
+        const seeded = builtins.find((note) => note.title === "Journal")!;
+        sqlite()
+          .prepare("UPDATE instance SET daily_template_id=? WHERE id=1")
+          .run(seeded.id);
+        sqlite().exec(
+          await readFile("migrations/0009_blank_journal_default.sql", "utf8"),
+        );
+        assert.equal(
+          (
+            sqlite()
+              .prepare("SELECT daily_template_id FROM instance WHERE id=1")
+              .get() as { daily_template_id: string | null }
+          ).daily_template_id,
+          null,
+        );
+        assert.ok(
+          (await value<Note[]>("templates")).some(
+            (note) => note.id === seeded.id,
+          ),
+        );
+        const blank = await value<Note>("notes/daily", "POST", {
+          date: "2026-10-03",
+        });
+        assert.equal(blank.text.trim(), "");
+        assert.equal(blank.document.blocks.length, 1);
+        const trashed = await value<Note>(`notes/${blank.id}`, "PATCH", {
+          revision: blank.revision,
+          trashed: true,
+        });
+        await value(`notes/${blank.id}`, "DELETE", {
+          revision: trashed.revision,
+        });
         const form = new FormData();
         form.set("note", source.id);
         form.set("file", new File(["template payload"], "reference.txt"));
@@ -391,6 +423,17 @@ test("connected workspace retains private search, recovery, templates and schedu
         assert.equal(templateFiles.length, 1);
         assert.notEqual(templateFiles[0].id, fileId);
         await value(`templates/${template.id}/daily-default`, "POST");
+        sqlite().exec(
+          await readFile("migrations/0009_blank_journal_default.sql", "utf8"),
+        );
+        assert.equal(
+          (
+            sqlite()
+              .prepare("SELECT daily_template_id FROM instance WHERE id=1")
+              .get() as { daily_template_id: string | null }
+          ).daily_template_id,
+          template.id,
+        );
         const days = await Promise.all([
           value<Note>("notes/daily", "POST", { date: "2026-10-04" }),
           value<Note>("notes/daily", "POST", { date: "2026-10-04" }),

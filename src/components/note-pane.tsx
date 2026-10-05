@@ -428,12 +428,14 @@ export function NotePane({
                           await api(`templates/${note.id}/daily-default`, {
                             method: "POST",
                           });
-                          toast.success("Daily notes will use this template.");
+                          toast.success(
+                            "New journal entries will use this template.",
+                          );
                         })
                       }
                     >
                       <CalendarDays size={15} />
-                      Use for daily notes
+                      Use for journal
                     </DropdownMenuItem>
                   </>
                 ) : (
@@ -648,7 +650,7 @@ export function NotePane({
             ) : note.dailyDate ? (
               <span className="note-kind">
                 <CalendarDays size={14} />
-                Daily note ·{" "}
+                Journal ·{" "}
               </span>
             ) : null}
             {new Date(note.createdAt).toLocaleDateString(undefined, {
@@ -761,12 +763,14 @@ export function NotePane({
                     await api(`templates/${note.id}/daily-default`, {
                       method: "POST",
                     });
-                    toast.success("Daily notes will use this template.");
+                    toast.success(
+                      "New journal entries will use this template.",
+                    );
                   })
                 }
               >
                 <CalendarDays size={15} />
-                Use for daily notes
+                Use for journal
               </Button>
             </div>
           )}
@@ -799,13 +803,6 @@ export function NotePane({
           e.target.value = "";
         }}
       />
-      <footer className="note-footer">
-        <span>{note.document.blocks.length} blocks</span>
-        <span>
-          Markdown shortcuts supported
-          <span className="desktop-hint"> · Type / for blocks</span>
-        </span>
-      </footer>
     </section>
   );
 }

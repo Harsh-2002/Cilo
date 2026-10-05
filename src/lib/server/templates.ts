@@ -67,7 +67,6 @@ export function ensureTemplates(owner: string) {
         ).seeded
       )
         return;
-      let journal = "";
       for (const starter of starters) {
         const id = randomUUID();
         const document: Document = { schemaVersion: 1, blocks: starter.blocks };
@@ -84,13 +83,10 @@ export function ensureTemplates(owner: string) {
             updatedAt: Date.now(),
           })
           .run();
-        if (starter.title === "Journal") journal = id;
       }
       database
-        .prepare(
-          "UPDATE instance SET templates_seeded=1,daily_template_id=? WHERE id=1",
-        )
-        .run(journal);
+        .prepare("UPDATE instance SET templates_seeded=1 WHERE id=1")
+        .run();
     })
     .immediate();
 }

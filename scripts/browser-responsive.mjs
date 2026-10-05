@@ -66,16 +66,16 @@ export default async function verifyResponsive(page, theme, widths, options) {
   };
   for (const width of widths) {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
-    for (const name of ["Tasks", "Bookmarks", "All notes"]) {
+    for (const name of ["Tasks", "Bookmarks", "Notes"]) {
       await navigate(name, width);
-      if (name === "All notes")
+      if (name === "Notes")
         await page
           .locator(".note-list-item")
           .filter({ hasText: "Audit rich note" })
           .click();
       await page
         .locator(
-          name === "All notes"
+          name === "Notes"
             ? ".bn-editor"
             : name === "Tasks"
               ? ".task-list"
@@ -85,7 +85,7 @@ export default async function verifyResponsive(page, theme, widths, options) {
       if (name === "Bookmarks")
         await page.locator(".task-skeleton").waitFor({ state: "hidden" });
       await inspect(name, width);
-      if (name === "All notes") {
+      if (name === "Notes") {
         await page
           .getByRole("combobox", { name: "Code language", exact: true })
           .click();

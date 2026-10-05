@@ -144,7 +144,7 @@ export default async function verifyInterface(page) {
         .click();
       await menu(`Task menu ${context}`);
       await dismiss();
-      await nav("All notes");
+      await nav("Notes");
       await page
         .getByRole("button", { name: "Nebula research", exact: false })
         .first()
@@ -172,7 +172,7 @@ export default async function verifyInterface(page) {
           .count()),
         `Quiet account footer ${context}`,
       );
-      await page.getByRole("button", { name: "Open account settings" }).click();
+      await page.getByRole("button", { name: "Settings" }).click();
       await page.getByRole("tab", { name: "Account", exact: true }).click();
       const input = page.getByRole("textbox", { name: "Name", exact: true });
       await input.click();
@@ -203,7 +203,7 @@ export default async function verifyInterface(page) {
     }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(base);
-  await page.getByRole("button", { name: "Open account settings" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("tab", { name: "Account", exact: true }).click();
   await page.route("**/api/auth/sign-out", (route) =>
     route.fulfill({

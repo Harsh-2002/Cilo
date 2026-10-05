@@ -9,7 +9,7 @@ export default async function verifyCilo(page, phase) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(base.origin);
   await page.getByRole("button", { name: "Tasks", exact: true }).waitFor();
-  await page.getByRole("button", { name: "All notes", exact: true }).click();
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   const passed = [];
   const check = (condition, name) => {
     if (!condition) throw new Error(name);
@@ -390,7 +390,14 @@ export default async function verifyCilo(page, phase) {
     );
     await page.locator('[data-content-type="diagram"] svg').first().waitFor();
     check(true, "Mermaid diagram renders as SVG");
-    await button("Drawing").click();
+    await page
+      .locator('[data-content-type="paragraph"] .bn-inline-content')
+      .last()
+      .click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("/drawing");
+    await page.getByRole("option", { name: /^Drawing/ }).click();
     await button("Edit drawing").first().click();
     const canvas = page.locator(".excalidraw canvas").first();
     await canvas.waitFor();
@@ -433,7 +440,7 @@ export default async function verifyCilo(page, phase) {
       (await api(`notes/${id}`)).trashedAt === null,
       "Restore recovers note from trash",
     );
-    await button("All notes").click();
+    await button("Notes").click();
     await textbox("Search notes").fill(title);
     await page.locator(".note-list-item").filter({ hasText: title }).click();
     await textbox("Note title").waitFor();

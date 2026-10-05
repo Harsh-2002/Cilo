@@ -28,21 +28,21 @@ colors:
 typography:
   headline:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
-    fontSize: "32px"
+    fontSize: "26px"
     fontWeight: 550
     lineHeight: 1.4
     letterSpacing: "-0.035em"
   headline-mobile:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
-    fontSize: "29px"
+    fontSize: "24px"
     fontWeight: 550
     lineHeight: 1.4
     letterSpacing: "-0.035em"
   body:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
-    fontSize: "16px"
+    fontSize: "14px"
     fontWeight: 400
-    lineHeight: 1.7
+    lineHeight: 1.65
   interface:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
     fontSize: "14px"
@@ -65,7 +65,7 @@ typography:
     fontWeight: 400
   code:
     fontFamily: "ui-monospace, SFMono-Regular, monospace"
-    fontSize: "13px"
+    fontSize: "12px"
 rounded:
   compact: "4px"
   navigation: "6px"
@@ -188,18 +188,18 @@ Destructive actions retain a reserved semantic color; it does not become a gener
 
 ### Hierarchy
 
-- **Headline:** Use the headline token for note titles; it steps down on narrow mobile screens.
-- **Body:** The body token governs BlockNote prose and its comfortable line spacing.
+- **Headline:** The headline token sizes the editor title at 26px desktop and 24px mobile; the public reader keeps its separate title sizing.
+- **Body:** The body token governs desktop BlockNote prose at 14px with 1.65 line spacing. Mobile editing stays at 16px, and the public reader remains 16px with 1.75 line spacing.
 - **Interface:** The interface token sets the compact application baseline.
 - **Button:** A slightly stronger interface weight marks actions without changing the family.
 - **Navigation and labels:** Smaller roles support note counts, timestamps, navigation, and tags.
-- **Code:** A system monospace stack separates source blocks from prose.
+- **Code:** A system monospace stack separates editor source blocks from prose at 12px; public-reader code keeps its reading-surface sizing.
 
 ## Layout
 
-Desktop uses a 216px navigation rail, a 300px searchable note list, and a fluid editor. The writing surface has an 800px outer maximum with 52px horizontal gutters, leaving up to 696px for note content. At widths below 1100px the list narrows and editor gutters reduce; below 1024px the desktop rail becomes a drawer. At 767px and below, mobile shows either the list or the open note with a visible back action. The mobile viewport resizes for the software keyboard so editing controls remain reachable. The note title, tags, save state, and artifact actions stay close to the writing surface.
+The desktop notes view uses a 216px navigation rail, a 300px searchable note list, and a fluid editor. The writing surface has a 740px outer maximum with 44px horizontal gutters, leaving up to 652px for note content; its top gutter is 44px. Below 1100px the editor gutters reduce to 36px; below 1024px the rail becomes a drawer and the writing surface can grow to 760px. At 767px and below, mobile shows either the list or open note with a visible back action, 26px writing gutters, a 24px editor title, and 16px prose. The mobile viewport resizes for the software keyboard so editing controls remain reachable. The note title, tags, save state, and note actions stay close to the writing surface; formatting and slash-menu controls remain available in the editor without a bottom status strip or persistent insertion toolbar.
 
-The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system. Settings sits in a centered 600px dialog with horizontal Appearance, Account, and Import & export tabs; its content scrolls without visible scrollbar chrome. Publishing preview and the read-only public reader use a centered 800px shell with responsive gutters and the same quiet reading surface.
+The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system. Settings sits in a centered 600px dialog with horizontal Appearance, Account, and Import & export tabs; its content scrolls without visible scrollbar chrome. The public reader uses responsive reading gutters and renders the immutable published snapshot as semantic HTML on each request. Its header contains only “Shared note” and the publication date, and code highlighting and diagram rendering load as enhancements.
 
 Tasks is a separate view beside workspace navigation. Its text-first content sits in a centered 800px outer shell with 52px desktop and 20px mobile horizontal gutters; the header, inline creation form, status filters, search, task rows, and empty or error states stay within that pane.
 
@@ -223,7 +223,7 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 - **Primary:** The default action inverts foreground and background; its hover reduces the fill opacity.
 - **Outline and ghost:** Outline buttons keep the surface and border; ghost buttons stay borderless and gain a muted hover fill.
 - **Hover / Focus:** Buttons make a small active press shift. Keyboard focus uses one visible neutral inset outline.
-- **Touch use:** Note-topbar and insertion-toolbar actions reach a 44px control height on mobile.
+- **Touch use:** Note-topbar actions reach a 44px control height on mobile.
 
 ### Chips
 
@@ -246,7 +246,15 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 
 ### Navigation
 
-The desktop rail sits beside the note index. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet. Mobile note view keeps a visible back action. The rail footer keeps a compact avatar shortcut to Settings without an account name or account menu. Sign out is in Settings → Account, separate from signing out other sessions. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation. Dropdown menus size to their labels within viewport bounds; action and selector labels stay on one line, with 36px rows on desktop and 44px touch targets on phones. Rich search results retain separate title and description rows.
+The desktop rail sits beside the note index. Search comes first, followed by Overview, Favorites, Notes, Journal, Tasks, Bookmarks, Templates, and Trash; use the shared Lucide line-icon family throughout. Active and hovered destinations use quiet fills. Tablet removes the rail; mobile opens it in a side sheet, while the Overview keeps a navigation button visible above its content. Settings sits alone in the rail footer, with no avatar or account strip. Sign out is in Settings → Account, separate from signing out other sessions. Settings uses horizontal tabs with keyboard navigation rather than a vertical settings rail. Keep the settings content scrollable with hidden scrollbar chrome, and omit About and editable storage or file-size controls. Use styled shadcn controls, including a searchable language picker and confirmation dialog, instead of native menus or browser confirmation. Dropdown menus size to their labels within viewport bounds; action and selector labels stay on one line, with 36px rows on desktop and 44px touch targets on phones. Rich search results retain separate title and description rows.
+
+### Overview
+
+The Overview begins with the live local date and time, followed by quick actions and task, note, and bookmark widgets. It has no header bar or promotional headline or tagline. Keep the layout quiet and responsive, and retain the mobile navigation button.
+
+### Search
+
+The global search dialog opens from the rail or keyboard shortcut and owns its open state locally so opening it does not rerender the workspace or editor. Keep a fixed, bounded results viewport so incoming results do not shift the dialog height. The search overlay has no backdrop blur; result titles and descriptions remain on separate lines.
 
 ### Tasks
 
@@ -262,7 +270,11 @@ The folded-page C monogram uses the foreground on a compact rounded square and r
 
 ### Writing Surface
 
-The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. A ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. BlockNote prose stays on the shared sans family, while source blocks use monospace. The editor preserves the draft during save errors and uses a visible save state; those interaction states stay close to the note rather than moving into a separate dashboard.
+The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. It uses the headline token at 26px on desktop and 24px on mobile; a ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. Desktop BlockNote prose uses the 14px body token with 1.65 line spacing, while mobile prose returns to 16px for comfortable touch reading. BlockNote blocks have 4px vertical padding, and editor source blocks use the 12px monospace token. The public reader retains 16px prose with 1.75 line spacing and its existing title and code sizes. Daily Journal notes begin as blank pages; templates are optional and selected deliberately. Formatting and slash-menu controls stay available through editor interactions. Do not add a bottom status strip or persistent insertion toolbar. The editor preserves the draft during save errors and keeps its save state close to the note.
+
+### Public Reader and System Pages
+
+The public reader presents the publication date, “Shared note” label, title, and semantic note content on a centered, responsive reading surface. It reads from the immutable published snapshot; syntax coloring and safe diagram rendering enhance the semantic fallback after load. Keep the reader unbranded. Not-found, loading, and error fallbacks use the same restrained neutral system-page treatment, with clear recovery actions where appropriate.
 
 ## Do's and Don'ts
 

@@ -361,13 +361,10 @@ export default async function verifyConnected(page, phase) {
     );
     await button("Note actions").click();
     await page
-      .getByRole("menuitem", { name: "Use for daily notes", exact: true })
+      .getByRole("menuitem", { name: "Use for journal", exact: true })
       .click();
-    await button("Today").click();
-    await page
-      .locator(".note-kind")
-      .filter({ hasText: "Daily note" })
-      .waitFor();
+    await button("Journal").click();
+    await page.locator(".note-kind").filter({ hasText: "Journal" }).waitFor();
     await page
       .getByRole("textbox", { name: "Note title", exact: true })
       .waitFor();
@@ -377,12 +374,9 @@ export default async function verifyConnected(page, phase) {
       .waitFor();
     const id = await page.locator(".note-pane").getAttribute("data-note-id");
     check(true, "Today opens the daily content");
-    await button("All notes").click();
-    await button("Today").click();
-    await page
-      .locator(".note-kind")
-      .filter({ hasText: "Daily note" })
-      .waitFor();
+    await button("Notes").click();
+    await button("Journal").click();
+    await page.locator(".note-kind").filter({ hasText: "Journal" }).waitFor();
     await page
       .getByRole("textbox", { name: "Note title", exact: true })
       .waitFor();

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-04T18:15:24Z",
+  "generatedAt": "2026-10-05T07:15:14Z",
   "title": "Design System: Cilo",
   "extensions": {
     "colorMeta": {
@@ -383,11 +383,11 @@
     "typographyMeta": {
       "headline": {
         "displayName": "Writing Headline",
-        "purpose": "Note titles; the mobile headline steps down on narrow screens."
+        "purpose": "Editor note titles at 26px on desktop and 24px on mobile; the public reader uses separate title sizing."
       },
       "body": {
-        "displayName": "Prose",
-        "purpose": "The reading and writing scale for BlockNote content."
+        "displayName": "Editor Prose",
+        "purpose": "Desktop BlockNote prose at 14px and 1.65 line spacing; mobile editing stays 16px and the public reader keeps its separate reading scale."
       },
       "interface": {
         "displayName": "Interface",
@@ -411,7 +411,7 @@
       },
       "code": {
         "displayName": "Code",
-        "purpose": "Source and code blocks use a system monospace stack."
+        "purpose": "Editor source blocks use a 12px system monospace stack; public-reader code keeps its reading-surface sizing."
       }
     },
     "shadows": [
@@ -523,9 +523,9 @@
     {
       "name": "Writing Surface",
       "kind": "custom",
-      "description": "Centered note title and open prose area with no card background.",
+      "description": "Centered 740px writing surface with a compact editor title and dense, open prose area.",
       "html": "<article class=\"ds-writing-surface\"><time>October 4, 2026</time><textarea rows=\"1\" aria-label=\"Note title\" class=\"ds-note-title\">A place for unfinished ideas</textarea><div class=\"ds-note-body\"><p>Good notes leave room for what comes next.</p><pre><code>const idea = \"write something worth keeping\";</code></pre></div></article>",
-      "css": ".ds-writing-surface{max-width:800px;margin:0 auto;padding:58px 52px 100px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 32px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:none;background:var(--muted);border-radius:4px}\n.ds-note-body{font:400 16px/1.7 var(--font-sans)}\n.ds-note-body p{margin:0 0 12px}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:13px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:29px}}"
+      "css": ".ds-writing-surface{max-width:740px;margin:0 auto;padding:44px 44px 80px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 26px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:none;background:var(--muted);border-radius:4px}\n.ds-note-body{font:400 14px/1.65 var(--font-sans)}\n.ds-note-body > *{margin:0;padding:4px 0}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:12px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:24px}.ds-note-body{font-size:16px}}"
     },
     {
       "name": "Brand Mark",

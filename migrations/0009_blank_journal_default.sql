@@ -1,0 +1,1 @@
+UPDATE instance SET daily_template_id=NULL WHERE daily_template_id IN (SELECT id FROM notes WHERE kind='template' AND title='Journal' AND text='What’s on your mind?' || char(10) || 'Today’s focus' || char(10) || 'Reflection');

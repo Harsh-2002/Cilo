@@ -12,20 +12,25 @@ Neutral light and dark grounds, locally bundled Geist, one-pixel rules, Lucide c
 
 ## STORY
 
-Onboarding establishes ownership and saves a recovery code. The owner creates or finds a note, writes and inserts artifacts, organizes with tags or favorites, and exports their data. Save state and conflict recovery stay visible. Deployment settings stay outside everyday writing.
+Onboarding establishes ownership and saves a recovery code. The owner creates or finds a note, writes and inserts artifacts, organizes with tags or favorites, and exports their data. Daily Journal pages start blank unless the owner explicitly selects a template. Save state and conflict recovery stay visible. Deployment settings stay outside everyday writing.
 
 ## FIRST VIEWPORT
 
-Desktop uses a 216px navigation rail, 300px searchable list, and fluid editor with an 800px outer writing-surface maximum. Its 52px desktop gutters leave a 696px content measure. The title, tags, save state, and artifact insertion are immediately available. Tablet collapses the rail. Mobile shows the list or editor with a visible back action and 44px touch targets.
+The sidebar places Search above Overview, Favorites, Notes, Journal, Tasks, Bookmarks, Templates, and Trash, with Settings alone at the footer and no avatar or account strip. The Overview leads with live local date and time, quick actions, and task, note, and bookmark widgets; it has no header bar or promotional headline/tagline. Its mobile navigation button remains visible.
+
+In the notes view, desktop uses a 216px navigation rail, 300px searchable list, and fluid editor with a 740px outer writing-surface maximum. Its 44px desktop gutters leave a 652px content measure, with 44px above the title. The title, tags, save state, and note actions stay close to the writing surface. Tablet collapses the rail. Mobile shows the list or editor with a visible back action, 26px writing gutters, and 44px touch targets.
 
 ## FORM
 
-The note list is a narrow index beside an open writing sheet. The signature interaction is selection opening the note while its revision-checked save state remains visible; failed saves preserve the current draft and guard navigation. Drawings open a focused canvas, then return as editable previews. Settings and onboarding use the same type, borders, controls, and theme.
+The note list is a narrow index beside an open writing sheet. The signature interaction is selection opening the note while its revision-checked save state remains visible; failed saves preserve the current draft and guard navigation. The editor has no bottom status strip or persistent insertion toolbar; slash-menu and formatting controls remain available in the writing flow. Drawings open a focused canvas, then return as editable previews. Settings and onboarding use the same type, borders, controls, and theme.
+
+Global search keeps its open state local so opening the dialog does not rerender the workspace or editor. Its results pane has a fixed, bounded height to absorb asynchronous updates without shifting the dialog, and its backdrop remains unblurred. The public reader renders semantic HTML from the immutable published snapshot for each request; its header shows “Shared note” and the publication date without Cilo branding. Code highlighting and safe diagram rendering load as enhancements. Not-found, loading, and error fallbacks share the same neutral page treatment.
 
 ## Quality bar
 
-- Prose: 16px with comfortable line spacing; desktop titles 32px and mobile titles 29px, wrapping without clipping.
-- Compact desktop controls; mobile topbar and insertion actions at least 44px high.
+- Editor type: desktop prose 14px at 1.65 line spacing and desktop titles 26px; mobile prose stays 16px and titles use 24px. Titles wrap without clipping. Public-reader prose remains 16px at 1.75 line spacing.
+- Editor blocks use 4px vertical padding and source code uses 12px monospace text.
+- Compact desktop controls; mobile note-topbar actions at least 44px high.
 - Readable neutral text, visible keyboard focus, themed selection/caret/scrollbars, and reduced-motion support.
 - No horizontal page overflow at the reviewed 390px, 820px, and 1440px viewports.
 - While typing on mobile, the viewport resizes around the software keyboard so the note controls remain reachable.

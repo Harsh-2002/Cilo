@@ -6,7 +6,7 @@ import {
   Trash2,
   Search,
   Plus,
-  Settings as SettingsIcon,
+  SlidersHorizontal as SettingsIcon,
   PanelLeftClose,
   Menu,
   MoreHorizontal,
@@ -15,11 +15,14 @@ import {
   RefreshCw,
   Loader2,
   ArrowRight,
-  ListTodo,
-  Bookmark,
-  CalendarDays,
-  LayoutTemplate,
-  LayoutDashboard,
+  Grid2X2,
+  Heart,
+  NotebookPen,
+  StickyNote,
+  SquareCheckBig,
+  LibraryBig,
+  NotebookTabs,
+  Trash,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -48,7 +51,7 @@ import type {
   SearchResult,
 } from "@/lib/types";
 import { localDate } from "@/lib/dates";
-import { GlobalSearch } from "./global-search";
+import { GlobalSearch, type SearchHandle } from "./global-search";
 import { NotePane } from "./note-pane";
 import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
@@ -81,7 +84,7 @@ export function Workspace({
   const [sidebar, setSidebar] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState(false);
+  const globalSearch = useRef<SearchHandle>(null);
   const [sectionTarget, setSectionTarget] = useState<{
     query: string;
     completed?: boolean;
@@ -290,7 +293,7 @@ export function Workspace({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setDrawer(false);
-        setGlobalSearch((previous) => !previous);
+        globalSearch.current?.toggle();
       }
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
@@ -363,54 +366,49 @@ export function Workspace({
         aria-label="Search"
         onClick={() => {
           setDrawer(false);
-          setGlobalSearch(true);
+          globalSearch.current?.open();
         }}
       >
         <Search size={16} />
         Search<span className="nav-shortcut">⌘ K</span>
       </button>
       <nav aria-label="Notes navigation">
-        <button
-          className={`nav-item ${view === "overview" ? "active" : ""}`}
-          aria-current={view === "overview" ? "page" : undefined}
-          onClick={() => void filter("overview")}
-        >
-          <LayoutDashboard size={16} />
-          Overview
-        </button>
-        <button className="nav-item" onClick={() => void today()}>
-          <CalendarDays size={16} />
-          Today
-        </button>
         {[
-          { id: "all", label: "All notes", Icon: FileText },
-          { id: "favorites", label: "Favorites", Icon: Star },
-          { id: "trash", label: "Trash", Icon: Trash2 },
-          { id: "templates", label: "Templates", Icon: LayoutTemplate },
+          { id: "overview", label: "Overview", Icon: Grid2X2 },
+          { id: "favorites", label: "Favorites", Icon: Heart },
+          { id: "all", label: "Notes", Icon: StickyNote },
+          { id: "journal", label: "Journal", Icon: NotebookPen },
+          { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
+          { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
+          { id: "templates", label: "Templates", Icon: NotebookTabs },
+          { id: "trash", label: "Trash", Icon: Trash },
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
-            className={`nav-item ${view === id && !tag ? "active" : ""}`}
-            onClick={() => void filter(id)}
+            className={`nav-item ${
+              (
+                id === "journal"
+                  ? !!active?.dailyDate
+                  : view === id && !tag && (id !== "all" || !active?.dailyDate)
+              )
+                ? "active"
+                : ""
+            }`}
+            aria-current={
+              (
+                id === "journal"
+                  ? !!active?.dailyDate
+                  : view === id && !tag && (id !== "all" || !active?.dailyDate)
+              )
+                ? "page"
+                : undefined
+            }
+            onClick={() => void (id === "journal" ? today() : filter(id))}
           >
-            <Icon size={16} />
+            <Icon size={18} strokeWidth={1.6} />
             {label}
           </button>
         ))}
-        <button
-          className={`nav-item ${view === "tasks" ? "active" : ""}`}
-          onClick={() => void filter("tasks")}
-        >
-          <ListTodo size={16} />
-          Tasks
-        </button>
-        <button
-          className={`nav-item ${view === "bookmarks" ? "active" : ""}`}
-          onClick={() => void filter("bookmarks")}
-        >
-          <Bookmark size={16} />
-          Bookmarks
-        </button>
       </nav>
       <div className="tags-heading">
         <span>Tags</span>
@@ -477,19 +475,6 @@ export function Workspace({
           <SettingsIcon size={16} />
           Settings
         </button>
-        <Button
-          variant="ghost"
-          className="account-settings-button"
-          aria-label="Open account settings"
-          onClick={() => {
-            setDrawer(false);
-            setSettingsOpen(true);
-          }}
-        >
-          <span className="avatar" aria-hidden="true">
-            {owner.name.charAt(0).toUpperCase()}
-          </span>
-        </Button>
       </footer>
     </div>
   );
@@ -573,6 +558,16 @@ export function Workspace({
                 <h1>{title}</h1>
                 <span className="note-count">{notes.length}</span>
               </div>
+              {view === "templates" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Create template"
+                  onClick={() => void create(true)}
+                >
+                  <Plus size={16} />
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Sort notes">
@@ -698,28 +693,6 @@ export function Workspace({
                 ))
               )}
             </div>
-            <footer className="list-footer">
-              <span>
-                {notes.length}{" "}
-                {view === "templates"
-                  ? notes.length === 1
-                    ? "template"
-                    : "templates"
-                  : notes.length === 1
-                    ? "note"
-                    : "notes"}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={
-                  view === "templates" ? "Create template" : "Create note"
-                }
-                onClick={() => void create(view === "templates")}
-              >
-                <Plus size={16} />
-              </Button>
-            </footer>
           </section>
           {active ? (
             <NotePane
@@ -812,8 +785,7 @@ export function Workspace({
         </DialogContent>
       </Dialog>
       <GlobalSearch
-        open={globalSearch}
-        onClose={() => setGlobalSearch(false)}
+        ref={globalSearch}
         onSelect={selectResult}
         onCommand={searchCommand}
       />

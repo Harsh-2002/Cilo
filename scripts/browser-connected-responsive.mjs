@@ -136,7 +136,7 @@ export default async function verifyConnectedResponsive(
       await page.locator(".mobile-navigation").waitFor({ state: "hidden" });
   };
   const openNote = async (id, width) => {
-    await nav("All notes", width);
+    await nav("Notes", width);
     await page
       .locator(".note-list-item")
       .filter({

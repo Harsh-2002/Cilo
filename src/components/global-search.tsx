@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import {
   Bookmark,
   CalendarDays,
@@ -24,19 +30,28 @@ import {
   CommandGroup,
   CommandSeparator,
 } from "./ui/command";
+export type SearchHandle = { open: () => void; toggle: () => void };
 export function GlobalSearch({
-  open,
-  onClose,
+  ref,
   onSelect,
   onCommand,
 }: {
-  open: boolean;
-  onClose: () => void;
+  ref: Ref<SearchHandle>;
   onSelect: (result: SearchResult) => Promise<boolean>;
   onCommand: (
     command: "note" | "task" | "bookmark" | "daily",
   ) => Promise<boolean>;
 }) {
+  const [open, setOpen] = useState(false);
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => setOpen(true),
+      toggle: () => setOpen((value) => !value),
+    }),
+    [],
+  );
+  const onClose = () => setOpen(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,25 +62,28 @@ export function GlobalSearch({
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setLoading(true);
-      setError("");
-      void api<SearchResult[]>(`search?q=${encodeURIComponent(query)}`, {
-        signal: controller.signal,
-      })
-        .then((items) => {
-          if (!controller.signal.aborted) {
-            setResults(items);
-            setSelection(items[0] ? `${items[0].type}-${items[0].id}` : "");
-          }
+    const timer = setTimeout(
+      () => {
+        setLoading(true);
+        setError("");
+        void api<SearchResult[]>(`search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
         })
-        .catch((e) => {
-          if (!controller.signal.aborted) setError((e as Error).message);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }, 150);
+          .then((items) => {
+            if (!controller.signal.aborted) {
+              setResults(items);
+              setSelection(items[0] ? `${items[0].type}-${items[0].id}` : "");
+            }
+          })
+          .catch((e) => {
+            if (!controller.signal.aborted) setError((e as Error).message);
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) setLoading(false);
+          });
+      },
+      query.trim() ? 120 : 0,
+    );
     return () => {
       clearTimeout(timer);
       controller.abort();
@@ -94,6 +112,7 @@ export function GlobalSearch({
     >
       <DialogContent
         className="global-search-dialog"
+        overlayClassName="supports-backdrop-filter:backdrop-filter-none"
         onCloseAutoFocus={(event) => {
           if (nextFocus.current) {
             event.preventDefault();
@@ -111,6 +130,7 @@ export function GlobalSearch({
         <Command
           shouldFilter={false}
           label="Search everything"
+          loop
           value={selection}
           onValueChange={setSelection}
           vimBindings={false}
@@ -132,21 +152,24 @@ export function GlobalSearch({
             Filter with <span>type:note</span>, <span>type:task</span> or{" "}
             <span>tag:work</span>
           </p>
-          <CommandList label="Search results">
+          <CommandList label="Search results" aria-busy={loading}>
+            {loading && (
+              <div className="search-progress" role="status">
+                <Loader2 size={14} className="animate-spin" />
+                <span className="sr-only">Searching…</span>
+              </div>
+            )}
             {error ? (
               <p className="picker-message" role="alert">
                 {error} Change your search to retry.
               </p>
-            ) : loading ? (
-              <div className="picker-message" role="status">
-                <Loader2 size={16} className="animate-spin" />
-                Searching…
-              </div>
             ) : (
               <CommandGroup
                 heading={query.trim() ? "Results" : "Recently edited"}
               >
-                {!results.length ? (
+                {!results.length && loading ? (
+                  <div className="search-result-placeholder" />
+                ) : !results.length ? (
                   <p className="picker-message">
                     No matching items. Try another word or filter.
                   </p>
@@ -160,7 +183,7 @@ export function GlobalSearch({
                           : Bookmark;
                     return (
                       <CommandItem
-                        disabled={busy}
+                        disabled={busy || loading}
                         key={`${result.type}-${result.id}`}
                         value={`${result.type}-${result.id}`}
                         onSelect={() =>
@@ -200,7 +223,7 @@ export function GlobalSearch({
                   { id: "bookmark", title: "Save a bookmark", Icon: Bookmark },
                   {
                     id: "daily",
-                    title: "Open today’s note",
+                    title: "Open journal",
                     Icon: CalendarDays,
                   },
                 ] as const

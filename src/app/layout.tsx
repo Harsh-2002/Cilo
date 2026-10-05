@@ -1,5 +1,6 @@
 import "@fontsource-variable/geist";
 import type { Metadata, Viewport } from "next";
+import { themeBootstrap } from "@/lib/theme";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -27,6 +28,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          id="cilo-theme-bootstrap"
+          dangerouslySetInnerHTML={{ __html: themeBootstrap }}
+        />
+      </head>
       <body>
         <Providers>
           <div className="bn-scroll-container">{children}</div>

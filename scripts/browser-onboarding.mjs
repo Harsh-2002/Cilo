@@ -18,10 +18,9 @@ export default async function verifyOnboarding(browser, baseURL) {
       await page.getByRole("dialog").waitFor({ state: "hidden" });
     }
     await button("Open navigation").click();
-    await page
-      .getByRole("button", { name: /Setup Audit Owner Your personal space/ })
-      .click();
-    await page.getByRole("menuitem", { name: "Sign out", exact: true }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("tab", { name: "Account", exact: true }).click();
+    await button("Sign out").click();
     await button("Sign in").waitFor();
   };
   const login = async (password) => {

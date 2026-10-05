@@ -4,9 +4,9 @@ These features extend the existing notes, tasks and bookmarks workspace. SQLite 
 
 ## Search everything
 
-Choose **Search** or press Ctrl/Cmd K from any section. Results include notes, tasks and bookmarks. Prefix and close-spelling matching use each section's SQLite FTS5 index. Use `type:note`, `type:task` or `type:bookmark` to narrow results; `tag:work` or `tag:"project ideas"` restricts matching notes to a tag. Trashed notes and templates do not appear in global results. Creation actions open a new note, task, bookmark or today's note through the same unfinished-edit guard as ordinary navigation.
+Choose **Search** or press Ctrl/Cmd K from any section. Results include notes, tasks and bookmarks. Prefix and close-spelling matching use each section's SQLite FTS5 index. Use `type:note`, `type:task` or `type:bookmark` to narrow results; `tag:work` or `tag:"project ideas"` restricts matching notes to a tag. Trashed notes and templates do not appear in global results. Creation actions open a new note, task, bookmark or journal through the same unfinished-edit guard as ordinary navigation.
 
-Section search remains available. Search does not extract text from PDFs, images or videos.
+The search dialog keeps a stable results viewport and preserves results during debounced requests. Opening it updates only the search component, so the editor does not rerender. Section search remains available. Search does not extract text from PDFs, images or videos.
 
 ## Version history
 
@@ -30,13 +30,13 @@ Quick creation still needs only a title. **Edit task** adds an optional calendar
 
 Completing a daily, weekly or monthly task creates one next open occurrence with the same title and note association. Daily adds one day, weekly adds seven days, and monthly preserves the original day with end-of-month clamping. A January 31 series continues on February 28 and March 31. Reopening and completing an earlier occurrence again does not duplicate its already-created successor. Recurrence advances from the occurrence's date, rather than the date you happened to complete it. It does not send reminders or run a notification scheduler.
 
-## Daily notes and templates
+## Journal and templates
 
-**Today** opens or creates one note for the browser's local calendar day. Returning to it reuses that note. If it is in Trash, restore it before opening that day again.
+**Journal** opens or creates one note for the browser's local calendar day. Returning to it reuses that note. If it is in Trash, restore it before opening that day again.
 
 **Templates** uses the regular list and editor. Journal, Meeting and Project are editable starting points, created once per installation. Create a blank template or choose **Save as template** from a note's actions. **Create note from template** makes an independent note with its own copied attachments. Later template edits do not change existing notes.
 
-**Use for daily notes** sets the starting point for future daily notes. It does not replace today's existing content. Journal is the initial default. Templates can be trashed and restored through Trash.
+**Use for journal** sets the starting point for future daily notes. It does not replace today's existing content. New journal entries start blank unless you explicitly choose a template. Migration 0009 clears only the unchanged seeded Journal default; existing entries and custom template choices are preserved. Templates can be trashed and restored through Trash.
 
 ## Portability
 
@@ -50,4 +50,4 @@ Overview is the first navigation section and the default landing view after sign
 
 Tasks show the total open count, due-today and overdue counts, and up to five open tasks ordered by due date; undated tasks come last. Complete a task directly from Overview, including recurring tasks. Selecting a task opens Tasks with its title as the search query; selecting a note opens its editor. Bookmark links open the saved website in a new tab. View all clears any previous section search.
 
-Quick actions create a note, focus the task or bookmark creation field, or open today’s daily note. The overview updates after task completion, when returning to the tab or window, and every 30 seconds while visible. Hidden tabs suspend polling and the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.
+Quick actions create a note, focus the task or bookmark creation field, or open journal. The overview updates after task completion, when returning to the tab or window, and every 30 seconds while visible. Hidden tabs suspend polling and the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.
