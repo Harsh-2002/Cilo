@@ -18,7 +18,7 @@ test("import paths resolve folder assets without treating remote URLs as local",
   assert.equal(importPath("/images/pic.png", "notes"), "images/pic.png");
 });
 test("S3 adapter signs path-style requests, preserves binary files, and deletes", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-s3-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-s3-"));
   const objects = new Map<string, Buffer>();
   const requested: string[] = [];
   const server = createServer(async (req, res) => {
@@ -27,7 +27,7 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
       /^AWS4-HMAC-SHA256 Credential=test-access\//,
     );
     const url = new URL(req.url!, "http://localhost");
-    assert.ok(url.pathname.startsWith("/notes/cilo/"));
+    assert.ok(url.pathname.startsWith("/notes/nivra/"));
     if (req.method === "PUT") {
       assert.equal(req.headers["if-none-match"], "*");
       if (objects.has(url.pathname)) {
@@ -65,29 +65,29 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as { port: number }).port;
   const store = createStorage({
-    CILO_DATA_DIR: directory,
-    CILO_STORAGE_BACKEND: "s3",
-    CILO_S3_ENDPOINT: `http://127.0.0.1:${port}`,
-    CILO_S3_BUCKET: "notes",
-    CILO_S3_ACCESS_KEY_ID: "test-access",
-    CILO_S3_SECRET_ACCESS_KEY: "test-secret",
+    NIVRA_DATA_DIR: directory,
+    NIVRA_STORAGE_BACKEND: "s3",
+    NIVRA_S3_ENDPOINT: `http://127.0.0.1:${port}`,
+    NIVRA_S3_BUCKET: "notes",
+    NIVRA_S3_ACCESS_KEY_ID: "test-access",
+    NIVRA_S3_SECRET_ACCESS_KEY: "test-secret",
   });
   try {
     const key = randomUUID();
     const bytes = Buffer.from([0, 255, 89, 1, 2, 3]);
     await store.write(key, bytes);
-    assert.notDeepEqual(objects.get(`/notes/cilo/${key}`), bytes);
+    assert.notDeepEqual(objects.get(`/notes/nivra/${key}`), bytes);
     assert.equal(
-      objects.get(`/notes/cilo/${key}`)?.subarray(0, 8).toString(),
-      "CILOENC2",
+      objects.get(`/notes/nivra/${key}`)?.subarray(0, 8).toString(),
+      Buffer.from([67, 73, 76, 79, 69, 78, 67, 50]).toString(),
     );
     assert.deepEqual(await store.read(key), bytes);
-    const encrypted = objects.get(`/notes/cilo/${key}`)!;
+    const encrypted = objects.get(`/notes/nivra/${key}`)!;
     const tampered = Buffer.from(encrypted);
     tampered[tampered.length - 1] ^= 1;
-    objects.set(`/notes/cilo/${key}`, tampered);
+    objects.set(`/notes/nivra/${key}`, tampered);
     await assert.rejects(store.read(key), /authentication/);
-    objects.set(`/notes/cilo/${key}`, encrypted);
+    objects.set(`/notes/nivra/${key}`, encrypted);
     await assert.rejects(store.write(key, bytes));
     const media = randomUUID();
     const long = Buffer.from(randomBytes(65536 * 5 + 1234));
@@ -113,11 +113,11 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
     await assert.rejects(store.read(key));
     await assert.rejects(store.read("../private"));
     assert.throws(
-      () => createStorage({ CILO_STORAGE_BACKEND: "s3" }),
+      () => createStorage({ NIVRA_STORAGE_BACKEND: "s3" }),
       /requires/,
     );
     assert.throws(
-      () => createStorage({ CILO_STORAGE_BACKEND: "unsupported" }),
+      () => createStorage({ NIVRA_STORAGE_BACKEND: "unsupported" }),
       /must be/,
     );
   } finally {
@@ -128,12 +128,12 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
   }
 });
 test("invalid upload environment configuration fails instead of silently changing limits", () => {
-  const original = process.env.CILO_UPLOAD_LIMIT_MIB;
+  const original = process.env.NIVRA_UPLOAD_LIMIT_MIB;
   try {
-    process.env.CILO_UPLOAD_LIMIT_MIB = "1.5";
+    process.env.NIVRA_UPLOAD_LIMIT_MIB = "1.5";
     assert.throws(uploadLimit, /integer/);
   } finally {
-    if (original === undefined) delete process.env.CILO_UPLOAD_LIMIT_MIB;
-    else process.env.CILO_UPLOAD_LIMIT_MIB = original;
+    if (original === undefined) delete process.env.NIVRA_UPLOAD_LIMIT_MIB;
+    else process.env.NIVRA_UPLOAD_LIMIT_MIB = original;
   }
 });

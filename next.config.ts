@@ -1,12 +1,19 @@
+import { historicalNamespace } from "./src/lib/compatibility";
+import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
 const config: NextConfig = {
-  allowedDevOrigins: (
-    (process.env.NIVRA_DEV_ORIGINS ?? process.env.CILO_DEV_ORIGINS) ||
-    ""
-  )
+  allowedDevOrigins: (environment().NIVRA_DEV_ORIGINS || "")
     .split(",")
     .map((host) => host.trim())
     .filter(Boolean),
+  async rewrites() {
+    return [
+      {
+        source: `/api/${historicalNamespace}/:path*`,
+        destination: "/api/nivra/:path*",
+      },
+    ];
+  },
   output: "standalone",
   agentRules: false,
   serverExternalPackages: ["better-sqlite3", "tesseract.js", "unpdf"],

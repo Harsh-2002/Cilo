@@ -12,11 +12,11 @@ docker compose up -d --build
 
 Open <http://localhost:3000> and create your owner account in the browser. Save the recovery code. Account and appearance settings live in the UI; upload limits and local/S3 storage use environment variables.
 
-By default, Docker persists the database, files, generated authentication secret, and encryption key in the `cilo-data` volume. For another port, use `NIVRA_PORT=3001 docker compose up -d`. For remote access, configure the bind address and public URL, then use an HTTPS reverse proxy. See [self-hosting](docs/self-hosting.md).
+By default, Docker persists the database, files, generated authentication secret, and encryption key in the `nivra-data` volume. For another port, use `NIVRA_PORT=3001 docker compose up -d`. For remote access, configure the bind address and public URL, then use an HTTPS reverse proxy. See [self-hosting](docs/self-hosting.md).
 
 Nivra encrypts its database and stored files at rest, with no disable option. See [key custody and encrypted backups](docs/self-hosting.md#encryption-and-key-custody) before moving or restoring an instance.
 
-Existing installations keep their database, keys and encrypted object formats. `NIVRA_*` is the documented configuration namespace; legacy `CILO_*` settings are accepted when the corresponding new setting is absent. See [upgrade compatibility](docs/self-hosting.md#rename-compatibility).
+Existing installations keep their database, keys and encrypted object formats. `NIVRA_*` is the configuration namespace. Upgrade handling preserves existing encrypted data and saved links. See [upgrade compatibility](docs/self-hosting.md#rename-compatibility).
 
 ## Development
 

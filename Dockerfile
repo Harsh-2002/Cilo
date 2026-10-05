@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 FROM base AS build
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-ENV NIVRA_DATA_DIR=/tmp/cilo-build-data
+ENV NIVRA_DATA_DIR=/tmp/nivra-build-data
 RUN npm run build
 
 FROM dependencies AS runtime-binary

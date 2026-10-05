@@ -7,8 +7,8 @@ import { randomUUID } from "node:crypto";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 
 test("Nivra protects ownership and preserves notes, artifacts, and recovery", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-test-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-test-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
@@ -96,7 +96,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           () =>
             sqlite()
               .prepare(
-                "INSERT INTO user(id,name,email,username,created_at,updated_at) VALUES('extra','Extra','extra@cilo.invalid','extra',0,0)",
+                "INSERT INTO user(id,name,email,username,created_at,updated_at) VALUES('extra','Extra','extra@nivra.invalid','extra',0,0)",
               )
               .run(),
           /already has an owner/,
@@ -405,7 +405,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         const invalidPaths = zipSync({
           "manifest.json": strToU8(
             JSON.stringify({
-              format: "cilo",
+              format: "nivra",
               version: 1,
               notes: [
                 {
@@ -578,7 +578,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         Object.defineProperty(resource, "webkitRelativePath", {
           value: "folder/image.png",
         });
-        process.env.CILO_UPLOAD_LIMIT_MIB = "1";
+        process.env.NIVRA_UPLOAD_LIMIT_MIB = "1";
         try {
           const results = await importFiles(
             [
@@ -616,7 +616,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           ).json();
           assert.match(
             imported.document.blocks[0].props.url,
-            /^\/api\/(?:nivra|cilo)\/files\//,
+            /^\/api\/(?:nivra|nivra)\/files\//,
           );
           assert.equal(
             (
@@ -638,7 +638,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           }
         } finally {
           globalThis.fetch = originalFetch;
-          delete process.env.CILO_UPLOAD_LIMIT_MIB;
+          delete process.env.NIVRA_UPLOAD_LIMIT_MIB;
         }
       },
     );
@@ -807,7 +807,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
     await t.test(
       "upload limits are configured by environment, not account settings",
       async () => {
-        process.env.CILO_UPLOAD_LIMIT_MIB = "2";
+        process.env.NIVRA_UPLOAD_LIMIT_MIB = "2";
         try {
           assert.equal(
             (await (await call("settings")).json()).uploadLimit,
@@ -827,7 +827,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
             200,
           );
         } finally {
-          delete process.env.CILO_UPLOAD_LIMIT_MIB;
+          delete process.env.NIVRA_UPLOAD_LIMIT_MIB;
         }
       },
     );
@@ -1081,7 +1081,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           }
         ).n;
         sqlite().close();
-        delete (globalThis as unknown as { ciloSqlite?: unknown }).ciloSqlite;
+        delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
         assert.equal(
           (
             sqlite().prepare("SELECT count(*) AS n FROM notes").get() as {
@@ -1102,7 +1102,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
     );
   } finally {
     sqlite().close();
-    delete (globalThis as unknown as { ciloSqlite?: unknown }).ciloSqlite;
+    delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
     await rm(directory, { recursive: true, force: true });
   }
 });

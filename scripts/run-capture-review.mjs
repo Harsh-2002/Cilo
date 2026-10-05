@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import verifyCaptureRetrieval from "./browser-capture-retrieval.mjs";
 
 const root = realpathSync(process.argv[2]);
-if (!root.startsWith(path.join(tmpdir(), "cilo-capture-review-")))
+if (!root.startsWith(path.join(tmpdir(), "nivra-capture-review-")))
   throw new Error("Disposable directory required.");
 const fixtures = JSON.parse(
   readFileSync(path.join(root, "fixtures.json"), "utf8"),

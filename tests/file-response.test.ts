@@ -11,7 +11,7 @@ test("media byte ranges support seeking and retain safe private headers", async 
     ["bytes=0-99", [0, 1, 2, 3, 4, 5], "bytes 0-5/6"],
   ] as const) {
     const response = await fileResponse(
-      new Request("https://cilo.test/file", { headers: { Range: range } }),
+      new Request("https://nivra.test/file", { headers: { Range: range } }),
       memorySource(data),
       file,
     );
@@ -41,7 +41,7 @@ test("invalid ranges and active documents cannot bypass file response protection
     "items=0-1",
   ]) {
     const response = await fileResponse(
-      new Request("https://cilo.test/file", { headers: { Range: range } }),
+      new Request("https://nivra.test/file", { headers: { Range: range } }),
       memorySource(data),
       file,
     );
@@ -49,7 +49,7 @@ test("invalid ranges and active documents cannot bypass file response protection
     assert.equal(response.headers.get("Content-Range"), "bytes */6");
   }
   const response = await fileResponse(
-    new Request("https://cilo.test/file"),
+    new Request("https://nivra.test/file"),
     memorySource(data),
     { mime: "text/html", name: "active.html" },
     true,
@@ -65,7 +65,7 @@ test("invalid ranges and active documents cannot bypass file response protection
   );
   assert.equal(response.headers.get("Cache-Control"), "no-store");
   const conditional = await fileResponse(
-    new Request("https://cilo.test/file", {
+    new Request("https://nivra.test/file", {
       headers: { Range: "bytes=0-1", "If-Range": '"unknown"' },
     }),
     memorySource(data),
@@ -84,7 +84,7 @@ test("legacy binary media receive non-executable content types from their signat
     ["fLaC", "audio/flac"],
   ]) {
     const response = await fileResponse(
-      new Request("https://cilo.test/file"),
+      new Request("https://nivra.test/file"),
       memorySource(new TextEncoder().encode(signature)),
       { name: "recording", mime: "application/octet-stream" },
     );
@@ -92,7 +92,7 @@ test("legacy binary media receive non-executable content types from their signat
     assert.match(response.headers.get("Content-Disposition")!, /^inline/);
   }
   const active = await fileResponse(
-    new Request("https://cilo.test/file"),
+    new Request("https://nivra.test/file"),
     memorySource(new TextEncoder().encode("<html><script>alert(1)</script>")),
     { name: "movie.mp4", mime: "application/octet-stream" },
   );

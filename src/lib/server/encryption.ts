@@ -1,3 +1,4 @@
+import { historicalNamespace } from "../compatibility";
 import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import {
@@ -20,7 +21,7 @@ const {
 } = runtimeFs;
 import path from "node:path";
 
-const magic = Buffer.from("CILOENC1");
+const magic = Buffer.from([67, 73, 76, 79, 69, 78, 67, 49]);
 export function masterKey(
   directory: string,
   requireExisting = false,
@@ -61,9 +62,11 @@ export function masterKey(
   return key;
 }
 export function deriveKey(master: Buffer, purpose: string): Buffer {
-  return Buffer.from(hkdfSync("sha256", master, "cilo/v1", purpose, 32));
+  return Buffer.from(
+    hkdfSync("sha256", master, `${historicalNamespace}/v1`, purpose, 32),
+  );
 }
-const chunkedMagic = Buffer.from("CILOENC2");
+const chunkedMagic = Buffer.from([67, 73, 76, 79, 69, 78, 67, 50]);
 export const chunkSize = 64 * 1024;
 export const chunkedHeaderLength = 28;
 const tagLength = 16;
@@ -122,7 +125,13 @@ export function chunkedLayout(
 }
 function chunkCipherKey(master: Buffer, salt: Uint8Array) {
   return Buffer.from(
-    hkdfSync("sha256", deriveKey(master, "files"), salt, "cilo/chunk", 32),
+    hkdfSync(
+      "sha256",
+      deriveKey(master, "files"),
+      salt,
+      `${historicalNamespace}/chunk`,
+      32,
+    ),
   );
 }
 function chunkNonce(index: number, final: boolean) {

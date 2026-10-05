@@ -35,6 +35,13 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -409,21 +416,16 @@ export function ArtifactsPanel({
       <div className="tasks-scroll">
         <div className="artifacts-content">
           <div className="tasks-intro">
-            <h2>Drop anything. Find it later.</h2>
-            <p>
-              Screenshots, snippets, documents. Nothing to organize: search
-              saved text and words recognized in supported images and documents.
-            </p>
+            <h2>Save it for later.</h2>
+            <p>Screenshots, text and files, ready to find again.</p>
           </div>
           <div
             className="artifact-drop"
             role="group"
             aria-label="Add to artifacts"
           >
-            <Layers size={22} strokeWidth={1.4} aria-hidden="true" />
             <p>
-              Press <kbd>{shortcut}</kbd> to paste, or drop files anywhere on
-              this page.
+              Drop files here or paste with <kbd>{shortcut}</kbd>.
             </p>
             <div className="artifact-drop-actions">
               <Button variant="outline" onClick={() => void pasteButton()}>
@@ -431,7 +433,7 @@ export function ArtifactsPanel({
                 Paste
               </Button>
               <Button
-                variant="outline"
+                variant="default"
                 onClick={() => fileInput.current?.click()}
               >
                 <Upload size={15} />
@@ -537,9 +539,9 @@ export function ArtifactsPanel({
               ))}
             </ul>
           )}
-          <div className="tasks-toolbar">
+          <div className="tasks-toolbar artifact-toolbar">
             <div
-              className="task-filters"
+              className="task-filters artifact-filters"
               role="group"
               aria-label="Artifact type"
             >
@@ -555,11 +557,28 @@ export function ArtifactsPanel({
                 </Button>
               ))}
             </div>
+            <div className="artifact-type-select">
+              <Select
+                value={kind}
+                onValueChange={(value) => setKind(value as Kind)}
+              >
+                <SelectTrigger aria-label="Artifact type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {chips.map(([id, label, count]) => (
+                    <SelectItem key={id} value={id}>
+                      {label} · {count ?? "…"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="task-search">
-              <Search size={15} />
+              <Search size={15} aria-hidden="true" />
               <Input
                 aria-label="Search artifacts"
-                placeholder="Search text, even inside images…"
+                placeholder="Search artifacts…"
                 value={query}
                 maxLength={300}
                 onChange={(e) => setQuery(e.target.value)}
@@ -602,17 +621,7 @@ export function ArtifactsPanel({
                       aria-label={`Open ${artifactLabel(item)}`}
                     >
                       {(item.kind === "image" || item.thumbnail) && (
-                        <span
-                          className="artifact-thumb"
-                          style={
-                            item.width
-                              ? {
-                                  aspectRatio: `${item.width} / ${item.height}`,
-                                }
-                              : undefined
-                          }
-                        >
-                          {/* Saved images are authenticated and encrypted at rest, so they cannot go through next/image. */}
+                        <span className="artifact-thumb">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={`/api/nivra/artifacts/${item.id}/${source}`}
@@ -621,77 +630,105 @@ export function ArtifactsPanel({
                           />
                         </span>
                       )}
-                      {item.kind === "file" && (
+                      {item.kind === "file" && !item.thumbnail && (
                         <span className="artifact-file">
-                          <Icon size={22} strokeWidth={1.4} />
-                          <strong>{item.name}</strong>
-                          <small>{readableSize(item.size)}</small>
+                          <Icon size={28} strokeWidth={1.4} />
+                          <small>{item.mime || "File"}</small>
                         </span>
                       )}
-                      {item.kind === "text" && (
-                        <span className="artifact-snippet">
-                          {item.excerpt === undefined ? item.preview : ""}
-                        </span>
-                      )}
-                      {item.excerpt !== undefined ? (
-                        <span className="artifact-hit">
-                          <ScanText size={13} aria-hidden="true" />
-                          <SearchText
-                            text={item.excerpt}
-                            ranges={item.excerptMatches}
-                          />
-                        </span>
-                      ) : item.kind === "image" && item.title ? (
-                        <span className="artifact-caption">{item.title}</span>
-                      ) : item.kind === "file" && item.preview ? (
-                        <span className="artifact-caption">{item.preview}</span>
-                      ) : null}
-                      {item.extraction === "pending" && (
-                        <span className="artifact-status" role="status">
-                          <Loader2 size={12} className="animate-spin" /> Reading
-                          text…
-                        </span>
-                      )}
+                      <span className="artifact-details">
+                        <strong className="artifact-card-title">
+                          {artifactLabel(item)}
+                        </strong>
+                        {item.name && item.name !== artifactLabel(item) && (
+                          <span
+                            className="artifact-card-name"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </span>
+                        )}
+                        {item.excerpt !== undefined ? (
+                          <span className="artifact-hit">
+                            <ScanText size={13} aria-hidden="true" />
+                            <SearchText
+                              text={item.excerpt}
+                              ranges={item.excerptMatches}
+                            />
+                          </span>
+                        ) : item.preview ? (
+                          <span className="artifact-snippet">
+                            {item.preview}
+                          </span>
+                        ) : null}
+                        {item.extraction === "pending" && (
+                          <span className="artifact-status" role="status">
+                            <Loader2 size={12} className="animate-spin" />
+                            Reading text…
+                          </span>
+                        )}
+                        {item.extraction === "failed" && (
+                          <span className="artifact-status">
+                            Text extraction failed. Open to retry.
+                          </span>
+                        )}
+                      </span>
                     </button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="artifact-menu"
-                          aria-label={`Actions for ${artifactLabel(item)}`}
-                        >
-                          <MoreHorizontal size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setViewing(item.id)}>
-                          <Search size={15} />
-                          Open
-                        </DropdownMenuItem>
-                        {(item.kind === "text" || item.preview) && (
-                          <DropdownMenuItem onSelect={() => void copyOf(item)}>
-                            <Copy size={15} />
-                            Copy text
-                          </DropdownMenuItem>
+                    <div className="artifact-card-footer">
+                      <span>
+                        {item.kind === "text"
+                          ? "Text"
+                          : readableSize(item.size)}{" "}
+                        ·{" "}
+                        {new Date(item.createdAt).toLocaleDateString(
+                          undefined,
+                          { month: "short", day: "numeric" },
                         )}
-                        {item.kind !== "text" && (
-                          <DropdownMenuItem asChild>
-                            <a
-                              href={`/api/nivra/artifacts/${item.id}/file`}
-                              download={item.name}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="artifact-menu"
+                            aria-label={`Actions for ${artifactLabel(item)}`}
+                          >
+                            <MoreHorizontal size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() => setViewing(item.id)}
+                          >
+                            <Search size={15} />
+                            Open
+                          </DropdownMenuItem>
+                          {(item.kind === "text" || item.preview) && (
+                            <DropdownMenuItem
+                              onSelect={() => void copyOf(item)}
                             >
-                              <Download size={15} />
-                              Download
-                            </a>
+                              <Copy size={15} />
+                              Copy text
+                            </DropdownMenuItem>
+                          )}
+                          {item.kind !== "text" && (
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`/api/nivra/artifacts/${item.id}/file`}
+                                download={item.name}
+                              >
+                                <Download size={15} />
+                                Download
+                              </a>
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onSelect={() => void remove(item)}>
+                            <Trash2 size={15} />
+                            Delete
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onSelect={() => void remove(item)}>
-                          <Trash2 size={15} />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </li>
                 );
               })}

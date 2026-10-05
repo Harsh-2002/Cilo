@@ -7,9 +7,9 @@ import { randomUUID, randomBytes } from "node:crypto";
 import Database from "better-sqlite3";
 
 test("encrypted full-instance backups preserve accounts, search, tasks, bookmarks, shares and files", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "cilo-backup-test-"));
-  process.env.CILO_DATA_DIR = directory;
-  process.env.CILO_BACKUP_KEEP = "2";
+  const directory = await mkdtemp(path.join(os.tmpdir(), "nivra-backup-test-"));
+  process.env.NIVRA_DATA_DIR = directory;
+  process.env.NIVRA_BACKUP_KEEP = "2";
   const { sqlite } = await import("../src/lib/server/db");
   const { masterKey, deriveKey, unseal, seal } =
     await import("../src/lib/server/encryption");
@@ -162,14 +162,14 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
       async () => {
         const target = path.join(directory, "restored");
         await backups.restoreBackup(first.id, target);
-        const dbBytes = await readFile(path.join(target, "cilo.sqlite"));
+        const dbBytes = await readFile(path.join(target, "nivra.sqlite"));
         assert.equal(dbBytes.includes(Buffer.from("Backup sentinel")), false);
         assert.notEqual(
           dbBytes.subarray(0, 16).toString(),
           "SQLite format 3\0",
         );
         const key = masterKey(directory, true);
-        const restored = new Database(path.join(target, "cilo.sqlite"));
+        const restored = new Database(path.join(target, "nivra.sqlite"));
         restored.pragma("cipher='chacha20'");
         restored.pragma(`key='${deriveKey(key, "sqlite").toString("hex")}'`);
         try {
@@ -228,7 +228,7 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         } finally {
           restored.close();
         }
-        const local = createStorage({ CILO_DATA_DIR: target });
+        const local = createStorage({ NIVRA_DATA_DIR: target });
         assert.equal((await local.read(file)).toString(), "payload");
         assert.equal((await local.read(preview)).toString(), "preview");
         assert.equal(
@@ -253,7 +253,7 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         await assert.rejects(
           backups.restoreBackup(first.id, target, {
             ...process.env,
-            CILO_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+            NIVRA_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
           }),
         );
         const object = path.join(directory, "backups", first.id, "files", file);
@@ -305,13 +305,13 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         t.mock.timers.tick(60000);
         assert.throws(() => backups.startBackup(), /already running/);
         const runtime = globalThis as unknown as {
-          ciloBackupJob?: Promise<unknown>;
-          ciloBackupTimer?: ReturnType<typeof setInterval>;
+          nivraBackupJob?: Promise<unknown>;
+          nivraBackupTimer?: ReturnType<typeof setInterval>;
         };
-        await runtime.ciloBackupJob;
+        await runtime.nivraBackupJob;
         assert.ok((await backups.backupStatus()).lastSuccess! > past);
-        clearInterval(runtime.ciloBackupTimer);
-        delete runtime.ciloBackupTimer;
+        clearInterval(runtime.nivraBackupTimer);
+        delete runtime.nivraBackupTimer;
         t.mock.timers.reset();
       },
     );

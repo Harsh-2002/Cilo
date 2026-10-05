@@ -25,8 +25,8 @@ test("calendar recurrence preserves dates across leap years and short months", (
   assert.equal(nextDate("2026-12-29", "weekly"), "2027-01-05");
 });
 test("connected workspace retains private search, recovery, journal and scheduled relationships", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-connected-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-connected-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { createStorage } = await import("../src/lib/server/storage");
@@ -584,14 +584,14 @@ test("connected workspace retains private search, recovery, journal and schedule
         await backups.restoreBackup(backup.id, destination);
         assert.equal(
           (
-            await createStorage({ CILO_DATA_DIR: destination }).read(fileId)
+            await createStorage({ NIVRA_DATA_DIR: destination }).read(fileId)
           ).toString(),
           "attachment payload",
         );
         const Database = (await import("better-sqlite3")).default;
         const { masterKey, deriveKey } =
           await import("../src/lib/server/encryption");
-        const recovered = new Database(path.join(destination, "cilo.sqlite"));
+        const recovered = new Database(path.join(destination, "nivra.sqlite"));
         recovered.pragma("cipher='chacha20'");
         recovered.pragma(
           `key='${deriveKey(masterKey(destination, true), "sqlite").toString("hex")}'`,

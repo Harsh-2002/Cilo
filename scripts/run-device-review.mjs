@@ -4,7 +4,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 
 const root = realpathSync(process.argv[2]);
-if (!root.startsWith(path.join(tmpdir(), "cilo-capture-review-")))
+if (!root.startsWith(path.join(tmpdir(), "nivra-capture-review-")))
   throw new Error("Disposable review directory required.");
 const base = "http://localhost:3004";
 const axeSource = readFileSync(
@@ -24,12 +24,12 @@ async function fixture() {
     extraHTTPHeaders: { Origin: base },
   });
   const list = await (
-    await api.get("/api/cilo/notes?view=all&q=Accessibility%20fixture&limit=5")
+    await api.get("/api/nivra/notes?view=all&q=Accessibility%20fixture&limit=5")
   ).json();
   const found = list.find((n) => n.title === "Accessibility fixture");
   if (found) return found.id;
   const created = await (
-    await api.post("/api/cilo/notes", {
+    await api.post("/api/nivra/notes", {
       data: { title: "Accessibility fixture" },
     })
   ).json();
@@ -47,7 +47,7 @@ async function fixture() {
   wav.write("data", 36);
   wav.writeUInt32LE(16000, 40);
   const file = await (
-    await api.post("/api/cilo/files", {
+    await api.post("/api/nivra/files", {
       multipart: {
         note: created.id,
         file: { name: "tone.wav", mimeType: "audio/wav", buffer: wav },
@@ -55,8 +55,8 @@ async function fixture() {
     })
   ).json();
   const text = (value) => [{ type: "text", text: value, styles: {} }];
-  const detail = await (await api.get(`/api/cilo/notes/${created.id}`)).json();
-  await api.patch(`/api/cilo/notes/${created.id}`, {
+  const detail = await (await api.get(`/api/nivra/notes/${created.id}`)).json();
+  await api.patch(`/api/nivra/notes/${created.id}`, {
     data: {
       revision: detail.revision,
       document: {
@@ -540,7 +540,7 @@ async function pwaRun() {
     .click();
   await page.waitForTimeout(800);
   await page.goto(
-    `${base}/?note=${(await (await context.request.get(`${base}/api/cilo/notes?view=all&limit=1`)).json())[0].id}`,
+    `${base}/?note=${(await (await context.request.get(`${base}/api/nivra/notes?view=all&limit=1`)).json())[0].id}`,
   );
   await page.waitForTimeout(1500);
   const entries = await page.evaluate(async () => {
@@ -615,7 +615,7 @@ async function setTheme(theme) {
     storageState: state,
     extraHTTPHeaders: { Origin: base },
   });
-  const response = await api.patch("/api/cilo/settings", { data: { theme } });
+  const response = await api.patch("/api/nivra/settings", { data: { theme } });
   if (!response.ok()) throw new Error(`Could not set the ${theme} theme`);
 }
 const noteId = await fixture();

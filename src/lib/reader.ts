@@ -1,11 +1,12 @@
+import { apiNamespacePattern } from "./compatibility";
 import type { Document } from "./types";
 
 export function readerUrl(value: unknown, media = false): string | undefined {
   if (typeof value !== "string" || /[\u0000-\u0020\u007f]/.test(value)) return;
   if (
-    /^\/api\/(?:nivra|cilo)\/(?:files\/[a-f0-9-]{36}|published\/[a-f0-9]{48}\/files\/[a-f0-9-]{36})$/.test(
-      value,
-    )
+    new RegExp(
+      String.raw`^/api/${apiNamespacePattern}/(?:files/[a-f0-9-]{36}|published/[a-f0-9]{48}/files/[a-f0-9-]{36})$`,
+    ).test(value)
   )
     return value;
   if (!media && /^#[a-zA-Z0-9_-]+$/.test(value)) return value;

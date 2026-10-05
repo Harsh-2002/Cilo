@@ -26,8 +26,8 @@ function totp(uri: string) {
   );
 }
 test("optional TOTP verifies enrollment, challenges login, consumes backup codes, and recovers safely", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-mfa-test-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-mfa-test-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
@@ -57,7 +57,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
     }
     return response;
   };
-  const cilo = async (route: string, body?: unknown) =>
+  const nivra = async (route: string, body?: unknown) =>
     saveCookies(
       await routes.GET(makeRequest(`/api/nivra/${route}`, body), {
         params: Promise.resolve({ path: route.split("/") }),
@@ -66,7 +66,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
   const auth = async (route: string, body: unknown) =>
     saveCookies(await authRoute.POST(makeRequest(`/api/auth/${route}`, body)));
   try {
-    const setup = await cilo("setup", {
+    const setup = await nivra("setup", {
       username: "mfater",
       name: "MFA Owner",
       password,
@@ -86,7 +86,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
     assert.equal(enrollment.method, "totp");
     assert.ok(enrollment.backupCodes.length > 0);
     assert.equal(
-      (await (await cilo("settings")).json()).twoFactorEnabled,
+      (await (await nivra("settings")).json()).twoFactorEnabled,
       false,
     );
     const valid = totp(enrollment.totpURI);
@@ -101,7 +101,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
       200,
     );
     assert.equal(
-      (await (await cilo("settings")).json()).twoFactorEnabled,
+      (await (await nivra("settings")).json()).twoFactorEnabled,
       true,
     );
     await auth("sign-out", {});
@@ -111,7 +111,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
       password,
     });
     assert.equal((await passwordOnly.json()).twoFactorRedirect, true);
-    assert.equal((await cilo("notes")).status, 401);
+    assert.equal((await nivra("notes")).status, 401);
     assert.equal(
       (await auth("two-factor/verify-totp", { code: invalid })).status,
       401,
@@ -127,7 +127,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
         .status,
       200,
     );
-    assert.equal((await cilo("notes")).status, 200);
+    assert.equal((await nivra("notes")).status, 200);
     await auth("sign-out", {});
     cookies.clear();
     await auth("sign-in/username", { username: "mfater", password });
@@ -154,7 +154,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
     );
     assert.equal((await auth("two-factor/disable", { password })).status, 200);
     assert.equal(
-      (await (await cilo("settings")).json()).twoFactorEnabled,
+      (await (await nivra("settings")).json()).twoFactorEnabled,
       false,
     );
     const reenrollment = await (
@@ -170,7 +170,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
     );
     const newPassword = `New-${randomUUID()}`;
     assert.equal(
-      (await cilo("recover", { code: recoveryCode, password: newPassword }))
+      (await nivra("recover", { code: recoveryCode, password: newPassword }))
         .status,
       200,
     );
@@ -182,7 +182,7 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
       ).n,
       0,
     );
-    assert.equal((await cilo("notes")).status, 401);
+    assert.equal((await nivra("notes")).status, 401);
     cookies.clear();
     const recovered = await auth("sign-in/username", {
       username: "mfater",
@@ -190,10 +190,10 @@ test("optional TOTP verifies enrollment, challenges login, consumes backup codes
     });
     assert.equal(recovered.status, 200);
     assert.equal((await recovered.json()).twoFactorRedirect, undefined);
-    assert.equal((await cilo("notes")).status, 200);
+    assert.equal((await nivra("notes")).status, 200);
   } finally {
     sqlite().close();
-    delete (globalThis as unknown as { ciloSqlite?: unknown }).ciloSqlite;
+    delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
     await rm(directory, { recursive: true, force: true });
   }
 });

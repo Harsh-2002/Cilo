@@ -131,7 +131,7 @@ function createRawStorage(
     );
   if (env.NIVRA_S3_ENDPOINT && !/^https?:\/\//.test(env.NIVRA_S3_ENDPOINT))
     throw new Error("NIVRA_S3_ENDPOINT must be an HTTP or HTTPS URL.");
-  const prefix = (env.NIVRA_S3_PREFIX || "cilo/").replace(/^\/+|\/+$/g, "");
+  const prefix = (env.NIVRA_S3_PREFIX || "nivra/").replace(/^\/+|\/+$/g, "");
   const objectKey = (key: string) =>
     `${prefix ? `${prefix}/` : ""}${validateKey(key)}`;
   const client = new S3Client({
@@ -300,11 +300,11 @@ export function createStorage(
 }
 let adapter: EncryptedStorageAdapter | undefined;
 const runtime = globalThis as unknown as {
-  ciloFilePins?: Map<string, number>;
-  ciloDeferredDeletes?: Set<string>;
+  nivraFilePins?: Map<string, number>;
+  nivraDeferredDeletes?: Set<string>;
 };
-const pins = (runtime.ciloFilePins ||= new Map<string, number>());
-const deferred = (runtime.ciloDeferredDeletes ||= new Set<string>());
+const pins = (runtime.nivraFilePins ||= new Map<string, number>());
+const deferred = (runtime.nivraDeferredDeletes ||= new Set<string>());
 export function pinStoredFiles(keys: string[]) {
   for (const key of keys) pins.set(key, (pins.get(key) || 0) + 1);
   return async () => {

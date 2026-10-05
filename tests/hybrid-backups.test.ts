@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 test("hybrid backups copy encrypted S3 files, paginate the destination, and recover locally", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "cilo-hybrid-backup-"),
+    path.join(os.tmpdir(), "nivra-hybrid-backup-"),
   );
   const objects = new Map<string, Buffer>();
   let listed = 0;
@@ -59,20 +59,20 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const endpoint = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   Object.assign(process.env, {
-    CILO_DATA_DIR: directory,
-    CILO_STORAGE_BACKEND: "s3",
-    CILO_S3_ENDPOINT: endpoint,
-    CILO_S3_BUCKET: "files",
-    CILO_S3_ACCESS_KEY_ID: "fixture-media",
-    CILO_S3_SECRET_ACCESS_KEY: "fixture-secret",
-    CILO_S3_PREFIX: "media",
-    CILO_BACKUP_BACKEND: "s3",
-    CILO_BACKUP_S3_ENDPOINT: endpoint,
-    CILO_BACKUP_S3_BUCKET: "backups",
-    CILO_BACKUP_S3_ACCESS_KEY_ID: "fixture-backup",
-    CILO_BACKUP_S3_SECRET_ACCESS_KEY: "fixture-secret",
-    CILO_BACKUP_S3_PREFIX: "recovery",
-    CILO_BACKUP_KEEP: "1",
+    NIVRA_DATA_DIR: directory,
+    NIVRA_STORAGE_BACKEND: "s3",
+    NIVRA_S3_ENDPOINT: endpoint,
+    NIVRA_S3_BUCKET: "files",
+    NIVRA_S3_ACCESS_KEY_ID: "fixture-media",
+    NIVRA_S3_SECRET_ACCESS_KEY: "fixture-secret",
+    NIVRA_S3_PREFIX: "media",
+    NIVRA_BACKUP_BACKEND: "s3",
+    NIVRA_BACKUP_S3_ENDPOINT: endpoint,
+    NIVRA_BACKUP_S3_BUCKET: "backups",
+    NIVRA_BACKUP_S3_ACCESS_KEY_ID: "fixture-backup",
+    NIVRA_BACKUP_S3_SECRET_ACCESS_KEY: "fixture-secret",
+    NIVRA_BACKUP_S3_PREFIX: "recovery",
+    NIVRA_BACKUP_KEEP: "1",
   });
   const { sqlite } = await import("../src/lib/server/db");
   const { storage, createStorage } = await import("../src/lib/server/storage");
@@ -122,16 +122,23 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
     assert.ok(listed >= 2);
     assert.equal((await backups.listBackups()).length, 1);
     for (const value of objects.values())
-      assert.match(value.subarray(0, 8).toString(), /^CILOENC[12]$/);
+      assert.match(
+        value.subarray(0, 8).toString(),
+        new RegExp(
+          `^${Buffer.from([67, 73, 76, 79, 69, 78, 67]).toString()}[12]$`,
+        ),
+      );
     assert.equal((await backups.copyStoredFiles("local")).files, 1);
     assert.equal(
-      (await createStorage({ CILO_DATA_DIR: directory }).read(file)).toString(),
+      (
+        await createStorage({ NIVRA_DATA_DIR: directory }).read(file)
+      ).toString(),
       "payload",
     );
     objects.delete(`/files/media/${file}`);
     const target = path.join(directory, "restored");
     await backups.restoreBackup(first.id, target);
-    const local = createStorage({ CILO_DATA_DIR: target });
+    const local = createStorage({ NIVRA_DATA_DIR: target });
     assert.equal((await local.read(file)).toString(), "payload");
     await storage.write(file, Buffer.from("payload"));
     await backups.startBackup();
@@ -144,8 +151,8 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
       () =>
         backupRepository({
           ...process.env,
-          CILO_BACKUP_S3_BUCKET: "files",
-          CILO_BACKUP_S3_PREFIX: "media",
+          NIVRA_BACKUP_S3_BUCKET: "files",
+          NIVRA_BACKUP_S3_PREFIX: "media",
         }),
       /separate/,
     );

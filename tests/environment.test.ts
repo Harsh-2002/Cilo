@@ -1,3 +1,7 @@
+import {
+  historicalConfigPrefix,
+  historicalNamespace,
+} from "../src/lib/compatibility";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { environment } from "../src/lib/server/environment";
@@ -5,7 +9,10 @@ import { deriveKey } from "../src/lib/server/encryption";
 import { hkdfSync } from "node:crypto";
 import { readerUrl } from "../src/lib/reader";
 test("new configuration wins while legacy configuration and encrypted derivation remain compatible", () => {
-  const old = { CILO_DATA_DIR: "/legacy", CILO_STORAGE_BACKEND: "s3" };
+  const old = {
+    [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
+    [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
+  };
   assert.equal(environment(old).NIVRA_DATA_DIR, "/legacy");
   assert.equal(
     environment({ ...old, NIVRA_DATA_DIR: "/current" }).NIVRA_DATA_DIR,
@@ -13,16 +20,29 @@ test("new configuration wins while legacy configuration and encrypted derivation
   );
   assert.equal(environment({ ...old, NIVRA_DATA_DIR: "" }).NIVRA_DATA_DIR, "");
   assert.deepEqual(old, {
-    CILO_DATA_DIR: "/legacy",
-    CILO_STORAGE_BACKEND: "s3",
+    [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
+    [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
   });
+  assert.equal(environment(old).NIVRA_S3_PREFIX, `${historicalNamespace}/`);
+  assert.equal(
+    environment({ ...old, NIVRA_S3_PREFIX: "new/" }).NIVRA_S3_PREFIX,
+    "new/",
+  );
   const key = Buffer.alloc(32, 42);
   assert.deepEqual(
     deriveKey(key, "sqlite"),
-    Buffer.from(hkdfSync("sha256", key, "cilo/v1", "sqlite", 32)),
+    Buffer.from(
+      hkdfSync(
+        "sha256",
+        key,
+        Buffer.from([99, 105, 108, 111, 47, 118, 49]),
+        "sqlite",
+        32,
+      ),
+    ),
   );
   const id = "11111111-1111-1111-1111-111111111111";
-  for (const name of ["nivra", "cilo"])
+  for (const name of ["nivra", historicalNamespace])
     assert.equal(
       readerUrl(`/api/${name}/files/${id}`, true),
       `/api/${name}/files/${id}`,

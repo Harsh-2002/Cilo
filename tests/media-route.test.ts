@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 test("private media streams from chunked storage with ranges and rejects damaged chunks", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-media-route-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-media-route-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
@@ -69,7 +69,7 @@ test("private media streams from chunked storage with ranges and rejects damaged
     const stored = path.join(directory, "uploads", file.id);
     assert.equal(
       (await readFile(stored)).subarray(0, 8).toString(),
-      "CILOENC2",
+      Buffer.from([67, 73, 76, 79, 69, 78, 67, 50]).toString(),
     );
 
     assert.equal((await call(route, { authenticated: false })).status, 401);

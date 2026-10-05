@@ -14,7 +14,7 @@ const [mode, directory, id, scenario] = process.argv.slice(2);
 const mib = (bytes: number) => Math.round((bytes / 1048576) * 10) / 10;
 
 async function prepare(size: number) {
-  process.env.CILO_DATA_DIR = directory;
+  process.env.NIVRA_DATA_DIR = directory;
   const { masterKey, seal } = await import("../src/lib/server/encryption");
   const { createStorage } = await import("../src/lib/server/storage");
   const key = masterKey(directory);
@@ -25,22 +25,22 @@ async function prepare(size: number) {
     seal(bytes, key, `object:${id}`),
   );
   const chunkedId = randomUUID();
-  await createStorage({ CILO_DATA_DIR: directory }).write(chunkedId, bytes);
+  await createStorage({ NIVRA_DATA_DIR: directory }).write(chunkedId, bytes);
   console.log(JSON.stringify({ chunkedId }));
 }
 
 async function measure() {
-  process.env.CILO_DATA_DIR = directory;
+  process.env.NIVRA_DATA_DIR = directory;
   const { masterKey, unseal } = await import("../src/lib/server/encryption");
   const { createStorage } = await import("../src/lib/server/storage");
   const { fileResponse, memorySource } =
     await import("../src/lib/server/file-response");
   const key = masterKey(directory);
-  const store = createStorage({ CILO_DATA_DIR: directory });
+  const store = createStorage({ NIVRA_DATA_DIR: directory });
   const file = path.join(directory, "uploads", id);
   const request = (range?: string) =>
     new Request(
-      "http://cilo.test/file",
+      "http://nivra.test/file",
       range ? { headers: { Range: range } } : {},
     );
   const meta = { name: "movie.mp4", mime: "video/mp4" };
@@ -116,7 +116,7 @@ async function main() {
   };
   const rows: Record<string, unknown>[] = [];
   for (const size of [25, 100]) {
-    const root = mkdtempSync(path.join(tmpdir(), "cilo-media-benchmark-"));
+    const root = mkdtempSync(path.join(tmpdir(), "nivra-media-benchmark-"));
     const legacyId = randomUUID();
     try {
       const { chunkedId } = run("prepare", root, legacyId, "", String(size));

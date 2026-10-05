@@ -40,7 +40,7 @@ Cursors are keyed on the sort columns (due date, creation time and identifier fo
 
 ## Media delivery
 
-`npx tsx scripts/benchmark-media.ts` writes a 25 MiB and a 100 MiB (the upload maximum) encrypted file, then measures each scenario in its own process so peak memory is attributable. "Legacy" is the earlier behavior: authenticate and decrypt the whole `CILOENC1` object, then slice. Measured on this VM on 2026-10-05; timings vary by roughly 2x between runs on this shared host, so peak memory is the stable result.
+`npx tsx scripts/benchmark-media.ts` writes a 25 MiB and a 100 MiB (the upload maximum) encrypted file, then measures each scenario in its own process so peak memory is attributable. "Legacy" is the earlier behavior: authenticate and decrypt the whole the single-message v1 format object, then slice. Measured on this VM on 2026-10-05; timings vary by roughly 2x between runs on this shared host, so peak memory is the stable result.
 
 | File    | Scenario                      | Median time | Peak RSS growth |
 | ------- | ----------------------------- | ----------: | --------------: |
@@ -60,8 +60,8 @@ Seeking no longer scales with file size. A full chunked download is slower than 
 The browser review uses a separate owner and encrypted instance on port 3004, configured with `NIVRA_PUBLIC_URL=http://localhost:3004` to match the runner origin. `scripts/seed-library-review.ts` refuses other directories or owners. `scripts/run-capture-review.mjs` uses a protected temporary session file and runs the same interactions through Playwright Chromium, Firefox and WebKit; browser binaries can be installed with `npx playwright install firefox webkit`, plus the platform dependencies where needed. The review context blocks service workers so injected network failures are intercepted consistently; this run does not verify the PWA service worker. Playwright is a development dependency and is excluded from the runtime image.
 
 ```sh
-npx tsx scripts/seed-library-review.ts /tmp/cilo-capture-review-EXAMPLE
-node scripts/run-capture-review.mjs /tmp/cilo-capture-review-EXAMPLE
+npx tsx scripts/seed-library-review.ts /tmp/nivra-capture-review-EXAMPLE
+node scripts/run-capture-review.mjs /tmp/nivra-capture-review-EXAMPLE
 ```
 
 These commands require a previously started disposable production artifact with the synthetic Capture Review Owner, its `review-data/` directory and authenticated `session.json`; they deliberately do not create or log into the real owner instance. The seeder refuses an already populated review library. Screenshots remain ignored under `.impeccable/review/`; credentials and generated data must never be committed.

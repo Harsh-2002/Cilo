@@ -74,7 +74,7 @@ export function listTaskPage(
   }
   const term = options.query.trim().slice(0, 300);
   if (term) {
-    where.push("instr(cilo_fold(t.title),cilo_fold(?))>0");
+    where.push("instr(nivra_fold(t.title),nivra_fold(?))>0");
     values.push(term);
   }
   const cursor = decodeCursor(options.after ?? null, [

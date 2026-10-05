@@ -1,4 +1,5 @@
 "use client";
+import { apiNamespacePattern } from "@/lib/compatibility";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import {
   FileAudio,
@@ -116,9 +117,9 @@ export function MediaPlayer({
         const url = new URL(src, window.location.href);
         if (
           url.origin === window.location.origin &&
-          /^\/api\/(?:nivra|cilo)\/(?:files\/|artifacts\/[^/]+\/file|published\/[a-f0-9]{48}\/files\/)/.test(
-            url.pathname,
-          )
+          new RegExp(
+            String.raw`^/api/${apiNamespacePattern}/(?:files/|artifacts/[^/]+/file|published/[a-f0-9]{48}/files/)`,
+          ).test(url.pathname)
         ) {
           url.searchParams.set("_retry", String(Date.now()));
           setPlaybackSource(url.href);

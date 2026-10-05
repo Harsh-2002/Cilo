@@ -1,10 +1,11 @@
+import { historicalBackupFormat } from "../compatibility";
 import { environment } from "./environment";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { z } from "zod";
 import { runtimeFs as fs } from "./runtime-fs";
-import { dataDir, sqlite } from "./db";
+import { dataDir, databaseFile, sqlite } from "./db";
 import {
   masterKey,
   deriveKey,
@@ -35,7 +36,10 @@ const object = z
   .strict();
 const manifestSchema = z
   .object({
-    format: z.literal("cilo-backup"),
+    format: z.union([
+      z.literal("nivra-backup"),
+      z.literal(historicalBackupFormat),
+    ]),
     version: z.literal(1),
     id: z.string().regex(backupId),
     createdAt: z.number().int().positive(),
@@ -72,8 +76,8 @@ const stateSchema = z.object({
   error: z.string().nullable(),
 });
 const runtime = globalThis as unknown as {
-  ciloBackupJob?: Promise<BackupInfo>;
-  ciloBackupTimer?: ReturnType<typeof setInterval>;
+  nivraBackupJob?: Promise<BackupInfo>;
+  nivraBackupTimer?: ReturnType<typeof setInterval>;
 };
 const privatePath = (name: string) =>
   path.join(/* turbopackIgnore: true */ dataDir, name);
@@ -238,7 +242,7 @@ async function prune(repository: BackupRepository, key: Buffer, keep: number) {
 export async function createBackup(): Promise<BackupInfo> {
   const config = backupConfig();
   const repository = backupRepository();
-  if (runtime.ciloBackupJob)
+  if (runtime.nivraBackupJob)
     throw new HttpError(409, "A backup is already running.");
   await migrateStoredFiles();
   if (!sqlite().prepare("SELECT 1 FROM user LIMIT 1").get())
@@ -262,7 +266,7 @@ export async function createBackup(): Promise<BackupInfo> {
     }
     release = pinStoredFiles(files);
     const data: Manifest = {
-      format: "cilo-backup",
+      format: "nivra-backup",
       version: 1,
       id,
       createdAt: Date.now(),
@@ -328,13 +332,13 @@ export function startBackup(): Promise<BackupInfo> {
       400,
       "Backups are disabled by the server configuration.",
     );
-  if (runtime.ciloBackupJob)
+  if (runtime.nivraBackupJob)
     throw new HttpError(409, "A backup is already running.");
   const job = createBackup();
-  runtime.ciloBackupJob = job;
+  runtime.nivraBackupJob = job;
   void job
     .finally(() => {
-      delete runtime.ciloBackupJob;
+      delete runtime.nivraBackupJob;
     })
     .catch(() => undefined);
   return job;
@@ -358,13 +362,13 @@ export async function backupStatus(): Promise<BackupStatus> {
     storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
     intervalHours: config.intervalHours,
     keep: config.keep,
-    running: !!runtime.ciloBackupJob || leaseIsAlive(),
+    running: !!runtime.nivraBackupJob || leaseIsAlive(),
     lastSuccess: current.lastSuccess,
     nextAt:
       config.backend === "off"
         ? null
         : (current.lastAttempt ||
-            Number(fs.statSync(privatePath("cilo.sqlite")).birthtimeMs) ||
+            Number(fs.statSync(databaseFile).birthtimeMs) ||
             Date.now()) +
           config.intervalHours * 3_600_000,
     error:
@@ -422,17 +426,17 @@ export async function restoreBackup(
   const stage = fs.mkdtempSync(
     path.join(
       /* turbopackIgnore: true */ path.dirname(target),
-      ".cilo-restore-",
+      ".nivra-restore-",
     ),
   );
   try {
     fs.writeFileSync(
-      path.join(/* turbopackIgnore: true */ stage, "cilo.sqlite"),
+      path.join(/* turbopackIgnore: true */ stage, "nivra.sqlite"),
       await readObject(repository, data, "database", key),
       { mode: 0o600, flag: "wx", flush: true },
     );
     const database = openSnapshot(
-      path.join(/* turbopackIgnore: true */ stage, "cilo.sqlite"),
+      path.join(/* turbopackIgnore: true */ stage, "nivra.sqlite"),
       key,
       false,
     );
@@ -521,26 +525,26 @@ export function startBackupScheduler() {
   const config = backupConfig();
   if (
     config.backend === "off" ||
-    runtime.ciloBackupTimer ||
+    runtime.nivraBackupTimer ||
     process.env.NEXT_PHASE === "phase-production-build"
   )
     return;
   backupRepository();
-  runtime.ciloBackupTimer = setInterval(() => {
+  runtime.nivraBackupTimer = setInterval(() => {
     if (
-      runtime.ciloBackupJob ||
+      runtime.nivraBackupJob ||
       !sqlite().prepare("SELECT 1 FROM user LIMIT 1").get()
     )
       return;
     const current = state();
     const base =
       current.lastAttempt ||
-      Number(fs.statSync(privatePath("cilo.sqlite")).birthtimeMs) ||
+      Number(fs.statSync(databaseFile).birthtimeMs) ||
       Date.now();
     if (Date.now() >= base + config.intervalHours * 3_600_000)
       void startBackup().catch(() => undefined);
   }, 60_000);
-  runtime.ciloBackupTimer.unref();
+  runtime.nivraBackupTimer.unref();
 }
 
 export async function copyStoredFiles(backend: "local" | "s3") {

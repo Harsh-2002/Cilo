@@ -6,7 +6,7 @@ export default async function verifyCaptureRetrieval(
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
   const status = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   if (status.owner?.name !== "Capture Review Owner")
     throw new Error("Disposable review owner required.");
@@ -55,7 +55,7 @@ export default async function verifyCaptureRetrieval(
   for (const theme of ["light", "dark"]) {
     check(
       (
-        await page.request.patch(`${base}/api/cilo/settings`, {
+        await page.request.patch(`${base}/api/nivra/settings`, {
           data: { theme },
         })
       ).ok(),
@@ -129,7 +129,7 @@ export default async function verifyCaptureRetrieval(
   await ready();
   await openCapture();
   await input().fill("Capture recovery fixture");
-  await page.route("**/api/cilo/notes", (route) =>
+  await page.route("**/api/nivra/notes", (route) =>
     route.request().method() === "POST"
       ? route.fulfill({
           status: 503,
@@ -151,7 +151,7 @@ export default async function verifyCaptureRetrieval(
       path: `.impeccable/review/capture-error-${engine}.png`,
       animations: "disabled",
     });
-  await page.unroute("**/api/cilo/notes");
+  await page.unroute("**/api/nivra/notes");
   await submit("Save note");
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page
@@ -169,7 +169,9 @@ export default async function verifyCaptureRetrieval(
   );
   await page.getByRole("textbox", { name: "New task", exact: true }).fill("");
   const tasks = await (
-    await page.request.get(`${base}/api/cilo/tasks?q=Captured%20task%20fixture`)
+    await page.request.get(
+      `${base}/api/nivra/tasks?q=Captured%20task%20fixture`,
+    )
   ).json();
   check(
     tasks.items.some((task) => task.title === "Captured task fixture"),
@@ -180,7 +182,7 @@ export default async function verifyCaptureRetrieval(
   await input().fill(linkURL);
   await submit("Save link");
   const bookmarks = await (
-    await page.request.get(`${base}/api/cilo/bookmarks`)
+    await page.request.get(`${base}/api/nivra/bookmarks`)
   ).json();
   check(
     bookmarks.items.some(
@@ -193,7 +195,7 @@ export default async function verifyCaptureRetrieval(
   await page
     .getByRole("textbox", { name: "Note title", exact: true })
     .waitFor();
-  await page.route("**/api/cilo/notes/*", (route) =>
+  await page.route("**/api/nivra/notes/*", (route) =>
     route.request().method() === "PATCH"
       ? route.fulfill({
           status: 503,
@@ -219,7 +221,7 @@ export default async function verifyCaptureRetrieval(
       fixtures.otherId,
     "Capture navigated away from note",
   );
-  await page.unroute("**/api/cilo/notes/*");
+  await page.unroute("**/api/nivra/notes/*");
   const retry = page.getByRole("button", { name: "Try again", exact: true });
   if (await retry.isVisible()) await retry.click();
   await page.locator(".save-status.saved").waitFor();
@@ -227,7 +229,7 @@ export default async function verifyCaptureRetrieval(
   await search().waitFor();
   const query = search().getByRole("combobox", { name: "Search everything" });
   const response = page.waitForResponse(
-    (r) => r.url().includes("/api/cilo/search?q=aurora") && r.ok(),
+    (r) => r.url().includes("/api/nivra/search?q=aurora") && r.ok(),
   );
   const start = Date.now();
   await query.fill("aurora");
@@ -344,7 +346,7 @@ export default async function verifyCaptureRetrieval(
     const url = new URL(response.url());
     if (
       response.request().method() === "GET" &&
-      /^\/api\/cilo\/(tasks|bookmarks)$/.test(url.pathname)
+      /^\/api\/nivra\/(tasks|bookmarks)$/.test(url.pathname)
     )
       listSizes.push(
         (await response.body().catch(() => Buffer.alloc(0))).length,
@@ -498,7 +500,7 @@ export default async function verifyCaptureRetrieval(
   await page.reload();
   const saved = await (
     await page.request.get(
-      `${base}/api/cilo/search?q=Capture%20recovery%20fixture`,
+      `${base}/api/nivra/search?q=Capture%20recovery%20fixture`,
     )
   ).json();
   check(

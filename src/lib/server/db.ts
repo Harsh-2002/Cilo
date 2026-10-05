@@ -1,3 +1,4 @@
+import { historicalDatabaseName } from "../compatibility";
 import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import Database from "better-sqlite3";
@@ -20,11 +21,19 @@ import { deriveKey, masterKey } from "./encryption";
 export const dataDir = path.resolve(
   /* turbopackIgnore: true */ environment().NIVRA_DATA_DIR || "./data",
 );
-const globalDb = globalThis as unknown as { ciloSqlite?: Database.Database };
+export const databaseFile = path.join(
+  dataDir,
+  existsSync(path.join(dataDir, "nivra.sqlite"))
+    ? "nivra.sqlite"
+    : existsSync(path.join(dataDir, historicalDatabaseName))
+      ? historicalDatabaseName
+      : "nivra.sqlite",
+);
+const globalDb = globalThis as unknown as { nivraSqlite?: Database.Database };
 export function sqlite() {
-  if (!globalDb.ciloSqlite) {
+  if (!globalDb.nivraSqlite) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-    const file = path.join(/* turbopackIgnore: true */ dataDir, "cilo.sqlite");
+    const file = databaseFile;
     const exists = existsSync(file) && statSync(file).size > 0;
     let plaintext = false;
     if (exists) {
@@ -53,7 +62,7 @@ export function sqlite() {
       connection.pragma("temp_store = MEMORY");
       connection.pragma("foreign_keys = ON");
       connection.pragma("busy_timeout = 5000");
-      connection.function("cilo_fold", { deterministic: true }, (value) =>
+      connection.function("nivra_fold", { deterministic: true }, (value) =>
         String(value ?? "").toLocaleLowerCase(),
       );
       connection.exec(
@@ -92,13 +101,13 @@ export function sqlite() {
       }
       connection.pragma("journal_mode = WAL");
       chmodSync(file, 0o600);
-      globalDb.ciloSqlite = connection;
+      globalDb.nivraSqlite = connection;
     } catch (error) {
       if (connection.open) connection.close();
       throw error;
     }
   }
-  return globalDb.ciloSqlite;
+  return globalDb.nivraSqlite;
 }
 export function db() {
   return drizzle(sqlite(), { schema });

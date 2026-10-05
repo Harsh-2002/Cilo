@@ -71,6 +71,8 @@ export function ArtifactViewer({
     const timer = setTimeout(() => {
       setItem(null);
       setError("");
+      setBusy(false);
+      setDeleting(false);
       void api<ArtifactDetail>(`artifacts/${id}`)
         .then((detail) => {
           if (!active) return;
@@ -89,15 +91,20 @@ export function ArtifactViewer({
   const reading = item?.extraction === "pending";
   useEffect(() => {
     if (!id || !reading) return;
+    let active = true;
     const timer = setInterval(() => {
       void api<ArtifactDetail>(`artifacts/${id}`)
         .then((detail) => {
+          if (!active || currentId.current !== id) return;
           setItem(detail);
           if (detail.extraction !== "pending") onChange(detail);
         })
         .catch(() => {});
     }, 2000);
-    return () => clearInterval(timer);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, [id, reading, onChange]);
   async function save(changes: { title?: string; content?: string }) {
     if (!item || busy) return;
@@ -117,7 +124,7 @@ export function ArtifactViewer({
       if (currentId.current !== item.id) toast.error((e as Error).message);
       else setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (currentId.current === item.id) setBusy(false);
     }
   }
   async function remove() {
@@ -196,30 +203,44 @@ export function ArtifactViewer({
           </div>
         ) : (
           <>
-            <Input
-              className="artifact-title"
-              aria-label="Title"
-              placeholder={
-                item.kind === "image" ? "Add a title (optional)" : "Title"
-              }
-              value={title}
-              maxLength={300}
-              disabled={busy}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => title.trim() !== item.title && void save({ title })}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-            />
-            <p className="artifact-meta">
-              {item.kind === "text"
-                ? "Text"
-                : `${item.name} · ${readableSize(item.size)}${item.width ? ` · ${item.width}×${item.height}` : ""}`}
-              {" · "}
-              {new Date(item.createdAt).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </p>
+            <div className="artifact-viewer-header">
+              <Input
+                className="artifact-title"
+                aria-label="Title"
+                placeholder={
+                  item.kind === "image" ? "Add a title (optional)" : "Title"
+                }
+                value={title}
+                maxLength={300}
+                disabled={busy}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={() =>
+                  title.trim() !== item.title && void save({ title })
+                }
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              />
+              <div className="artifact-meta">
+                <span
+                  className="artifact-meta-name"
+                  title={item.name || undefined}
+                >
+                  {item.kind === "text" ? "Text" : item.name}
+                </span>
+                {item.kind !== "text" && (
+                  <span>
+                    {readableSize(item.size)}
+                    {item.width ? ` · ${item.width}×${item.height}` : ""}
+                  </span>
+                )}
+                <time dateTime={new Date(item.createdAt).toISOString()}>
+                  {new Date(item.createdAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </time>
+              </div>
+            </div>
             {item.kind === "image" && (
               <div className="artifact-viewer-image">
                 {/* Saved images are authenticated and encrypted at rest, so they cannot go through next/image. */}
@@ -274,7 +295,10 @@ export function ArtifactViewer({
                   </Button>
                 </div>
               </>
-            ) : (
+            ) : !mediaKind ||
+              reading ||
+              item.extraction === "failed" ||
+              item.content ? (
               <section
                 className="artifact-found"
                 aria-label={`Text in this ${noun}`}
@@ -296,7 +320,13 @@ export function ArtifactViewer({
                     </button>
                   </p>
                 ) : item.content ? (
-                  <pre className="artifact-text">{item.content}</pre>
+                  <pre
+                    className="artifact-text"
+                    tabIndex={0}
+                    aria-label="Extracted text"
+                  >
+                    {item.content}
+                  </pre>
                 ) : (
                   <p>
                     {item.kind === "image"
@@ -325,6 +355,18 @@ export function ArtifactViewer({
                   </Button>
                 </div>
               </section>
+            ) : (
+              <div className="artifact-actions">
+                <Button variant="outline" asChild>
+                  <a
+                    href={`/api/nivra/artifacts/${item.id}/file`}
+                    download={item.name}
+                  >
+                    <Download size={15} />
+                    Download
+                  </a>
+                </Button>
+              </div>
             )}
             {error && (
               <p className="artifact-error" role="alert">

@@ -5,9 +5,9 @@ import { randomUUID } from "node:crypto";
 
 async function main() {
   const root = realpathSync(process.argv[2]);
-  if (!root.startsWith(path.join(tmpdir(), "cilo-capture-review-")))
+  if (!root.startsWith(path.join(tmpdir(), "nivra-capture-review-")))
     throw new Error("Disposable review directory required.");
-  process.env.CILO_DATA_DIR = path.join(root, "review-data");
+  process.env.NIVRA_DATA_DIR = path.join(root, "review-data");
   const { sqlite } = await import("../src/lib/server/db");
   const { createNote } = await import("../src/lib/server/notes");
   const database = sqlite();

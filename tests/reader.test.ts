@@ -216,7 +216,7 @@ test("media playback and fallback links reject executable imported URL schemes",
   for (const src of [
     "javascript:alert(1)",
     "data:text/html,<script>alert(1)</script>",
-    "blob:https://cilo.test/unsafe",
+    "blob:https://nivra.test/unsafe",
     "file:///etc/passwd",
   ]) {
     const html = renderToStaticMarkup(

@@ -27,13 +27,14 @@ npm ci
 npm run dev
 npm run typecheck
 npm run lint
+npm run verify:branding
 npm test
 npm run build
 ```
 
 `npm run dev` uses port 3000, or the next free port. To choose a port, use `npm run dev -- --port 3001`. Persistent development data defaults to `data/`; tests must use a separate temporary directory.
 
-Docker delivery uses `docker compose up -d --build`. Inspect configuration with `docker compose config`; check readiness with `/api/cilo/health`. Never remove an existing data volume to resolve a startup issue.
+Docker delivery uses `docker compose up -d --build`. Inspect configuration with `docker compose config`; check readiness with `/api/nivra/health`. Never remove an existing data volume to resolve a startup issue.
 
 ## Engineering rules
 

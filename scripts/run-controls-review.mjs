@@ -5,7 +5,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 
 const root = realpathSync(process.argv[2]);
-assert.ok(root.startsWith("/tmp/cilo-controls-review-"));
+assert.ok(root.startsWith("/tmp/nivra-controls-review-"));
 const base = "http://localhost:3004";
 const text = (value) => [{ type: "text", text: value, styles: {} }];
 if (process.argv.includes("--setup")) {
@@ -13,13 +13,13 @@ if (process.argv.includes("--setup")) {
     baseURL: base,
     extraHTTPHeaders: { Origin: base },
   });
-  const status = await (await api.get("/api/cilo/status")).json();
+  const status = await (await api.get("/api/nivra/status")).json();
   assert.equal(
     status.setup,
     true,
     "Only a fresh disposable instance can be seeded",
   );
-  const result = await api.post("/api/cilo/setup", {
+  const result = await api.post("/api/nivra/setup", {
     data: {
       name: "Controls Review Owner",
       username: "ControlsReviewOwner",
@@ -29,7 +29,7 @@ if (process.argv.includes("--setup")) {
   });
   assert.ok(result.ok());
   const note = await (
-    await api.post("/api/cilo/notes", {
+    await api.post("/api/nivra/notes", {
       data: { title: "A quiet place for recordings" },
     })
   ).json();
@@ -38,7 +38,7 @@ if (process.argv.includes("--setup")) {
     ["recording.wav", "audio/wav"],
     ["clip.mp4", "video/mp4"],
   ]) {
-    const response = await api.post("/api/cilo/files", {
+    const response = await api.post("/api/nivra/files", {
       multipart: {
         note: note.id,
         file: { name, mimeType, buffer: readFileSync(path.join(root, name)) },
@@ -111,12 +111,12 @@ if (process.argv.includes("--setup")) {
     ],
   };
   const saved = await (
-    await api.patch(`/api/cilo/notes/${note.id}`, {
+    await api.patch(`/api/nivra/notes/${note.id}`, {
       data: { revision: note.revision, document },
     })
   ).json();
   const published = await (
-    await api.post(`/api/cilo/notes/${note.id}/publication`, {
+    await api.post(`/api/nivra/notes/${note.id}/publication`, {
       data: { revision: saved.revision },
     })
   ).json();
@@ -171,11 +171,11 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
     }
     await page.goto(base);
     const status = await (
-      await page.request.get(`${base}/api/cilo/status`)
+      await page.request.get(`${base}/api/nivra/status`)
     ).json();
     assert.equal(status.owner?.name, "Controls Review Owner");
     const initial = await (
-      await page.request.get(`${base}/api/cilo/notes/${fixtures.noteId}`)
+      await page.request.get(`${base}/api/nivra/notes/${fixtures.noteId}`)
     ).json();
     const originalIds = new Set([
       "intro",
@@ -198,7 +198,7 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
     assert.equal(blocks.length, originalIds.size);
     assert.ok(
       (
-        await page.request.patch(`${base}/api/cilo/notes/${fixtures.noteId}`, {
+        await page.request.patch(`${base}/api/nivra/notes/${fixtures.noteId}`, {
           headers: { Origin: base },
           data: {
             revision: initial.revision,
@@ -212,7 +212,7 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
     for (const theme of ["light", "dark"]) {
       assert.ok(
         (
-          await page.request.patch(`${base}/api/cilo/settings`, {
+          await page.request.patch(`${base}/api/nivra/settings`, {
             data: { theme },
             headers: { Origin: base },
           })
@@ -341,7 +341,7 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
       async () =>
         (
           await (
-            await page.request.get(`${base}/api/cilo/notes/${fixtures.noteId}`)
+            await page.request.get(`${base}/api/nivra/notes/${fixtures.noteId}`)
           ).json()
         ).document.blocks.find((b) => b.id === "check-one").props.checked ===
         (before !== "true"),
@@ -458,7 +458,7 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
     assert.match(exported, /\[[ x]\] Review the recording/);
     const beforeEnter = (
       await (
-        await page.request.get(`${base}/api/cilo/notes/${fixtures.noteId}`)
+        await page.request.get(`${base}/api/nivra/notes/${fixtures.noteId}`)
       ).json()
     ).document.blocks.filter((b) => b.type === "checkListItem").length;
     const checklistText = page.locator(
@@ -480,7 +480,7 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
       async () =>
         (
           await (
-            await page.request.get(`${base}/api/cilo/notes/${fixtures.noteId}`)
+            await page.request.get(`${base}/api/nivra/notes/${fixtures.noteId}`)
           ).json()
         ).document.blocks.filter((b) => b.type === "checkListItem").length >
         beforeEnter,
@@ -504,13 +504,13 @@ for (const engine of process.argv.slice(3).filter((v) => !v.startsWith("--"))
       .click();
     await assertEventually(async () => {
       const listing = await (
-        await page.request.get(`${base}/api/cilo/notes?view=all`)
+        await page.request.get(`${base}/api/nivra/notes?view=all`)
       ).json();
       const notes = Array.isArray(listing) ? listing : listing.items;
       const item = notes.find((n) => n.title === `Checklist import ${engine}`);
       if (!item) return false;
       const note = await (
-        await page.request.get(`${base}/api/cilo/notes/${item.id}`)
+        await page.request.get(`${base}/api/nivra/notes/${item.id}`)
       ).json();
       const checks = note.document.blocks.filter(
         (b) => b.type === "checkListItem",

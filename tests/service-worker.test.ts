@@ -15,14 +15,14 @@ function load(online = true) {
         async addAll(urls: string[]) {
           for (const url of urls)
             bucket.set(
-              new URL(url, "https://cilo.test").href,
+              new URL(url, "https://nivra.test").href,
               new Response(url),
             );
         },
         async match(request: Request | string) {
           const key =
             typeof request === "string"
-              ? new URL(request, "https://cilo.test").href
+              ? new URL(request, "https://nivra.test").href
               : request.url;
           return bucket.get(key)?.clone();
         },
@@ -39,7 +39,7 @@ function load(online = true) {
     },
     async match(url: string) {
       for (const bucket of store.values()) {
-        const hit = bucket.get(new URL(url, "https://cilo.test").href);
+        const hit = bucket.get(new URL(url, "https://nivra.test").href);
         if (hit) return hit.clone();
       }
     },
@@ -53,7 +53,7 @@ function load(online = true) {
   const fetched: string[] = [];
   const context = {
     self: {
-      location: new URL("https://cilo.test/sw.js"),
+      location: new URL("https://nivra.test/sw.js"),
       addEventListener: (type: string, fn: Listener) => listeners.set(type, fn),
       skipWaiting() {},
       clients: { claim: async () => {} },
@@ -106,19 +106,19 @@ test("service worker only caches public static assets and falls back offline for
     ],
   );
   for (const [url, init] of [
-    ["https://cilo.test/api/nivra/notes", {}],
-    ["https://cilo.test/api/nivra/files/abc", {}],
-    ["https://cilo.test/api/nivra/published/token/files/abc", {}],
+    ["https://nivra.test/api/nivra/notes", {}],
+    ["https://nivra.test/api/nivra/files/abc", {}],
+    ["https://nivra.test/api/nivra/published/token/files/abc", {}],
     ["https://elsewhere.test/_next/static/a.js", {}],
-    ["https://cilo.test/_next/static/a.js", { method: "POST" }],
-    ["https://cilo.test/share/token", {}],
+    ["https://nivra.test/_next/static/a.js", { method: "POST" }],
+    ["https://nivra.test/share/token", {}],
   ] as const)
     assert.equal(await worker.dispatch(url, init), undefined, url);
-  const offline = await worker.dispatch("https://cilo.test/", {
+  const offline = await worker.dispatch("https://nivra.test/", {
     mode: "navigate",
   });
   assert.equal(await offline!.text(), "/offline.html");
-  const shared = await worker.dispatch("https://cilo.test/share/token", {
+  const shared = await worker.dispatch("https://nivra.test/share/token", {
     mode: "navigate",
   });
   assert.equal(await shared!.text(), "/offline.html");
@@ -132,18 +132,18 @@ test("service worker only caches public static assets and falls back offline for
 test("online navigations are never stored and static files are cached once with a size limit", async () => {
   const worker = load(true);
   worker.listeners.get("install")!({ waitUntil: () => {} });
-  const page = await worker.dispatch("https://cilo.test/", {
+  const page = await worker.dispatch("https://nivra.test/", {
     mode: "navigate",
   });
   assert.equal(await page!.text(), "network");
   assert.ok(
     ![...(worker.store.get("nivra-static-v1") ?? new Map()).keys()].includes(
-      "https://cilo.test/",
+      "https://nivra.test/",
     ),
   );
   for (let i = 0; i < 160; i++)
     await worker.dispatch(
-      `https://cilo.test/_next/static/chunks/${String(i).padStart(3, "0")}.js`,
+      `https://nivra.test/_next/static/chunks/${String(i).padStart(3, "0")}.js`,
     );
   const kept = [...worker.store.get("nivra-static-v1")!.keys()].map(
     (url) => new URL(url).pathname,
@@ -155,7 +155,7 @@ test("online navigations are never stored and static files are cached once with 
   assert.ok(kept.includes("/_next/static/chunks/159.js"));
   assert.ok(!kept.includes("/_next/static/chunks/000.js"));
   const before = worker.fetched.length;
-  await worker.dispatch("https://cilo.test/_next/static/chunks/159.js");
+  await worker.dispatch("https://nivra.test/_next/static/chunks/159.js");
   assert.equal(
     worker.fetched.length,
     before,

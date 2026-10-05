@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 const root = realpathSync(process.argv[2]);
 assert.ok(
-  root.startsWith(path.join(tmpdir(), "cilo-artifacts-review-")),
+  root.startsWith(path.join(tmpdir(), "nivra-artifacts-review-")),
   "Disposable review directory required.",
 );
 const base = "http://localhost:3004";
@@ -228,15 +228,17 @@ for (const [engineName, engine] of Object.entries({
       await page.waitForFunction(
         () => document.querySelectorAll(".artifact-card").length === 2,
       );
-      await page
-        .getByRole("button", { name: /^Images/ })
-        [mobile ? "tap" : "click"]();
+      if (mobile) {
+        await page.getByRole("combobox", { name: "Artifact type" }).tap();
+        await page.getByRole("option", { name: /^Images/ }).tap();
+      } else await page.getByRole("button", { name: /^Images/ }).click();
       await page.waitForFunction(
         () => document.querySelectorAll(".artifact-card").length === 1,
       );
-      await page
-        .getByRole("button", { name: /^All/ })
-        [mobile ? "tap" : "click"]();
+      if (mobile) {
+        await page.getByRole("combobox", { name: "Artifact type" }).tap();
+        await page.getByRole("option", { name: /^All/ }).tap();
+      } else await page.getByRole("button", { name: /^All/ }).click();
       await page.waitForFunction(
         () => document.querySelectorAll(".artifact-card").length === 2,
       );

@@ -14,7 +14,8 @@
     "predev": "node scripts/copy-assets.mjs",
     "format": "prettier --write src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
     "format:check": "prettier --check src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
-    "backup": "tsx scripts/backup-cli.ts"
+    "backup": "tsx scripts/backup-cli.ts",
+    "verify:branding": "node scripts/verify-branding.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

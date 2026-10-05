@@ -41,9 +41,9 @@ test("authenticated file encryption rejects tampering, swapped objects, and wron
 });
 
 test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without data loss", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-encryption-"));
-  process.env.CILO_DATA_DIR = directory;
-  const file = path.join(directory, "cilo.sqlite");
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-encryption-"));
+  process.env.NIVRA_DATA_DIR = directory;
+  const file = path.join(directory, "nivra.sqlite");
   const owner = randomUUID(),
     note = randomUUID(),
     attachment = randomUUID();
@@ -52,7 +52,7 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
   const clear = () => {
     connection?.close();
     connection = undefined;
-    delete (globalThis as unknown as { ciloSqlite?: unknown }).ciloSqlite;
+    delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
   };
   try {
     const legacy = new Database(file);
@@ -189,9 +189,9 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
     const unkeyed = new Database(file);
     assert.throws(() => unkeyed.prepare("SELECT * FROM notes").all());
     unkeyed.close();
-    process.env.CILO_ENCRYPTION_KEY = "00".repeat(32);
+    process.env.NIVRA_ENCRYPTION_KEY = "00".repeat(32);
     assert.throws(sqlite);
-    delete process.env.CILO_ENCRYPTION_KEY;
+    delete process.env.NIVRA_ENCRYPTION_KEY;
     await unlink(path.join(directory, "encryption.key"));
     assert.throws(sqlite, /key is missing/);
     await assert.rejects(readFile(path.join(directory, "encryption.key")));
@@ -206,7 +206,7 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
     );
   } finally {
     clear();
-    delete process.env.CILO_ENCRYPTION_KEY;
+    delete process.env.NIVRA_ENCRYPTION_KEY;
     await rm(directory, { recursive: true, force: true });
   }
 });

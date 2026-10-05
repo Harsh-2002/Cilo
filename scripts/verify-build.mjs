@@ -6,12 +6,13 @@ function inspect(directory) {
     const file = path.join(directory, entry.name);
     if (
       (directory === root && entry.name === "data") ||
+      /\.sqlite(?:-(?:wal|shm))?$/.test(entry.name) ||
       [
         "encryption.key",
         "auth.secret",
-        "cilo.sqlite",
-        "cilo.sqlite-wal",
-        "cilo.sqlite-shm",
+        "nivra.sqlite",
+        "nivra.sqlite-wal",
+        "nivra.sqlite-shm",
       ].includes(entry.name)
     )
       throw new Error(

@@ -1,3 +1,4 @@
+import { historicalBundleFormat } from "../src/lib/compatibility";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -9,9 +10,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { masterKey, deriveKey } from "../src/lib/server/encryption";
 
 test("existing templates move to trash instead of being deleted, and old bundles import them there", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-templates-"));
-  process.env.CILO_DATA_DIR = directory;
-  const connection = new Database(path.join(directory, "cilo.sqlite"));
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-templates-"));
+  process.env.NIVRA_DATA_DIR = directory;
+  const connection = new Database(path.join(directory, "nivra.sqlite"));
   connection.pragma("cipher='chacha20'");
   connection.pragma(
     `key='${deriveKey(masterKey(directory), "sqlite").toString("hex")}'`,
@@ -119,6 +120,7 @@ test("existing templates move to trash instead of being deleted, and old bundles
       new Uint8Array(await (await call("export/bundle")).arrayBuffer()),
     );
     const manifest = JSON.parse(strFromU8(exported["manifest.json"]));
+    manifest.format = historicalBundleFormat;
     manifest.notes.find((n: { id: string }) => n.id === made.id).kind =
       "template";
     exported["manifest.json"] = strToU8(JSON.stringify(manifest));

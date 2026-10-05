@@ -3782,8 +3782,9 @@ button:disabled {
 
 .artifacts-content {
   width: min(100%, 1120px);
+  min-width: 0;
   margin: 0 auto;
-  padding: 40px 52px 80px;
+  padding: 40px 52px 64px;
 }
 .artifacts-panel.is-dragging .artifact-drop {
   border-color: var(--foreground);
@@ -3791,38 +3792,44 @@ button:disabled {
 }
 .artifact-drop {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 28px 20px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
   color: var(--muted-foreground);
   font-size: 13px;
-  text-align: center;
   transition:
     background-color 120ms ease-out,
     border-color 120ms ease-out;
 }
+.artifact-drop p {
+  min-width: 0;
+}
 .artifact-drop kbd {
-  padding: 1px 6px;
+  padding: 1px 5px;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--foreground);
   font-family: var(--font-sans);
   font-size: 12px;
+  white-space: nowrap;
 }
 .artifact-drop-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  flex-shrink: 0;
+}
+.artifact-drop-actions button {
+  padding-inline: 10px;
 }
 .artifact-composer {
   display: grid;
   gap: 10px;
-  margin-bottom: 24px;
+  margin-top: 16px;
 }
 .artifact-composer textarea {
   min-height: 140px;
@@ -3833,50 +3840,79 @@ button:disabled {
 }
 .artifact-jobs {
   display: grid;
-  gap: 6px;
-  margin: 0 0 20px;
+  gap: 8px;
+  margin: 16px 0 0;
   padding: 0;
   list-style: none;
   font-size: 13px;
 }
 .artifact-jobs li {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 0 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--muted-foreground);
 }
-.artifact-jobs li span {
-  max-width: 40%;
+.artifact-jobs li > svg {
+  grid-column: 1;
+  grid-row: 1;
+}
+.artifact-jobs li > span {
+  grid-column: 2;
+  grid-row: 1;
   overflow: hidden;
   color: var(--foreground);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .artifact-jobs li em {
-  flex: 1;
+  grid-column: 2 / -1;
+  grid-row: 2;
   min-width: 0;
   font-size: 12px;
   font-style: normal;
   overflow-wrap: anywhere;
 }
-.artifact-jobs li.has-error {
-  color: var(--foreground);
+.artifact-jobs li button {
+  grid-row: 1;
+}
+.artifact-toolbar {
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.artifact-filters {
+  flex-shrink: 0;
+}
+.artifact-filters span {
+  min-width: 2ch;
+}
+.artifact-type-select {
+  display: none;
+}
+.artifacts-panel .task-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 320px;
+}
+.artifacts-panel .task-search input {
+  min-width: 0;
 }
 .artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  align-items: stretch;
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
-  column-width: 232px;
-  column-gap: 16px;
 }
 .artifact-card {
-  position: relative;
-  break-inside: avoid;
-  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -3884,8 +3920,10 @@ button:disabled {
 }
 .artifact-open {
   display: flex;
+  flex: 1;
   flex-direction: column;
   width: 100%;
+  min-width: 0;
   text-align: left;
   transition: background-color 120ms ease-out;
 }
@@ -3895,53 +3933,62 @@ button:disabled {
 .artifact-thumb {
   display: block;
   width: 100%;
-  min-height: 72px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
   background: var(--muted);
 }
 .artifact-thumb img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
-.artifact-snippet {
+.artifact-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 120px;
+  padding: 16px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.artifact-file small {
+  max-width: 100%;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.artifact-details {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  padding: 16px 16px 8px;
+}
+.artifact-card-title {
   display: -webkit-box;
-  padding: 14px 16px;
   overflow: hidden;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.artifact-snippet,
+.artifact-hit {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted-foreground);
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 9;
-}
-.artifact-file {
-  display: grid;
-  gap: 4px;
-  padding: 16px;
-  color: var(--muted-foreground);
-}
-.artifact-file strong {
-  overflow: hidden;
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 550;
-  overflow-wrap: anywhere;
-}
-.artifact-file small {
-  font-size: 11px;
-}
-.artifact-caption,
-.artifact-hit {
-  display: -webkit-box;
-  padding: 10px 14px 12px;
-  overflow: hidden;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 5;
 }
 .artifact-hit svg {
   display: inline;
@@ -3958,40 +4005,60 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 14px 12px;
   color: var(--muted-foreground);
   font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.artifact-status svg {
+  flex-shrink: 0;
+}
+.artifact-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 8px 16px;
+}
+.artifact-card-footer > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .artifact-menu {
-  display: flex;
   width: 32px;
   height: 32px;
-  margin: 0 6px 6px auto;
+  flex-shrink: 0;
 }
 .artifact-skeleton span {
   display: block;
-  height: 190px;
-  margin-bottom: 16px;
-  break-inside: avoid;
+  height: 230px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--muted);
   animation: pulse 1.5s ease-in-out infinite;
 }
-.artifact-skeleton span:nth-child(3n + 2) {
-  height: 120px;
-}
-.artifact-skeleton span:nth-child(3n) {
-  height: 250px;
-}
 .artifact-viewer[data-slot="dialog-content"] {
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   width: min(880px, calc(100vw - 24px));
   max-width: min(880px, calc(100vw - 24px));
-  max-height: calc(100dvh - 48px);
-  padding: 22px;
+  max-height: calc(100dvh - 24px);
+  padding: 24px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.artifact-viewer > * {
+  min-width: 0;
+}
+.artifact-viewer-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding-right: 28px;
 }
 .artifact-viewer-loading {
   display: grid;
@@ -4000,44 +4067,65 @@ button:disabled {
   color: var(--muted-foreground);
 }
 .artifact-title {
+  width: 100%;
+  min-width: 0;
   height: 40px;
-  padding: 0 4px;
+  padding: 0;
   border-color: transparent;
   background: transparent;
   font-size: 18px;
   font-weight: 600;
 }
 .artifact-meta {
-  margin: -6px 4px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   color: var(--muted-foreground);
   font-size: 12px;
 }
+.artifact-meta-name {
+  display: -webkit-box;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 .artifact-viewer-image {
   display: grid;
+  min-width: 0;
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--muted);
 }
 .artifact-viewer-image img {
   display: block;
   max-width: 100%;
-  max-height: 58dvh;
+  max-height: 48dvh;
   object-fit: contain;
 }
 .artifact-viewer-file {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
   padding: 18px;
-  border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--muted);
   color: var(--muted-foreground);
   font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.artifact-viewer-file svg {
+  flex-shrink: 0;
+}
+.artifact-viewer-file span {
+  min-width: 0;
 }
 .artifact-text-edit {
-  min-height: 240px;
+  min-height: min(240px, 40dvh);
 }
 .artifact-found {
   display: grid;
@@ -4050,6 +4138,7 @@ button:disabled {
 .artifact-found p {
   color: var(--muted-foreground);
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .artifact-text {
   max-height: 260px;
@@ -4077,6 +4166,7 @@ button:disabled {
 .artifact-error {
   color: var(--foreground);
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .inline-action {
   display: inline-flex;
@@ -4086,26 +4176,72 @@ button:disabled {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+@media (max-width: 900px) {
+  .artifact-drop {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .artifact-drop-actions {
+    width: 100%;
+  }
+}
 @media (max-width: 767px) {
   .artifacts-content {
-    padding: 28px 16px 64px;
+    padding: 28px 20px 64px;
+  }
+  .artifact-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+  .artifact-filters {
+    display: none;
+  }
+  .artifact-type-select {
+    display: block;
+  }
+  .artifact-type-select [data-slot="select-trigger"] {
+    min-height: 44px;
+  }
+  .artifacts-panel .task-search {
+    flex: 1 1 150px;
+    max-width: none;
   }
   .artifact-grid {
-    column-count: 2;
-    column-gap: 12px;
-    column-width: auto;
-  }
-  .artifact-card {
-    margin-bottom: 12px;
-  }
-  .artifact-drop {
-    padding: 22px 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
   }
   .artifact-viewer[data-slot="dialog-content"] {
     padding: 16px;
   }
+  .artifact-viewer-header {
+    padding-right: 36px;
+  }
   .artifact-title {
     font-size: 16px;
+  }
+  .artifact-actions button,
+  .artifact-actions a,
+  .artifact-danger button,
+  .artifact-found .inline-action {
+    min-height: 44px;
+  }
+}
+@media (max-width: 480px) {
+  .artifact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .artifact-drop-actions {
+    gap: 6px;
+  }
+  .artifact-drop-actions button {
+    gap: 5px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .artifacts-panel .task-search {
+    flex-basis: 100%;
   }
 }
 @media (pointer: coarse) {
@@ -4115,8 +4251,16 @@ button:disabled {
   }
   .artifact-drop-actions button,
   .artifact-composer button,
-  .artifact-jobs button {
+  .artifact-jobs button,
+  .artifact-actions button,
+  .artifact-actions a,
+  .artifact-danger button,
+  .artifact-found .inline-action {
     min-height: 44px;
+  }
+  .artifact-viewer [data-slot="dialog-close"] {
+    width: 44px;
+    height: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4124,15 +4268,18 @@ button:disabled {
     animation: none !important;
   }
 }
-.artifacts-panel .task-search {
-  flex: 0 1 340px;
-  width: auto;
+
+.artifact-card-name {
+  display: block;
   min-width: 0;
-  max-width: none;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-@media (max-width: 767px) {
-  .artifacts-panel .task-search {
-    flex-basis: auto;
-    width: 100%;
-  }
+
+.artifact-text:focus-visible {
+  outline: none;
+  border-color: var(--foreground);
 }

@@ -1,3 +1,4 @@
+import { apiNamespacePattern } from "../compatibility";
 import { randomBytes, randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 import { storage } from "./storage";
@@ -64,7 +65,9 @@ export async function publishNote(note: Note, revision: number) {
       );
     if (typeof value === "string" && ["url", "href", "preview"].includes(key)) {
       const match = value.match(
-        /^\/api\/(?:nivra|cilo)\/files\/([a-f0-9-]{36})(?:[?#].*)?$/,
+        new RegExp(
+          String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
+        ),
       );
       if (match) references.add(match[1]);
     }
@@ -94,7 +97,9 @@ export async function publishNote(note: Note, revision: number) {
         ["url", "href", "preview"].includes(key)
       ) {
         const match = value.match(
-          /^\/api\/(?:nivra|cilo)\/files\/([a-f0-9-]{36})(?:[?#].*)?$/,
+          new RegExp(
+            String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
+          ),
         );
         if (match) return links.get(match[1]) || "";
         if (value.startsWith("/api/")) return "";

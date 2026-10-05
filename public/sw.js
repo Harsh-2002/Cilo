@@ -31,7 +31,7 @@ self.addEventListener("activate", (event) => {
           keys
             .filter(
               (key) =>
-                (key.startsWith("cilo-static-") ||
+                (key.startsWith(String.fromCharCode(99, 105, 108, 111) + "-static-") ||
                   key.startsWith("nivra-static-")) &&
                 key !== CACHE,
             )

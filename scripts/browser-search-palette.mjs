@@ -3,7 +3,7 @@ export default async function verifySearchPalette(page) {
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
   const status = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   if (status.owner?.name !== "Search Review Owner")
     throw new Error("Search Review Owner required.");
@@ -31,7 +31,7 @@ export default async function verifySearchPalette(page) {
   const matrix = [];
   try {
     for (const theme of ["light", "dark"]) {
-      const response = await page.request.patch(`${base}/api/cilo/settings`, {
+      const response = await page.request.patch(`${base}/api/nivra/settings`, {
         data: { theme },
       });
       check(response.ok(), "Theme update failed");
@@ -166,7 +166,7 @@ export default async function verifySearchPalette(page) {
           .getAttribute("aria-busy") === "false",
     );
     const before = await dialog().boundingBox();
-    await page.route("**/api/cilo/search?*", async (route) => {
+    await page.route("**/api/nivra/search?*", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 400));
       await route.continue();
     });
@@ -189,8 +189,8 @@ export default async function verifySearchPalette(page) {
       ),
       "Search loading layout shift",
     );
-    await page.unroute("**/api/cilo/search?*");
-    await page.route("**/api/cilo/search?*", (route) =>
+    await page.unroute("**/api/nivra/search?*");
+    await page.route("**/api/nivra/search?*", (route) =>
       route.fulfill({
         status: 503,
         contentType: "application/json",
@@ -203,7 +203,7 @@ export default async function verifySearchPalette(page) {
       path: ".impeccable/review/search-palette-error.png",
       animations: "disabled",
     });
-    await page.unroute("**/api/cilo/search?*");
+    await page.unroute("**/api/nivra/search?*");
     await input().fill("garden");
     await page.waitForFunction(
       () =>
@@ -234,7 +234,7 @@ export default async function verifySearchPalette(page) {
       pageErrors: errors,
     };
   } finally {
-    await page.unroute("**/api/cilo/search?*");
+    await page.unroute("**/api/nivra/search?*");
     page.off("pageerror", listener);
   }
 }

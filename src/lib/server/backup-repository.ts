@@ -158,7 +158,7 @@ export function backupRepository(
     !/^https?:\/\//.test(env.NIVRA_BACKUP_S3_ENDPOINT)
   )
     throw new Error("Backup S3 endpoint must be HTTP or HTTPS.");
-  const prefix = (env.NIVRA_BACKUP_S3_PREFIX || "cilo-backups").replace(
+  const prefix = (env.NIVRA_BACKUP_S3_PREFIX || "nivra-backups").replace(
     /^\/+|\/+$/g,
     "",
   );
@@ -169,7 +169,7 @@ export function backupRepository(
     bucket === env.NIVRA_S3_BUCKET &&
     (env.NIVRA_BACKUP_S3_ENDPOINT || "") === (env.NIVRA_S3_ENDPOINT || "")
   ) {
-    const media = (env.NIVRA_S3_PREFIX || "cilo").replace(/^\/+|\/+$/g, "");
+    const media = (env.NIVRA_S3_PREFIX || "nivra").replace(/^\/+|\/+$/g, "");
     if (
       !media ||
       prefix === media ||

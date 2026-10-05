@@ -7,9 +7,9 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { masterKey, deriveKey } from "../src/lib/server/encryption";
 test("paging migration keeps existing tasks and bookmarks and the paged queries use its indexes", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-paging-upgrade-"));
-  process.env.CILO_DATA_DIR = directory;
-  const connection = new Database(path.join(directory, "cilo.sqlite"));
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-paging-upgrade-"));
+  process.env.NIVRA_DATA_DIR = directory;
+  const connection = new Database(path.join(directory, "nivra.sqlite"));
   connection.pragma("cipher='chacha20'");
   connection.pragma(
     `key='${deriveKey(masterKey(directory), "sqlite").toString("hex")}'`,

@@ -8,9 +8,9 @@ import Database from "better-sqlite3";
 
 test("artifacts survive full-instance recovery and unfinished OCR resumes after a restart", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "cilo-artifact-recovery-"),
+    path.join(os.tmpdir(), "nivra-artifact-recovery-"),
   );
-  process.env.CILO_DATA_DIR = directory;
+  process.env.NIVRA_DATA_DIR = directory;
   const { sqlite } = await import("../src/lib/server/db");
   const { masterKey, deriveKey } = await import("../src/lib/server/encryption");
   const { createStorage } = await import("../src/lib/server/storage");
@@ -85,11 +85,11 @@ test("artifacts survive full-instance recovery and unfinished OCR resumes after 
     await backups.verifyBackup(backup.id);
     const destination = path.join(directory, "restored");
     await backups.restoreBackup(backup.id, destination);
-    const restored = await createStorage({ CILO_DATA_DIR: destination }).read(
+    const restored = await createStorage({ NIVRA_DATA_DIR: destination }).read(
       rows.storage_key,
     );
     assert.deepEqual(new Uint8Array(restored), sample);
-    const recovered = new Database(path.join(destination, "cilo.sqlite"));
+    const recovered = new Database(path.join(destination, "nivra.sqlite"));
     recovered.pragma("cipher='chacha20'");
     recovered.pragma(
       `key='${deriveKey(masterKey(destination, true), "sqlite").toString("hex")}'`,
@@ -121,7 +121,7 @@ test("artifacts survive full-instance recovery and unfinished OCR resumes after 
     await backups.verifyBackup(legacyBackup.id);
     const legacyDestination = path.join(directory, "restored-before-artifacts");
     await backups.restoreBackup(legacyBackup.id, legacyDestination);
-    const legacy = new Database(path.join(legacyDestination, "cilo.sqlite"));
+    const legacy = new Database(path.join(legacyDestination, "nivra.sqlite"));
     legacy.pragma("cipher='chacha20'");
     legacy.pragma(
       `key='${deriveKey(masterKey(legacyDestination, true), "sqlite").toString("hex")}'`,

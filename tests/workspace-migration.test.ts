@@ -1,3 +1,4 @@
+import { historicalDatabaseName } from "../src/lib/compatibility";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -7,9 +8,9 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { masterKey, deriveKey } from "../src/lib/server/encryption";
 test("connected-workspace migration preserves existing encrypted notes and backfills task search and links", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-upgrade-"));
-  process.env.CILO_DATA_DIR = directory;
-  const connection = new Database(path.join(directory, "cilo.sqlite"));
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-upgrade-"));
+  process.env.NIVRA_DATA_DIR = directory;
+  const connection = new Database(path.join(directory, historicalDatabaseName));
   connection.pragma("cipher='chacha20'");
   connection.pragma(
     `key='${deriveKey(masterKey(directory), "sqlite").toString("hex")}'`,
@@ -120,7 +121,7 @@ test("connected-workspace migration preserves existing encrypted notes and backf
     );
     assert.equal(migrated.pragma("integrity_check", { simple: true }), "ok");
     assert.notEqual(
-      (await readFile(path.join(directory, "cilo.sqlite")))
+      (await readFile(path.join(directory, historicalDatabaseName)))
         .subarray(0, 16)
         .toString(),
       "SQLite format 3\0",

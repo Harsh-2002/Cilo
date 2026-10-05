@@ -17,8 +17,8 @@ import { masterKey, seal } from "../src/lib/server/encryption";
 const chunk = 65536;
 const stored = chunk + 16;
 async function fixture() {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-media-"));
-  const store = createStorage({ CILO_DATA_DIR: directory });
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-media-"));
+  const store = createStorage({ NIVRA_DATA_DIR: directory });
   const object = (id: string) => path.join(directory, "uploads", id);
   return { directory, store, object };
 }
@@ -92,7 +92,7 @@ test("each chunk is authenticated when read, and damage, truncation and swaps ar
 
 test("a different key cannot read chunked objects", async () => {
   const { directory, store } = await fixture();
-  const stranger = await mkdtemp(path.join(tmpdir(), "cilo-media-key-"));
+  const stranger = await mkdtemp(path.join(tmpdir(), "nivra-media-key-"));
   try {
     const id = randomUUID();
     await store.write(id, randomBytes(chunk * 2));
@@ -101,7 +101,7 @@ test("a different key cannot read chunked objects", async () => {
       path.join(stranger, "uploads", id),
       await readFile(path.join(directory, "uploads", id)),
     );
-    const wrong = createStorage({ CILO_DATA_DIR: stranger });
+    const wrong = createStorage({ NIVRA_DATA_DIR: stranger });
     const file = await wrong.open(id);
     await assert.rejects(file.read(0, 10), /authentication/);
   } finally {
@@ -123,7 +123,7 @@ test("legacy single-message objects stay readable and large ones convert in plac
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(
       (await readFile(object(small))).subarray(0, 8).toString(),
-      "CILOENC1",
+      Buffer.from([67, 73, 76, 79, 69, 78, 67, 49]).toString(),
     );
 
     const large = randomUUID();
@@ -138,7 +138,7 @@ test("legacy single-message objects stay readable and large ones convert in plac
       await until(
         async () =>
           (await readFile(object(large))).subarray(0, 8).toString() ===
-          "CILOENC2",
+          Buffer.from([67, 73, 76, 79, 69, 78, 67, 50]).toString(),
       ),
       "large legacy object was not converted",
     );

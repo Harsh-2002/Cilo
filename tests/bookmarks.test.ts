@@ -72,9 +72,9 @@ test("metadata extracts Open Graph, Twitter and HTML with safe relative assets",
 });
 test("bookmarks preserve fallback links, organization, FTS and revisions", async () => {
   const directory = await mkdtemp(
-    path.join(os.tmpdir(), "cilo-bookmark-test-"),
+    path.join(os.tmpdir(), "nivra-bookmark-test-"),
   );
-  process.env.CILO_DATA_DIR = directory;
+  process.env.NIVRA_DATA_DIR = directory;
   const { sqlite } = await import("../src/lib/server/db");
   const bookmarks = await import("../src/lib/server/bookmarks");
   const db = sqlite(),

@@ -3,7 +3,7 @@ export default async function verifyEditorTypography(page) {
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
   const status = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   if (status.owner?.name !== "Heading Review Owner")
     throw new Error("Heading Review Owner required.");
@@ -51,7 +51,7 @@ export default async function verifyEditorTypography(page) {
       },
     ],
   };
-  const response = await page.request.post(`${base}/api/cilo/notes`, {
+  const response = await page.request.post(`${base}/api/nivra/notes`, {
     data: { title: "Editor typography review", document },
   });
   if (!response.ok()) throw new Error("Could not create fixture.");
@@ -60,11 +60,11 @@ export default async function verifyEditorTypography(page) {
   const getNote = async () => {
     try {
       return await (
-        await page.request.get(`${base}/api/cilo/notes/${note.id}`)
+        await page.request.get(`${base}/api/nivra/notes/${note.id}`)
       ).json();
     } catch {
       return await (
-        await page.request.get(`${base}/api/cilo/notes/${note.id}`)
+        await page.request.get(`${base}/api/nivra/notes/${note.id}`)
       ).json();
     }
   };
@@ -88,7 +88,7 @@ export default async function verifyEditorTypography(page) {
       );
       for (const theme of ["light", "dark"]) {
         const appearance = await page.request.patch(
-          `${base}/api/cilo/settings`,
+          `${base}/api/nivra/settings`,
           { data: { theme } },
         );
         if (!appearance.ok()) throw new Error("Could not set appearance.");
@@ -96,7 +96,7 @@ export default async function verifyEditorTypography(page) {
           for (const mode of ["standard", "wide"]) {
             const existing = await getNote();
             const updated = await page.request.patch(
-              `${base}/api/cilo/notes/${note.id}`,
+              `${base}/api/nivra/notes/${note.id}`,
               { data: { revision: existing.revision, editorWidth: mode } },
             );
             if (!updated.ok()) throw new Error("Could not persist page width.");

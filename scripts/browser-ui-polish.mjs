@@ -3,7 +3,7 @@ export default async function verifyInterface(page) {
   if (new URL(base).port !== "3004")
     throw new Error("Use the disposable review instance.");
   const status = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   if (status.owner?.name !== "Review Owner")
     throw new Error("Review Owner required.");
@@ -76,9 +76,12 @@ export default async function verifyInterface(page) {
   for (const width of [1440, 768, 390, 320])
     for (const theme of ["light", "dark"]) {
       const context = `${width}px ${theme}`;
-      const appearance = await page.request.patch(`${base}/api/cilo/settings`, {
-        data: { theme },
-      });
+      const appearance = await page.request.patch(
+        `${base}/api/nivra/settings`,
+        {
+          data: { theme },
+        },
+      );
       if (!appearance.ok()) throw new Error("Could not set review theme.");
       await page.setViewportSize({ width, height: 900 });
       await page.goto(base);
@@ -118,7 +121,7 @@ export default async function verifyInterface(page) {
         `Search fits ${context}`,
       );
       await page.screenshot({
-        path: `/tmp/cilo-ui-refinement/search-${width}-${theme}.png`,
+        path: `/tmp/nivra-ui-refinement/search-${width}-${theme}.png`,
       });
       await dismiss();
       await nav("Bookmarks");
@@ -130,7 +133,7 @@ export default async function verifyInterface(page) {
         .click();
       await menu(`Bookmark menu ${context}`);
       await page.screenshot({
-        path: `/tmp/cilo-ui-refinement/bookmark-menu-${width}-${theme}.png`,
+        path: `/tmp/nivra-ui-refinement/bookmark-menu-${width}-${theme}.png`,
       });
       await dismiss();
       await page
@@ -152,7 +155,7 @@ export default async function verifyInterface(page) {
       await page.getByRole("button", { name: "Note actions" }).click();
       await menu(`Note menu ${context}`);
       await page.screenshot({
-        path: `/tmp/cilo-ui-refinement/note-menu-${width}-${theme}.png`,
+        path: `/tmp/nivra-ui-refinement/note-menu-${width}-${theme}.png`,
       });
       await dismiss();
       if (width < 1024) {
@@ -197,7 +200,7 @@ export default async function verifyInterface(page) {
         `Distinct session actions ${context}`,
       );
       await page.screenshot({
-        path: `/tmp/cilo-ui-refinement/settings-${width}-${theme}.png`,
+        path: `/tmp/nivra-ui-refinement/settings-${width}-${theme}.png`,
       });
       await dismiss();
     }
@@ -218,7 +221,7 @@ export default async function verifyInterface(page) {
     .filter({ hasText: "Unable to sign out right now." })
     .waitFor();
   const retained = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   check(
     Boolean(retained.owner),
@@ -229,7 +232,7 @@ export default async function verifyInterface(page) {
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   check(true, "Settings sign-out returns to login");
   const ended = await (
-    await page.request.get(`${base}/api/cilo/status`)
+    await page.request.get(`${base}/api/nivra/status`)
   ).json();
   check(!ended.owner, "Sign-out invalidates server session");
   return { checks: passed.length, passed };

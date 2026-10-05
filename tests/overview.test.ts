@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 test("overview is private, bounded, date-aware and reflects workspace changes", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-overview-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-overview-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite, db } = await import("../src/lib/server/db");
   const { bookmarks } = await import("../src/lib/server/schema");

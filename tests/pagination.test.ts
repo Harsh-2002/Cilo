@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 test("tasks and bookmarks page by stable cursors with server-side filters", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-pagination-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-pagination-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";

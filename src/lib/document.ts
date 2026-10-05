@@ -1,3 +1,4 @@
+import { apiNamespacePattern } from "./compatibility";
 import type { Document } from "./types";
 
 export function remapDocument(
@@ -21,7 +22,9 @@ export function remapDocument(
     }
     if (["url", "href", "preview"].includes(key))
       return value.replace(
-        /^\/api\/(?:nivra|cilo)\/files\/([a-f0-9-]{36})(?=[?#]|$)/,
+        new RegExp(
+          String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?=[?#]|$)`,
+        ),
         (url, id: string) =>
           files.has(id) ? `/api/nivra/files/${files.get(id)}` : url,
       );

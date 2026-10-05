@@ -2,7 +2,7 @@
 
 The 2026-10-04 verification used RustFS 1.0.1 with Nivra's ordinary S3 adapter. It did not use S3 Tables or replace SQLite.
 
-The test service is a separate `cilo-rustfs-review` Docker container. Its API is bound only to `127.0.0.1:19000`, the console is disabled, and private credentials live in an owner-only temporary directory. The image digest was `sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c`. Data and logs use named volumes owned by UID 10001. No existing homelab RustFS service was changed.
+The test service is a separate `nivra-rustfs-review` Docker container. Its API is bound only to `127.0.0.1:19000`, the console is disabled, and private credentials live in an owner-only temporary directory. The image digest was `sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c`. Data and logs use named volumes owned by UID 10001. No existing homelab RustFS service was changed.
 
 Nivra's disposable production instance runs on port 3004 with a separate encrypted data directory. Its file backend uses a private media bucket with path-style requests, and its independently configured backup backend uses a different private bucket and prefix. The normal installation on port 3001 keeps its existing storage configuration.
 

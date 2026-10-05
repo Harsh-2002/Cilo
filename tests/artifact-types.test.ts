@@ -329,8 +329,8 @@ const cases: Case[] = [
 ];
 
 test("every kind of file is stored safely, identified from its bytes, and searchable where text exists", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "cilo-artifact-types-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = await mkdtemp(path.join(tmpdir(), "nivra-artifact-types-"));
+  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { ocrIdle, shutdownOcr } = await import("../src/lib/server/ocr");

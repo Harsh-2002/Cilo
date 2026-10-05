@@ -4,8 +4,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 async function main() {
-  const directory = mkdtempSync(path.join(tmpdir(), "cilo-library-benchmark-"));
-  process.env.CILO_DATA_DIR = directory;
+  const directory = mkdtempSync(
+    path.join(tmpdir(), "nivra-library-benchmark-"),
+  );
+  process.env.NIVRA_DATA_DIR = directory;
   const { sqlite } = await import("../src/lib/server/db");
   const { listNotes, getNote } = await import("../src/lib/server/notes");
   const { listTasks, listTaskPage, taskCounts } =
