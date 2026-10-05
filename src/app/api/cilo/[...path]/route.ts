@@ -1,3 +1,4 @@
+import { fileResponse, safeName } from "@/lib/server/file-response";
 import { bookmarkUrl, imageMime } from "@/lib/server/link-metadata";
 import { backupStatus, startBackup, verifyBackup } from "@/lib/server/backups";
 import {
@@ -90,8 +91,6 @@ const recovery = () =>
     .toString("hex")
     .match(/.{1,8}/g)!
     .join("-");
-const safeName = (name: string) =>
-  name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 150) || "file";
 const filesFor = (id: string) =>
   sqlite()
     .prepare("SELECT * FROM attachments WHERE note_id=?")
@@ -147,23 +146,11 @@ async function handle(
           .prepare("SELECT * FROM publication_files WHERE token=? AND id=?")
           .get(id, path[3]) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        const inline = [
-          "image/png",
-          "image/jpeg",
-          "image/webp",
-          "image/gif",
-        ].includes(file.mime);
-        return new Response(
-          new Uint8Array(await storage.read(file.storage_key)),
-          {
-            headers: {
-              "Content-Type": inline ? file.mime : "application/octet-stream",
-              "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName(file.name)}"`,
-              "Cache-Control": "no-store",
-              "X-Content-Type-Options": "nosniff",
-              "Content-Security-Policy": "default-src 'none'; sandbox",
-            },
-          },
+        return fileResponse(
+          request,
+          await storage.read(file.storage_key),
+          file,
+          true,
         );
       }
       if (action) throw new HttpError(404, "This shared note was not found.");
@@ -681,23 +668,10 @@ async function handle(
           .prepare("SELECT * FROM attachments WHERE id=?")
           .get(id) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        const inline = [
-          "image/png",
-          "image/jpeg",
-          "image/webp",
-          "image/gif",
-        ].includes(file.mime);
-        return new Response(
-          new Uint8Array(await storage.read(file.storage_key)),
-          {
-            headers: {
-              "Content-Type": inline ? file.mime : "application/octet-stream",
-              "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName(file.name)}"`,
-              "Cache-Control": "private, no-store",
-              "X-Content-Type-Options": "nosniff",
-              "Content-Security-Policy": "default-src 'none'; sandbox",
-            },
-          },
+        return fileResponse(
+          request,
+          await storage.read(file.storage_key),
+          file,
         );
       }
       if (method === "GET") {

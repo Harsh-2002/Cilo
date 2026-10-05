@@ -16,7 +16,7 @@ A one-use recovery code is hashed in the database. Recovery changes the credenti
 
 ## Files and runtime
 
-The data directory contains `cilo.sqlite`, SQLite WAL files, `auth.secret`, and `uploads/`. Attachments have generated identifiers and are served only through authenticated routes. Raster image types are detected from their signatures; other types download as binary files. The storage adapter supports local files or an environment-configured S3-compatible bucket. The modular AWS SDK signs object reads, writes, and deletes; credentials remain server-only. SQLite stays local with either file backend.
+The data directory contains `cilo.sqlite`, SQLite WAL files, `auth.secret`, and `uploads/`. Attachments have generated identifiers and are served only through authenticated routes. Raster image types are detected from their signatures. An allowlist of raster and audio/video types is served inline; active formats and unrecognized types download as binary files. Private and token-scoped published attachments support single byte ranges for media seeking, with no-store caching, sandboxed responses, and nosniff headers. Encrypted objects are authenticated and decrypted in full before the requested range is returned; this is not streaming decryption. The storage adapter supports local files or an environment-configured S3-compatible bucket. The modular AWS SDK signs object reads, writes, and deletes; credentials remain server-only. SQLite stays local with either file backend.
 
 The PWA caches public static assets and an offline explanation. Notes, API responses, and attachments are network-only. Fonts and drawing assets are bundled with the application.
 
@@ -93,3 +93,9 @@ Published pages generate HTML on each request from the encrypted publication sna
 Theme initialization runs once in the server-owned document head before paint. The next-themes context still handles appearance changes and system preference updates; its redundant injected script is an inert text data block, avoiding React 19 client-remount warnings.
 
 Unknown application routes and revoked share links return 404 pages. Workspace loading is scoped to its route group so a public missing note does not stream a successful loading response. Route and root error boundaries provide recovery controls without exposing exception details. Their retry action requests the page again rather than reusing a failed server-component response. Migration 0009 removes only the unchanged automatically seeded Journal default. New entries are blank unless a template was explicitly selected.
+
+## Editor controls and shared media
+
+Checklist blocks render with Cilo’s shared shadcn checkbox while preserving BlockNote’s keyboard shortcuts, parsing, canonical JSON, and Markdown checklist conversion. Native checkbox markup in exported HTML is a serialization format, not a visible app control. Existing Mermaid diagrams remain editable and exportable; Diagram is omitted from the creation menu, while Drawing remains available.
+
+Editor and reader audio/video blocks share a client player with styled play/pause, seeking, volume, retry, and video fullscreen controls where the browser supports them. The reader still sends its prose and file links as initial HTML. A no-script link opens each media file when JavaScript is unavailable; interactive playback controls require JavaScript. The player synchronizes already-loaded metadata on attachment, so media loaded before hydration still shows its duration and permits seeking. Public media remains scoped to the published snapshot. Browser codec support determines which media formats can play.

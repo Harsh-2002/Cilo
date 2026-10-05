@@ -19,13 +19,13 @@ import { syntaxHighlighter } from "@blocknote/code-block";
 import {
   createReactDiagramBlockSpec,
   locales as diagramLocales,
-  getDiagramSlashMenuItems,
 } from "@blocknote/diagram-block";
 import * as locales from "@blocknote/core/locales";
 import { PencilLine, Download, Loader2, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 import { codeBlockSpec } from "./code-block";
 import { checklistBlockSpec } from "./checklist-block";
+import { audioBlockSpec, videoBlockSpec } from "./media-blocks";
 import { download } from "@/lib/client";
 import { api } from "@/lib/client";
 import { toast } from "sonner";
@@ -162,6 +162,8 @@ export const editorSchema = BlockNoteSchema.create().extend({
     checkListItem: checklistBlockSpec,
     diagram: createReactDiagramBlockSpec(),
     canvas: canvasSpec(),
+    audio: audioBlockSpec,
+    video: videoBlockSpec,
   },
 });
 type Blocks = PartialBlock<
@@ -337,7 +339,6 @@ export default function Editor({
               filterSuggestionItems(
                 [
                   ...getDefaultReactSlashMenuItems(editor),
-                  ...getDiagramSlashMenuItems(editor),
                   {
                     title: "Drawing",
                     subtext: "Sketch on a freeform canvas",

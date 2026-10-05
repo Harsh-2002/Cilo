@@ -1,5 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { Check } from "lucide-react";
+import { MediaPlayer } from "./media-player";
 import { ReaderCode, ReaderDiagram } from "./reader-artifacts";
 import { readerText, readerUrl } from "@/lib/reader";
 
@@ -156,9 +157,9 @@ function renderBlock(block: Block, key: number): ReactNode {
             referrerPolicy="no-referrer"
           />
         ) : block.type === "video" ? (
-          <video src={src} controls preload="none" />
+          <MediaPlayer key={src} src={src} kind="video" name={name} />
         ) : block.type === "audio" ? (
-          <audio src={src} controls preload="none" />
+          <MediaPlayer key={src} src={src} kind="audio" name={name} />
         ) : (
           <a href={src} download rel="noopener noreferrer">
             {name}

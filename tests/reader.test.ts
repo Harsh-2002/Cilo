@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { runInNewContext } from "node:vm";
+import { MediaPlayer } from "../src/components/media-player";
 import { NoteContent } from "../src/components/note-content";
 import { readingBlocks, readerUrl } from "../src/lib/reader";
 import { themeBootstrap } from "../src/lib/theme";
@@ -186,4 +187,42 @@ test("reader code highlighting preserves content and both theme palettes", async
         (token) => token.variants.light.color !== token.variants.dark.color,
       ),
   );
+});
+
+test("shared media has styled accessible controls and a no-script file fallback", () => {
+  const token = "a".repeat(48);
+  const url = `/api/cilo/published/${token}/files/${"b".repeat(36)}`;
+  const html = renderToStaticMarkup(
+    createElement(NoteContent, {
+      blocks: [
+        { type: "audio", props: { url, name: "Recording.wav" } },
+        { type: "video", props: { url, name: "Clip.mp4" } },
+        {
+          type: "audio",
+          props: { url: "javascript:alert(1)", name: "Unsafe" },
+        },
+      ],
+    }),
+  );
+  assert.match(html, /aria-label="Play audio"/);
+  assert.match(html, /aria-label="Play video"/);
+  assert.match(html, /aria-label="Playback position"/);
+  assert.match(html, /<noscript><a.*Open Recording.wav/);
+  assert.match(html, /<noscript><a.*Open Clip.mp4/);
+  assert.doesNotMatch(html, /controls=""|javascript:|<select/);
+});
+
+test("media playback and fallback links reject executable imported URL schemes", () => {
+  for (const src of [
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "blob:https://cilo.test/unsafe",
+    "file:///etc/passwd",
+  ]) {
+    const html = renderToStaticMarkup(
+      createElement(MediaPlayer, { src, kind: "audio", name: "Imported file" }),
+    );
+    assert.match(html, /This file link is unsupported/);
+    assert.doesNotMatch(html, /href=|src=|<noscript>/);
+  }
 });
