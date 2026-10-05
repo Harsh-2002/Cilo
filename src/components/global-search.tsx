@@ -49,16 +49,24 @@ export function GlobalSearch({
   const [open, setOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const remember = () => {
+    const active = document.activeElement;
+    opener.current =
+      active instanceof HTMLElement && active !== document.body ? active : null;
+  };
   useImperativeHandle(
     ref,
     () => ({
       open: () => {
+        remember();
         setFiltersOpen(false);
         setOpen(true);
       },
       toggle: () => {
-        setFiltersOpen(false);
+        if (!document.querySelector(".global-search-dialog")) remember();
         setOpen((value) => !value);
+        setFiltersOpen(false);
       },
     }),
     [],
@@ -141,7 +149,11 @@ export function GlobalSearch({
               .querySelector<HTMLInputElement>(nextFocus.current)
               ?.focus();
             nextFocus.current = null;
+          } else if (opener.current?.isConnected) {
+            event.preventDefault();
+            opener.current.focus();
           }
+          opener.current = null;
         }}
       >
         <DialogTitle className="sr-only">Search Cilo</DialogTitle>

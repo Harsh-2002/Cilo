@@ -236,3 +236,30 @@ Fixes: lists carry the section they were loaded for and are not drawn for anothe
 Measured with the browser layout-shift API in Chromium at 1440 and 390 px across Tasks, Bookmarks, Overview, Favorites, Templates, Trash and Notes, first visit and revisit: 0.0000 to 0.0001 per switch. A cold first visit with the task API delayed 800 ms measured 0.0001 (desktop) and 0.0000 (mobile). Firefox and WebKit do not implement the layout-shift API, so their evidence is behavioral: the capture harness now checks in Chromium, Firefox and WebKit that the first frame after each section click never contains another section's rows and, where the API exists, that the shift stays under 0.02. All three engines passed. The full suite passed with 81 tests.
 
 Limits: warm data can be briefly out of date until the background refresh returns, and the cache does not cover Settings, the editor pane or Journal's daily-note creation; the measurement is a synthetic library on one VM and does not include physical-device scroll or touch behavior.
+
+## Device, accessibility and PWA review — 2026-10-05
+
+This pass uses `scripts/run-device-review.mjs` against the disposable 10,002-note instance, with a fixture note containing a heading, paragraph, open and checked checklist items and audio. It sets the owner's theme through the settings API before each run (the app's theme setting, not the browser's colour scheme, decides the appearance), so each row below was run in the stated theme.
+
+**Coverage.** Desktop Chromium at 1440 px in light and dark; WebKit iPhone 13, Chromium Pixel 7 and WebKit iPad (gen 7) device profiles with touch, in light and dark. Each profile visited Overview, Tasks, Bookmarks, Notes, Favorites, Templates, Trash, the editor with checklist and audio, and the Settings dialog. Each page was scanned with axe-core 4.13 against WCAG 2.0/2.1/2.2 A and AA and best-practice rules, checked for horizontal overflow and page errors, and (on touch profiles) probed for the real hit area of every control using `elementFromPoint`.
+
+**Found and fixed**
+
+- WCAG 2.2 target size (2.5.8) failed in the editor in every profile: the 16 px checklist checkbox and the 12 px seek thumb. axe treats the editor's single `contenteditable` textbox as the neighbouring target, so the controls themselves must be 24 px. Both are now 24 px controls with the same visible 16 px box and 12 px thumb drawn inside them.
+- On touch devices, including tablets at desktop widths, small controls were below the 44 px target used on phones: the navigation toggle (32 px), sort and create-template buttons (26 px), "Load more" (28–32 px), "Add tags" (25 px), Related items, overview and task actions, the search field (40 px), and media buttons on iPad (36 px). A `(pointer: coarse)` rule now raises them.
+- Closing the search palette with Escape sent focus to the page body. It now returns to the element that opened it.
+- The service-worker static cache was never pruned, so every upgrade left old hashed assets behind. It is now capped at 120 build assets, oldest first; icons and the offline page stay precached. A unit test runs the real `sw.js` against a fake cache.
+
+**Results after the fixes.** 0 axe failures, 0 overflow failures and 0 page errors across all Desktop, iPhone, Pixel and iPad runs in both themes. Keyboard-only walkthrough (Chromium): across Overview, Tasks, Bookmarks and Notes, every tab stop had an accessible name and a visible focus indicator, and Search and Quick Capture moved focus into the dialog, kept it there while tabbing, closed on Escape and returned focus. PWA (Chromium with a real service worker): the manifest parses without errors with name, icons (including maskable), `standalone` display and start URL; the worker registers; the caches contain only the offline page, icons and hashed build assets (25 entries after browsing private pages, the API and media, none private); going offline shows the offline page without private content and the app recovers when back online.
+
+**Remaining observations (not defects established)**
+
+- Three controls meet WCAG 2.2 AA (24 px) but remain under 44 px on iPad only: the linked-note chip in task rows, the create-template button beside the sort button, and the 24 px seek thumb (the 36–44 px slider track is also touchable).
+- The tablet navigation drawer takes about 0.5 s (Chromium) to 1 s (WebKit) to finish its exit animation in this software-rendered headless setup, versus about 0.3 s on the phone profile; the same time is taken when it is closed with Escape, and section loading adds under about 0.3 s. Whether this is visible on real hardware is unknown.
+- Playwright's device profiles set viewport, user agent, touch and pixel ratio. WebKit here is the Safari engine, not iOS Safari. Pointer-coarse media queries took effect in these runs, but behaviour that depends on the real iOS or Android system was not exercised.
+
+**Not tested and not claimed**
+
+- Physical iPhone, iPad or Android devices; real virtual-keyboard behaviour (the editor uses a visual-viewport height variable, but no keyboard was shown); safe-area insets on notched devices (`viewport-fit=cover` is set and only the top inset is handled in CSS).
+- Screen readers (VoiceOver, TalkBack, NVDA, JAWS) and other assistive technology. Automated rules and the accessibility tree cannot establish how a screen reader announces the app, and axe does not establish full WCAG conformance.
+- Installing the app. Chromium reported the install check as not applicable in a private browsing context, and display-mode emulation was not available, so standalone-window behaviour, the install prompt, OS icon masking and iOS add-to-home-screen behaviour are unverified.

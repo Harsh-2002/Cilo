@@ -3464,8 +3464,39 @@ button:disabled {
   align-self: flex-start;
   padding-top: 3px;
 }
+.editor-check [data-slot="checkbox"] {
+  width: 24px;
+  height: 24px;
+  margin: -4px;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.editor-check [data-slot="checkbox"]::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  transition: background-color 120ms ease-out;
+}
+.dark .editor-check [data-slot="checkbox"]::before {
+  background: color-mix(in oklab, var(--input) 30%, transparent);
+}
+.editor-check [data-slot="checkbox"][data-state="checked"]::before {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.editor-check [data-slot="checkbox"]:focus-visible::before {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+}
+.editor-check [data-slot="checkbox-indicator"] {
+  position: relative;
+  z-index: 1;
+}
 .editor-check [data-slot="checkbox"]::after {
-  inset: -8px -12px;
+  inset: -8px;
 }
 .media-player {
   width: 100%;
@@ -3576,15 +3607,24 @@ button:disabled {
   background: var(--foreground);
 }
 .cilo-slider-thumb {
+  position: relative;
   display: block;
-  width: 12px;
-  height: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.cilo-slider-thumb::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
   border: 1px solid var(--foreground);
   background: var(--background);
   border-radius: 50%;
 }
 .cilo-slider-thumb:focus-visible {
   outline: none;
+}
+.cilo-slider-thumb:focus-visible::before {
   border-width: 3px;
 }
 .cilo-slider[data-disabled] {
@@ -3636,6 +3676,93 @@ button:disabled {
     padding-top: 0;
   }
   .editor-check [data-slot="checkbox"]::after {
-    inset: -14px;
+    inset: -10px;
+  }
+}
+
+/* Touch devices, including tablets at desktop widths, get the 44px minimum target used on phones. */
+@media (pointer: coarse) {
+  .menu-toggle,
+  .tasks-header button,
+  .note-topbar button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .list-header > button {
+    position: relative;
+    width: 32px;
+    height: 32px;
+  }
+  .list-header > button::after,
+  .add-tag::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+  .add-tag {
+    position: relative;
+    min-height: 26px;
+  }
+  .add-tag::after {
+    inset: -9px -6px;
+  }
+  .connections-toggle,
+  .note-list-more button,
+  .list-continuation button,
+  .list-empty button,
+  .overview-actions button,
+  .overview-widget > header button,
+  .task-filters button,
+  .bookmark-filters button,
+  .bookmark-filters [data-slot="select-trigger"],
+  .bookmark-url input,
+  .bookmark-collection input,
+  .task-create input,
+  .task-search input,
+  .bookmark-toolbar input {
+    min-height: 44px;
+  }
+  .search-field input {
+    height: 44px;
+  }
+  .search-field > svg {
+    top: 15px;
+  }
+  .note-title {
+    min-height: 44px;
+  }
+  .workspace-empty button,
+  .linked-note-chip {
+    min-height: 44px;
+  }
+  .overview-check {
+    padding: 10px 0;
+  }
+  .overview-check > button {
+    width: 24px;
+    height: 24px;
+  }
+  .overview-check > button::after {
+    top: -10px;
+    bottom: -10px;
+  }
+  .editor-checklist {
+    min-height: 44px;
+    align-items: center;
+    gap: 14px;
+  }
+  .editor-check {
+    padding-top: 0;
+  }
+  .editor-check [data-slot="checkbox"]::after {
+    inset: -10px;
+  }
+  .media-control-row button,
+  .media-volume button {
+    width: 44px;
+    height: 44px;
+  }
+  .cilo-slider {
+    height: 44px;
   }
 }

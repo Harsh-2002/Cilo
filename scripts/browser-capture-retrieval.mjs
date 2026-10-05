@@ -14,7 +14,27 @@ export default async function verifyCaptureRetrieval(
     if (!condition) throw new Error(message);
   };
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  let quietUntil = 0;
+  page.on("pageerror", (error) => {
+    // WebKit rejects fetches cancelled by a navigation this harness started.
+    if (
+      Date.now() < quietUntil &&
+      error.message.endsWith("due to access control checks.")
+    )
+      return;
+    errors.push(error.message);
+  });
+  for (const method of ["goto", "reload"]) {
+    const original = page[method].bind(page);
+    page[method] = async (...args) => {
+      quietUntil = Infinity;
+      try {
+        return await original(...args);
+      } finally {
+        quietUntil = Date.now() + 500;
+      }
+    };
+  }
   const capture = () =>
     page.getByRole("dialog", { name: "Quick capture", exact: true });
   const input = () => capture().getByRole("textbox", { name: "Capture text" });
