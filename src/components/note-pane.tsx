@@ -28,6 +28,7 @@ import {
   AlignCenter,
   MoveHorizontal,
   CalendarDays,
+  Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -69,6 +70,8 @@ const Editor = dynamic(() => import("./editor"), {
 });
 type Props = {
   initial: Note;
+  focusTerms?: string[];
+  onCapture: () => void;
   tags: Tag[];
   onSaved: (note: Note) => void;
   onBack: () => void;
@@ -80,6 +83,8 @@ type Props = {
 };
 export function NotePane({
   initial,
+  focusTerms,
+  onCapture,
   tags,
   onSaved,
   onBack,
@@ -91,6 +96,7 @@ export function NotePane({
 }: Props) {
   const [note, setNote] = useState(initial);
   const current = useRef(initial);
+  const capturePending = useRef(false);
   const [state, setState] = useState<
     "saved" | "saving" | "dirty" | "error" | "conflict"
   >("saved");
@@ -115,6 +121,7 @@ export function NotePane({
     if (!title) return;
     let width = 0;
     let active = true;
+    let frame = 0;
     const resize = () => {
       if (!active || title.getBoundingClientRect().width <= 0) return;
       title.style.height = "auto";
@@ -125,12 +132,14 @@ export function NotePane({
       if (entry.contentRect.width <= 0 || entry.contentRect.width === width)
         return;
       width = entry.contentRect.width;
-      resize();
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(resize);
     });
     observer.observe(title);
     void document.fonts.ready.then(resize);
     return () => {
       active = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [note.title]);
@@ -405,7 +414,16 @@ export function NotePane({
                 <MoreHorizontal size={19} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              onCloseAutoFocus={(event) => {
+                if (capturePending.current) {
+                  event.preventDefault();
+                  capturePending.current = false;
+                  onCapture();
+                }
+              }}
+            >
               <DropdownMenuLabel>Page width</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={note.editorWidth}
@@ -506,6 +524,14 @@ export function NotePane({
               >
                 <Paperclip size={15} />
                 Attach a file
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  capturePending.current = true;
+                }}
+              >
+                <Inbox size={15} />
+                Quick capture
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() =>
@@ -803,6 +829,7 @@ export function NotePane({
           <Editor
             key={editorKey}
             document={note.document}
+            focusTerms={focusTerms}
             noteId={note.id}
             onChange={(document) => change({ document })}
             onTools={setTools}

@@ -73,6 +73,9 @@ export type SearchResult = {
   excerpt: string;
   updatedAt: number;
   completed?: boolean;
+  titleMatches?: import("./search-context").TextRange[];
+  excerptMatches?: import("./search-context").TextRange[];
+  matchTerms?: string[];
 };
 export type NoteVersion = {
   id: string;

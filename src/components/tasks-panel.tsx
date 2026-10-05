@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useConfirm } from "./confirm-provider";
+import type { CapturedItem } from "./quick-capture";
 
 export function TasksPanel({
   onNavigation,
@@ -54,6 +55,7 @@ export function TasksPanel({
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [page, setPage] = useState({ key: "", count: 60 });
   const [title, setTitle] = useState("");
   const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<
@@ -72,6 +74,14 @@ export function TasksPanel({
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+  useEffect(() => {
+    const received = (event: Event) => {
+      const result = (event as CustomEvent<CapturedItem>).detail;
+      if (result.type === "task") setTasks((items) => [...items, result.item]);
+    };
+    window.addEventListener("cilo:captured", received);
+    return () => window.removeEventListener("cilo:captured", received);
+  }, []);
   const editDirty =
     !!editing &&
     (editTitle !== editing.title ||
@@ -173,6 +183,8 @@ export function TasksPanel({
   }
   const openCount = tasks.filter((t) => t.completedAt === null).length;
   const today = localDate();
+  const pageKey = `${filter}:${query}`;
+  const visibleCount = page.key === pageKey ? page.count : 60;
   const visible = tasks
     .filter(
       (t) =>
@@ -309,7 +321,7 @@ export function TasksPanel({
               className="task-list"
               aria-label={`${filter === "open" ? "Open" : filter === "completed" ? "Completed" : filter === "today" ? "Today" : "Upcoming"} tasks`}
             >
-              {visible.map((task) => (
+              {visible.slice(0, visibleCount).map((task) => (
                 <li
                   key={task.id}
                   className={`task-row ${task.completedAt !== null ? "is-complete" : ""}`}
@@ -541,6 +553,19 @@ export function TasksPanel({
                       ? "Edit a task to give it a due date."
                       : "Add a task above. Check it off when you’re done."}
               </p>
+            </div>
+          )}
+          {visible.length > visibleCount && (
+            <div className="list-continuation">
+              <Button
+                variant="ghost"
+                disabled={busy || !!editing}
+                onClick={() =>
+                  setPage({ key: pageKey, count: visibleCount + 60 })
+                }
+              >
+                Load more tasks
+              </Button>
             </div>
           )}
           <p className="task-summary" aria-live="polite">

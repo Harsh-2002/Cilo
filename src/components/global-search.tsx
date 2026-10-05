@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { SearchText } from "./search-text";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { api } from "@/lib/client";
 import type { SearchResult } from "@/lib/types";
@@ -207,7 +208,9 @@ export function GlobalSearch({
                           void run(
                             () => onSelect(result),
                             result.type === "note"
-                              ? ".note-title"
+                              ? result.matchTerms?.length
+                                ? '[aria-label="Note content"]'
+                                : ".note-title"
                               : result.type === "task"
                                 ? 'input[aria-label="Search tasks"]'
                                 : 'input[aria-label="Search bookmarks"]',
@@ -216,9 +219,17 @@ export function GlobalSearch({
                       >
                         <Icon />
                         <span className="search-result-copy">
-                          <strong>{result.title || "Untitled"}</strong>
+                          <strong>
+                            <SearchText
+                              text={result.title || "Untitled"}
+                              ranges={result.titleMatches}
+                            />
+                          </strong>
                           <small>
-                            {result.excerpt.replace(/\s+/g, " ").slice(0, 100)}
+                            <SearchText
+                              text={result.excerpt}
+                              ranges={result.excerptMatches}
+                            />
                           </small>
                         </span>
                         <span className="search-result-type">

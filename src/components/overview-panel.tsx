@@ -56,6 +56,11 @@ export function OverviewPanel({
     }
   }, []);
   useEffect(() => {
+    const captured = () => void refresh();
+    window.addEventListener("cilo:captured", captured);
+    return () => window.removeEventListener("cilo:captured", captured);
+  }, [refresh]);
+  useEffect(() => {
     let clock: ReturnType<typeof setTimeout>;
     let polling: ReturnType<typeof setInterval> | undefined;
     const tick = () => {

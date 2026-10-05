@@ -23,6 +23,7 @@ import {
   LibraryBig,
   NotebookTabs,
   Trash,
+  Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -52,6 +53,11 @@ import type {
 } from "@/lib/types";
 import { localDate } from "@/lib/dates";
 import { GlobalSearch, type SearchHandle } from "./global-search";
+import {
+  QuickCapture,
+  type CaptureHandle,
+  type CapturedItem,
+} from "./quick-capture";
 import { NotePane } from "./note-pane";
 import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
@@ -73,18 +79,27 @@ export function Workspace({
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [active, setActive] = useState<Note | null>(null);
+  const [focusTerms, setFocusTerms] = useState<string[]>([]);
   const [view, setView] = useState("overview");
   const [tag, setTag] = useState("");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("updated");
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState("");
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
   const [sidebar, setSidebar] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const globalSearch = useRef<SearchHandle>(null);
+  const capture = useRef<CaptureHandle>(null);
+  const captured = (result: CapturedItem) => {
+    if (result.type === "note") void load();
+    window.dispatchEvent(new CustomEvent("cilo:captured", { detail: result }));
+  };
   const [sectionTarget, setSectionTarget] = useState<{
     query: string;
     completed?: boolean;
@@ -119,6 +134,8 @@ export function Workspace({
         view,
         sort,
         q: search,
+        limit: "61",
+        preview: "1",
         ...(tag ? { tag } : {}),
       });
       const [list, allTags] = await Promise.all([
@@ -126,7 +143,10 @@ export function Workspace({
         api<Tag[]>("tags"),
       ]);
       if (seq === loadSequence.current) {
-        setNotes(list);
+        setNotes(list.slice(0, 60));
+        setHasMore(list.length > 60);
+        setMoreError("");
+        setLoadingMore(false);
         setTags(allTags);
       }
     } catch (e) {
@@ -135,6 +155,36 @@ export function Workspace({
       if (seq === loadSequence.current) setLoading(false);
     }
   }, [view, tag, search, sort]);
+  const loadMore = async () => {
+    if (loadingMore || loading || !hasMore) return;
+    const seq = loadSequence.current;
+    setLoadingMore(true);
+    setMoreError("");
+    try {
+      const params = new URLSearchParams({
+        view,
+        sort,
+        q: search,
+        limit: "61",
+        preview: "1",
+        offset: String(notes.length),
+        ...(tag ? { tag } : {}),
+      });
+      const list = await api<NoteSummary[]>(`notes?${params}`);
+      if (seq !== loadSequence.current) return;
+      setNotes((previous) => [
+        ...previous,
+        ...list
+          .slice(0, 60)
+          .filter((note) => !previous.some((item) => item.id === note.id)),
+      ]);
+      setHasMore(list.length > 60);
+    } catch (e) {
+      if (seq === loadSequence.current) setMoreError((e as Error).message);
+    } finally {
+      if (seq === loadSequence.current) setLoadingMore(false);
+    }
+  };
   useEffect(() => {
     const timer = setTimeout(() => {
       void load();
@@ -155,6 +205,7 @@ export function Workspace({
     setOpening(true);
     try {
       setActive(await api<Note>(`notes/${note.id}`));
+      setFocusTerms([]);
       setGeneration((n) => n + 1);
     } catch (e) {
       toast.error((e as Error).message);
@@ -163,6 +214,7 @@ export function Workspace({
     }
   }
   const adopt = (note: Note) => {
+    setFocusTerms([]);
     setView(note.kind === "template" ? "templates" : "all");
     setTag("");
     setQuery("");
@@ -184,6 +236,7 @@ export function Workspace({
       setTag("");
       setQuery("");
       setActive(note);
+      setFocusTerms([]);
       setGeneration((n) => n + 1);
       setNotes((n) => [note, ...n]);
       setDrawer(false);
@@ -213,28 +266,40 @@ export function Workspace({
     window.history.replaceState(null, "", url);
     return true;
   };
-  const navigateNote = useCallback(async (id: string) => {
-    if (!(await guard.current())) return false;
-    try {
-      const note = await api<Note>(`notes/${id}`);
-      if (note.trashedAt) {
-        toast.error(
-          "This linked note is in trash. Restore it to open the connection.",
-        );
+  const navigateNote = useCallback(
+    async (id: string, terms: string[] = []) => {
+      if (!(await guard.current())) return false;
+      try {
+        const note = await api<Note>(`notes/${id}`);
+        if (note.trashedAt) {
+          toast.error(
+            "This linked note is in trash. Restore it to open the connection.",
+          );
+          return false;
+        }
+        setView(note.kind === "template" ? "templates" : "all");
+        setTag("");
+        setQuery("");
+        setActive(note);
+        setFocusTerms(terms);
+        setGeneration((n) => n + 1);
+        setDrawer(false);
+        return true;
+      } catch (e) {
+        toast.error((e as Error).message);
         return false;
       }
-      setView(note.kind === "template" ? "templates" : "all");
-      setTag("");
-      setQuery("");
-      setActive(note);
-      setGeneration((n) => n + 1);
-      setDrawer(false);
-      return true;
-    } catch (e) {
-      toast.error((e as Error).message);
-      return false;
-    }
-  }, []);
+    },
+    [
+      setGeneration,
+      setActive,
+      setFocusTerms,
+      setView,
+      setTag,
+      setQuery,
+      setDrawer,
+    ],
+  );
   useEffect(() => {
     if (initialLink.current) return;
     const id = new URL(window.location.href).searchParams.get("note");
@@ -266,7 +331,8 @@ export function Workspace({
     }
   }
   async function selectResult(result: SearchResult) {
-    if (result.type === "note") return navigateNote(result.id);
+    if (result.type === "note")
+      return navigateNote(result.id, result.matchTerms);
     if (!(await filter(result.type === "task" ? "tasks" : "bookmarks")))
       return false;
     setSectionTarget({ query: result.title, completed: result.completed });
@@ -298,6 +364,17 @@ export function Workspace({
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         void create();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "Enter") {
+        if (
+          document.querySelector(
+            '[data-slot="dialog-content"],[data-slot="alert-dialog-content"]',
+          )
+        )
+          return;
+        e.preventDefault();
+        setDrawer(false);
+        capture.current?.open();
       }
     };
     window.addEventListener("keydown", keyboard);
@@ -410,6 +487,16 @@ export function Workspace({
           </button>
         ))}
       </nav>
+      <button
+        className="nav-item"
+        onClick={() => {
+          setDrawer(false);
+          capture.current?.open();
+        }}
+      >
+        <Inbox size={16} />
+        Capture<span className="nav-shortcut">⇧ ⌘ ↵</span>
+      </button>
       <div className="tags-heading">
         <span>Tags</span>
         <Button
@@ -556,7 +643,10 @@ export function Workspace({
                   <Menu size={18} />
                 </Button>
                 <h1>{title}</h1>
-                <span className="note-count">{notes.length}</span>
+                <span className="note-count">
+                  {notes.length}
+                  {hasMore ? "+" : ""}
+                </span>
               </div>
               {view === "templates" && (
                 <Button
@@ -692,12 +782,31 @@ export function Workspace({
                   </button>
                 ))
               )}
+              {!error && hasMore && (
+                <div className="note-list-more">
+                  {moreError && <p role="alert">{moreError}</p>}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={loading || loadingMore}
+                    onClick={() => void loadMore()}
+                  >
+                    {loadingMore
+                      ? "Loading…"
+                      : moreError
+                        ? "Try again"
+                        : "Load more"}
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
           {active ? (
             <NotePane
               key={`${active.id}-${generation}`}
               initial={active}
+              focusTerms={focusTerms}
+              onCapture={() => capture.current?.open()}
               tags={tags}
               onSaved={onSaved}
               onBack={() => void back()}
@@ -789,6 +898,7 @@ export function Workspace({
         onSelect={selectResult}
         onCommand={searchCommand}
       />
+      <QuickCapture ref={capture} onCaptured={captured} />
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

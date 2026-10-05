@@ -2560,6 +2560,97 @@ button:disabled {
   display: grid;
   gap: 2px;
 }
+.search-result-copy mark {
+  background: var(--accent);
+  color: var(--foreground);
+  font-weight: 600;
+  border-radius: 2px;
+}
+.quick-capture-dialog[data-slot="dialog-content"] {
+  width: min(480px, calc(100vw - 24px));
+  max-width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.quick-capture-dialog form {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.capture-types {
+  display: flex;
+  gap: 4px;
+}
+.capture-types button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.quick-capture-dialog textarea {
+  min-height: 140px;
+  max-height: min(320px, 40dvh);
+  resize: vertical;
+  font-size: 14px;
+}
+.capture-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.capture-shortcut {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.capture-error {
+  color: var(--destructive);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.note-list-more,
+.list-continuation {
+  padding: 12px;
+  text-align: center;
+}
+.note-list-more p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@keyframes search-target {
+  from {
+    background-color: var(--accent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.search-block-target {
+  animation: search-target 1600ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-block-target {
+    animation: none;
+  }
+}
+@media (max-width: 767px) {
+  .quick-capture-dialog textarea {
+    font-size: 16px;
+  }
+  .quick-capture-dialog button {
+    min-height: 44px;
+  }
+  .quick-capture-dialog [data-slot="dialog-close"] {
+    width: 44px;
+    height: 44px;
+    top: 8px;
+    right: 8px;
+  }
+  .capture-shortcut {
+    display: none;
+  }
+  .capture-footer {
+    justify-content: flex-end;
+  }
+}
 .search-result-copy strong,
 .search-result-copy small {
   overflow: hidden;

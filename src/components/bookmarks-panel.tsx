@@ -36,6 +36,7 @@ import {
 } from "./ui/select";
 import { useConfirm } from "./confirm-provider";
 import { NotePicker } from "./note-picker";
+import type { CapturedItem } from "./quick-capture";
 function PreviewImage({
   src,
   kind,
@@ -66,6 +67,7 @@ export function BookmarksPanel({
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [page, setPage] = useState({ key: "", count: 60 });
   const [results, setResults] = useState<Bookmark[] | null>(null);
   const [url, setUrl] = useState("");
   const [newCollection, setNewCollection] = useState("");
@@ -80,6 +82,15 @@ export function BookmarksPanel({
   const [searchError, setSearchError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+  useEffect(() => {
+    const received = (event: Event) => {
+      const result = (event as CustomEvent<CapturedItem>).detail;
+      if (result.type === "bookmark")
+        setBookmarks((items) => [result.item, ...items]);
+    };
+    window.addEventListener("cilo:captured", received);
+    return () => window.removeEventListener("cilo:captured", received);
+  }, []);
   useEffect(() => {
     if (focusCreate) input.current?.focus();
   }, [focusCreate]);
@@ -209,6 +220,8 @@ export function BookmarksPanel({
   const collections = [
     ...new Set(bookmarks.map((b) => b.collection).filter(Boolean)),
   ].sort();
+  const pageKey = `${collection}:${favorites}:${query}`;
+  const visibleCount = page.key === pageKey ? page.count : 60;
   const visible = (query.trim() ? results || [] : bookmarks).filter(
     (b) =>
       (!favorites || b.favorite) &&
@@ -356,7 +369,7 @@ export function BookmarksPanel({
             </div>
           ) : visible.length ? (
             <ul className="bookmark-grid" aria-label="Saved bookmarks">
-              {visible.map((item) => (
+              {visible.slice(0, visibleCount).map((item) => (
                 <li key={item.id} className="bookmark-card">
                   {editing?.id === item.id ? (
                     <form
@@ -597,6 +610,19 @@ export function BookmarksPanel({
                   ? "Try another search or collection."
                   : "Paste a link above. Cilo will save the details and preview."}
               </p>
+            </div>
+          )}
+          {visible.length > visibleCount && (
+            <div className="list-continuation">
+              <Button
+                variant="ghost"
+                disabled={busy || !!editing}
+                onClick={() =>
+                  setPage({ key: pageKey, count: visibleCount + 60 })
+                }
+              >
+                Load more bookmarks
+              </Button>
             </div>
           )}
           <p className="task-summary" aria-live="polite">

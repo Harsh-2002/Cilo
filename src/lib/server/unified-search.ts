@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { decodeMatches } from "../search-context";
 import { sqlite } from "./db";
 import { ftsQuery } from "./validation";
 import { fuzzyQuery } from "./search";
@@ -59,19 +61,62 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
         area === "task" ? ",completed_at IS NOT NULL AS completed" : "";
       return database
         .prepare(
-          `SELECT id,title,${excerpt} AS excerpt,updated_at AS updatedAt${completed} FROM ${table} WHERE ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT 12`,
+          `SELECT rowid AS searchRow,id,title,${query ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed} FROM ${table} INDEXED BY ${table}_search_order_idx WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT 12`,
         )
-        .all(...values) as Omit<SearchResult, "type">[];
+        .all(...values) as (Omit<SearchResult, "type"> & {
+        searchRow: number;
+      })[];
+    };
+    const context = (
+      rows: (Omit<SearchResult, "type"> & { searchRow: number })[],
+      query: string,
+    ) => {
+      const start = `[[${randomUUID()}]]`;
+      const end = `[[/${randomUUID()}]]`;
+      const statement = query
+        ? database.prepare(
+            `SELECT highlight(${table}_fts,0,?,?) AS title,snippet(${table}_fts,-1,?,?,'…',24) AS excerpt FROM ${table}_fts WHERE rowid=? AND ${table}_fts MATCH ?`,
+          )
+        : null;
+      return rows.map(({ searchRow, ...row }) => {
+        if (!statement) return row;
+        const marked = statement.get(
+          start,
+          end,
+          start,
+          end,
+          searchRow,
+          query,
+        ) as { title: string; excerpt: string };
+        const title = decodeMatches(marked.title, start, end);
+        const excerpt = decodeMatches(marked.excerpt, start, end);
+        return {
+          ...row,
+          title: title.text,
+          excerpt: excerpt.text,
+          titleMatches: title.ranges,
+          excerptMatches: excerpt.ranges,
+          matchTerms: [
+            ...new Set(
+              excerpt.ranges.map(([from, to]) => excerpt.text.slice(from, to)),
+            ),
+          ].slice(0, 20),
+        };
+      });
     };
     const query = ftsQuery(text);
     if (text && !query) continue;
+    let usedQuery = query;
     let found = run(query);
     if (!found.length && query) {
       const fuzzy = fuzzyQuery(text, table as "notes" | "tasks" | "bookmarks");
-      if (fuzzy) found = run(fuzzy);
+      if (fuzzy) {
+        found = run(fuzzy);
+        usedQuery = fuzzy;
+      }
     }
     results.push(
-      ...found.map((r) => ({
+      ...context(found, usedQuery).map((r) => ({
         ...r,
         type: area,
         ...(area === "task" ? { completed: Boolean(r.completed) } : {}),

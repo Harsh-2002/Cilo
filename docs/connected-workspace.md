@@ -8,6 +8,14 @@ Choose **Search** or press Ctrl/Cmd K from any section. Results include notes, t
 
 The search dialog keeps a stable results viewport and preserves results during debounced requests. Opening it updates only the search component, so the editor does not rerender. Section search remains available. Search does not extract text from PDFs, images or videos.
 
+## Quick capture
+
+Choose **Capture** in navigation, **Note actions → Quick capture**, or press **Ctrl/Cmd Shift Enter**. Save a note, task or link in the compact dialog while keeping the current section and unfinished edits. Pasting one HTTP(S) URL automatically suggests Link; an explicit Note/Task/Link choice takes precedence. Save with the button or **Ctrl/Cmd Enter**.
+
+Notes use the first non-empty line as a title and retain the entered text as paragraphs, ready for rich editing. Tasks have a 300-character title limit. Links use the existing protected metadata fetch and fallback cards. Closing the dialog retains its draft in the current browser session; failed saves retain it and show an error. This draft is in memory, not durable offline storage: reloading or closing the tab can discard it.
+
+Global search shows a matching passage and highlights actual FTS matches, including corrected typo matches. Selecting a note result scrolls to a relevant block and focuses the editor when the excerpt matches body content; title-only matches open the note normally. Nested content is searched independently from its parent. Highlights remain neutral and do not modify the saved document.
+
 ## Version history
 
 Choose **Note actions → Version history** to preview earlier content and restore it. Before a content change, Cilo keeps a checkpoint at most once per five-minute editing window and retains the latest 100 checkpoints per note. These are editing checkpoints, rather than every keystroke or every autosave.

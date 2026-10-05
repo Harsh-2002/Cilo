@@ -122,6 +122,79 @@ test("connected workspace retains private search, recovery, templates and schedu
       },
     });
     await t.test(
+      "search excerpts find buried matches and paged previews preserve full notes",
+      async () => {
+        const text = `${"An introductory paragraph with ordinary content. ".repeat(60)} The résumé milestone is ready. <script>alert(1)</script>`;
+        const note = await value<Note>("notes", "POST", {
+          title: "Context safety",
+          document: document(text),
+        });
+        const results = await value<SearchResult[]>("search?q=milestone");
+        const result = results.find((item) => item.id === note.id)!;
+        assert.ok(result.excerpt.includes("milestone"));
+        assert.ok(result.excerpt.length < text.length);
+        assert.ok(
+          result.excerptMatches?.some(
+            ([from, to]) => result.excerpt.slice(from, to) === "milestone",
+          ),
+        );
+        assert.ok(result.matchTerms?.includes("milestone"));
+        assert.ok(!result.excerpt.includes("[[/"));
+        const page = await value<Note[]>("notes?limit=2&preview=1&sort=title");
+        const next = await value<Note[]>(
+          "notes?limit=2&preview=1&sort=title&offset=2",
+        );
+        assert.equal(page.length, 2);
+        assert.equal(next.length, 1);
+        assert.ok(
+          !page.some((item) => next.some((other) => other.id === item.id)),
+        );
+        assert.ok([...page, ...next].every((item) => item.text.length <= 180));
+        assert.equal((await value<Note>(`notes/${note.id}`)).text, text);
+        assert.equal(
+          (await value<Note[]>("notes?q=Context&limit=1&offset=1")).length,
+          0,
+        );
+        assert.equal(
+          (await call("notes?limit=2&preview=1", "GET", undefined, false))
+            .status,
+          401,
+        );
+      },
+    );
+    await t.test(
+      "fuzzy cache invalidates when indexed content changes",
+      async () => {
+        assert.equal(
+          (await value<SearchResult[]>("search?q=type%3Atask%20cachemilestne"))
+            .length,
+          0,
+        );
+        const item = await value<Task>("tasks", "POST", {
+          title: "Cachemilestone",
+        });
+        assert.deepEqual(
+          (
+            await value<SearchResult[]>("search?q=type%3Atask%20cachemilestne")
+          ).map((result) => result.id),
+          [item.id],
+        );
+        assert.equal(
+          (
+            await call(`tasks/${item.id}`, "DELETE", {
+              revision: item.revision,
+            })
+          ).status,
+          200,
+        );
+        assert.equal(
+          (await value<SearchResult[]>("search?q=type%3Atask%20cachemilestne"))
+            .length,
+          0,
+        );
+      },
+    );
+    await t.test(
       "search spans all types, tolerates typos, applies tags and denies anonymous access",
       async () => {
         task = await value<Task>("tasks", "POST", { title: "Review nebula" });

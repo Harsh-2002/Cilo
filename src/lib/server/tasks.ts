@@ -38,12 +38,12 @@ function enrich(task: Omit<Task, "noteTitle">): Task {
 }
 export function listTasks(owner: string): Task[] {
   return db()
-    .select(fields)
+    .select({ ...fields, noteTitle: notes.title })
     .from(tasks)
+    .leftJoin(notes, and(eq(notes.id, tasks.noteId), eq(notes.kind, "note")))
     .where(eq(tasks.ownerId, owner))
     .orderBy(asc(tasks.createdAt))
-    .all()
-    .map(enrich);
+    .all();
 }
 export function createTask(
   owner: string,

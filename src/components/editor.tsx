@@ -30,6 +30,7 @@ import { download } from "@/lib/client";
 import { api } from "@/lib/client";
 import { toast } from "sonner";
 import type { Document, NoteSummary } from "@/lib/types";
+import { findSearchBlock } from "@/lib/search-context";
 import "@blocknote/shadcn/style.css";
 
 const CanvasDialog = dynamic(() => import("./canvas-dialog"), {
@@ -186,6 +187,7 @@ export default function Editor({
   noteId,
   onOpenNote,
   contentLabel,
+  focusTerms,
 }: {
   document: Document;
   onChange: (document: Document) => void;
@@ -194,6 +196,7 @@ export default function Editor({
   noteId: string;
   onOpenNote?: (id: string) => Promise<boolean>;
   contentLabel?: string;
+  focusTerms?: string[];
 }) {
   const { resolvedTheme } = useTheme();
   const editor = useCreateBlockNote({
@@ -225,6 +228,32 @@ export default function Editor({
       return data.url;
     },
   });
+  useEffect(() => {
+    if (!focusTerms?.length) return;
+    const frame = requestAnimationFrame(() => {
+      const id = findSearchBlock(
+        editor.document as unknown as Document["blocks"],
+        focusTerms,
+      );
+      if (!id || !editor.getBlock(id)) return;
+      const node = editor.domElement?.querySelector<HTMLElement>(
+        `[data-id="${CSS.escape(id)}"]`,
+      );
+      if (!node) return;
+      node.scrollIntoView({ block: "center", behavior: "instant" });
+      if (editor.isEditable) {
+        editor.setTextCursorPosition(id, "start");
+        editor.focus();
+      }
+      node.classList.add("search-block-target");
+      node.addEventListener(
+        "animationend",
+        () => node.classList.remove("search-block-target"),
+        { once: true },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editor, focusTerms]);
   useEffect(() => {
     const element = editor.domElement;
     if (!element) return;

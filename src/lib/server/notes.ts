@@ -8,7 +8,7 @@ import { plainText, ftsQuery } from "./validation";
 import { syncNoteLinks } from "./connections";
 
 const columns =
-  "n.id,n.title,n.text,n.revision,n.favorite,n.editor_width AS editorWidth,n.kind,n.daily_date AS dailyDate,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
+  "n.id,n.title,n.revision,n.favorite,n.editor_width AS editorWidth,n.kind,n.daily_date AS dailyDate,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
 export function tagsFor(note: string): Tag[] {
   return sqlite()
     .prepare(
@@ -34,7 +34,7 @@ export function listNotes(
       ? "n.trashed_at IS NOT NULL"
       : "n.trashed_at IS NULL",
   ];
-  const values: string[] = [];
+  const values: (string | number)[] = [];
   const search = queryOverride ?? ftsQuery(params.get("q") || "");
   if (search) {
     where.push(
@@ -57,19 +57,51 @@ export function listNotes(
         ? "n.created_at DESC"
         : "n.updated_at DESC";
   if (search) values.push(search);
+  const bounded = params.has("limit");
+  const limit = Math.max(
+    1,
+    Math.min(100, Math.trunc(Number(params.get("limit"))) || 30),
+  );
+  const offset = Math.max(
+    0,
+    Math.min(1000000, Math.trunc(Number(params.get("offset"))) || 0),
+  );
+  const text =
+    params.get("preview") === "1"
+      ? "substr(replace(n.text,char(10),' '),1,180)"
+      : "n.text";
   const rows = sqlite()
     .prepare(
-      `SELECT ${columns} FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order}${params.has("limit") ? ` LIMIT ${Math.max(1, Math.min(100, Math.trunc(Number(params.get("limit"))) || 30))}` : ""}`,
+      `SELECT ${columns},${text} AS text FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
     )
-    .all(...values) as NoteSummary[];
-  if (!rows.length && search && queryOverride === undefined) {
+    .all(...values, ...(bounded ? [limit, offset] : [])) as NoteSummary[];
+  if (
+    !rows.length &&
+    search &&
+    queryOverride === undefined &&
+    (!offset ||
+      !sqlite()
+        .prepare(`SELECT 1 FROM notes n WHERE ${where.join(" AND ")} LIMIT 1`)
+        .get(...values.slice(0, -1)))
+  ) {
     const fallback = fuzzyQuery(params.get("q") || "");
     if (fallback) return listNotes(params, fallback);
+  }
+  const tags = new Map<string, Tag[]>();
+  for (let start = 0; start < rows.length; start += 500) {
+    const ids = rows.slice(start, start + 500).map((row) => row.id);
+    const linked = sqlite()
+      .prepare(
+        `SELECT nt.note_id AS noteId,t.id,t.name,t.color FROM note_tags nt JOIN tags t ON t.id=nt.tag_id WHERE nt.note_id IN (${ids.map(() => "?").join(",")}) ORDER BY t.name`,
+      )
+      .all(...ids) as (Tag & { noteId: string })[];
+    for (const { noteId, ...tag } of linked)
+      tags.set(noteId, [...(tags.get(noteId) || []), tag]);
   }
   return rows.map((n) => ({
     ...n,
     favorite: Boolean(n.favorite),
-    tags: tagsFor(n.id),
+    tags: tags.get(n.id) || [],
   }));
 }
 export function createNote(

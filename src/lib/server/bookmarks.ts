@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, sqlite } from "./db";
-import { bookmarks } from "./schema";
+import { bookmarks, notes } from "./schema";
 import { and, desc, eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { HttpError } from "./http";
@@ -59,7 +59,7 @@ function existing(owner: string, url: string) {
     .where(and(eq(bookmarks.ownerId, owner), eq(bookmarks.url, url)))
     .get();
 }
-function expose(row: Row): Bookmark {
+function expose(row: Row & { linkedTitle?: string | null }): Bookmark {
   return {
     id: row.id,
     url: row.url,
@@ -77,13 +77,16 @@ function expose(row: Row): Bookmark {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     noteId: row.note_id,
-    noteTitle: row.note_id
-      ? ((
-          sqlite()
-            .prepare("SELECT title FROM notes WHERE id=?")
-            .get(row.note_id) as { title: string } | undefined
-        )?.title ?? null)
-      : null,
+    noteTitle:
+      row.linkedTitle !== undefined
+        ? row.linkedTitle
+        : row.note_id
+          ? ((
+              sqlite()
+                .prepare("SELECT title FROM notes WHERE id=?")
+                .get(row.note_id) as { title: string } | undefined
+            )?.title ?? null)
+          : null,
   };
 }
 function need(owner: string, id: string): Row {
@@ -100,15 +103,16 @@ export function listBookmarks(owner: string, query = ""): Bookmark[] {
   let rows = term
     ? sqlite()
         .prepare(
-          `SELECT b.* FROM bookmarks b WHERE b.owner_id=? AND
+          `SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE b.owner_id=? AND
     (b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) OR
     instr(lower(b.title || ' ' || b.description || ' ' || b.url || ' ' || b.collection),lower(?))>0)
     ORDER BY b.created_at DESC,b.id`,
         )
         .all(owner, ftsQuery(term), term)
     : db()
-        .select(fields)
+        .select({ ...fields, linkedTitle: notes.title })
         .from(bookmarks)
+        .leftJoin(notes, eq(notes.id, bookmarks.noteId))
         .where(eq(bookmarks.ownerId, owner))
         .orderBy(desc(bookmarks.createdAt), bookmarks.id)
         .all();
@@ -117,7 +121,7 @@ export function listBookmarks(owner: string, query = ""): Bookmark[] {
     if (fallback)
       rows = sqlite()
         .prepare(
-          "SELECT b.* FROM bookmarks b WHERE b.owner_id=? AND b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) ORDER BY b.created_at DESC,b.id",
+          "SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE b.owner_id=? AND b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) ORDER BY b.created_at DESC,b.id",
         )
         .all(owner, fallback);
   }
