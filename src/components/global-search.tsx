@@ -13,7 +13,10 @@ import {
   ListTodo,
   Loader2,
   Plus,
+  SlidersHorizontal,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { api } from "@/lib/client";
 import type { SearchResult } from "@/lib/types";
 import {
@@ -43,15 +46,26 @@ export function GlobalSearch({
   ) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
   useImperativeHandle(
     ref,
     () => ({
-      open: () => setOpen(true),
-      toggle: () => setOpen((value) => !value),
+      open: () => {
+        setFiltersOpen(false);
+        setOpen(true);
+      },
+      toggle: () => {
+        setFiltersOpen(false);
+        setOpen((value) => !value);
+      },
     }),
     [],
   );
-  const onClose = () => setOpen(false);
+  const onClose = () => {
+    setFiltersOpen(false);
+    setOpen(false);
+  };
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +127,12 @@ export function GlobalSearch({
       <DialogContent
         className="global-search-dialog"
         overlayClassName="supports-backdrop-filter:backdrop-filter-none"
+        onEscapeKeyDown={(event) => {
+          if (filtersOpen) {
+            event.preventDefault();
+            setFiltersOpen(false);
+          }
+        }}
         onCloseAutoFocus={(event) => {
           if (nextFocus.current) {
             event.preventDefault();
@@ -136,8 +156,9 @@ export function GlobalSearch({
           vimBindings={false}
         >
           <CommandInput
+            ref={searchInput}
             aria-label="Search everything"
-            placeholder="Search notes, tasks, bookmarks…"
+            placeholder="Search everything…"
             value={query}
             maxLength={300}
             disabled={busy}
@@ -148,10 +169,6 @@ export function GlobalSearch({
               setError("");
             }}
           />
-          <p className="search-hint">
-            Filter with <span>type:note</span>, <span>type:task</span> or{" "}
-            <span>tag:work</span>
-          </p>
           <CommandList label="Search results" aria-busy={loading}>
             {loading && (
               <div className="search-progress" role="status">
@@ -205,7 +222,11 @@ export function GlobalSearch({
                           </small>
                         </span>
                         <span className="search-result-type">
-                          {result.type}
+                          {result.type === "note"
+                            ? "Note"
+                            : result.type === "task"
+                              ? "Task"
+                              : "Bookmark"}
                           {result.completed ? " · done" : ""}
                         </span>
                       </CommandItem>
@@ -249,7 +270,74 @@ export function GlobalSearch({
               ))}
             </CommandGroup>
           </CommandList>
+          <div className="search-keyboard-hints" aria-hidden="true">
+            <span>
+              <kbd>↑</kbd>
+              <kbd>↓</kbd> Navigate
+            </span>
+            <span>
+              <kbd>↵</kbd> Open
+            </span>
+            <span>
+              <kbd>Esc</kbd> Close
+            </span>
+          </div>
         </Command>
+        <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="search-filter-trigger"
+              aria-label="Search filters"
+              disabled={busy}
+            >
+              <SlidersHorizontal size={16} />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="search-filter-help"
+            aria-label="Search filters"
+            onCloseAutoFocus={(event) => {
+              if (searchInput.current) {
+                event.preventDefault();
+                searchInput.current.focus();
+              }
+            }}
+          >
+            <p className="font-medium">Search filters</p>
+            <dl>
+              <div>
+                <dt>Notes</dt>
+                <dd>
+                  <code>type:note</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Tasks</dt>
+                <dd>
+                  <code>type:task</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Bookmarks</dt>
+                <dd>
+                  <code>type:bookmark</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Tags</dt>
+                <dd>
+                  <code>tag:work</code>
+                </dd>
+              </div>
+            </dl>
+            <p className="text-xs text-muted-foreground">
+              Combine a filter with your search.
+            </p>
+          </PopoverContent>
+        </Popover>
       </DialogContent>
     </Dialog>
   );

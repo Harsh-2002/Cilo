@@ -282,7 +282,7 @@ The workspace panes stay square and rely on separators for structure. Buttons an
 ### Inputs / Fields
 
 - **Style:** Inputs use the theme's border and background roles; the search field sits on a muted fill.
-- **Focus:** Focused fields use one foreground border without an outer ring. Search inputs use a muted header fill for focus.
+- **Focus:** Focused fields use one foreground border without an outer ring. Compact picker inputs use a muted header fill for focus; the global search palette keeps its input on the flat dialog surface.
 - **Error / Disabled:** Disabled controls reduce emphasis; destructive actions use the reserved semantic color.
 
 ### Navigation
@@ -295,7 +295,7 @@ The Overview begins with the live local date and time, followed by quick actions
 
 ### Search
 
-The global search dialog opens from the rail or keyboard shortcut and owns its open state locally so opening it does not rerender the workspace or editor. Keep a fixed, bounded results viewport so incoming results do not shift the dialog height. The search overlay has no backdrop blur; result titles and descriptions remain on separate lines.
+The global search dialog uses the shared shadcn Dialog, Command, Button and Popover primitives. It opens from the rail or keyboard shortcut and owns its open state locally so opening it does not rerender the workspace or editor. Its width is at most 560px with 12px viewport margins; the results viewport stays at 352px or the smaller available height so incoming results do not shift the dialog. Keep the input flat against the dialog surface, with 14px desktop and 16px mobile text. Result icons, titles, excerpts and quiet type labels align in compact rows; long titles and excerpts truncate independently. Filter syntax lives in a contextual help popover. Escape dismisses help first and returns focus to the input; a second Escape closes search. Desktop has a quiet keyboard-hint footer; phones omit it and use 44px close/help targets. The search overlay has no backdrop blur. Loading disables stale results, and empty and retryable error states remain within the fixed viewport.
 
 ### Tasks
 
