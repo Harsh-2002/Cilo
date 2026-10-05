@@ -151,9 +151,9 @@ async function handle(
           .prepare("SELECT * FROM publication_files WHERE token=? AND id=?")
           .get(id, path[3]) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        return fileResponse(
+        return await fileResponse(
           request,
-          await storage.read(file.storage_key),
+          await storage.open(file.storage_key),
           file,
           true,
         );
@@ -706,9 +706,9 @@ async function handle(
           .prepare("SELECT * FROM attachments WHERE id=?")
           .get(id) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        return fileResponse(
+        return await fileResponse(
           request,
-          await storage.read(file.storage_key),
+          await storage.open(file.storage_key),
           file,
         );
       }

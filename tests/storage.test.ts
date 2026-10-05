@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -20,6 +20,7 @@ test("import paths resolve folder assets without treating remote URLs as local",
 test("S3 adapter signs path-style requests, preserves binary files, and deletes", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-s3-"));
   const objects = new Map<string, Buffer>();
+  const requested: string[] = [];
   const server = createServer(async (req, res) => {
     assert.match(
       req.headers.authorization || "",
@@ -40,6 +41,17 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
       res.end();
     } else if (req.method === "GET") {
       const value = objects.get(url.pathname);
+      const range = /^bytes=(\d+)-(\d+)$/.exec(req.headers.range || "");
+      if (value && range) {
+        requested.push(`${range[1]}-${range[2]}`);
+        const end = Math.min(Number(range[2]), value.length - 1);
+        res.writeHead(206, {
+          "content-type": "application/octet-stream",
+          "content-range": `bytes ${range[1]}-${end}/${value.length}`,
+        });
+        res.end(value.subarray(Number(range[1]), end + 1));
+        return;
+      }
       res.writeHead(value ? 200 : 404, {
         "content-type": "application/octet-stream",
       });
@@ -67,7 +79,7 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
     assert.notDeepEqual(objects.get(`/notes/cilo/${key}`), bytes);
     assert.equal(
       objects.get(`/notes/cilo/${key}`)?.subarray(0, 8).toString(),
-      "CILOENC1",
+      "CILOENC2",
     );
     assert.deepEqual(await store.read(key), bytes);
     const encrypted = objects.get(`/notes/cilo/${key}`)!;
@@ -77,6 +89,25 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
     await assert.rejects(store.read(key), /authentication/);
     objects.set(`/notes/cilo/${key}`, encrypted);
     await assert.rejects(store.write(key, bytes));
+    const media = randomUUID();
+    const long = Buffer.from(randomBytes(65536 * 5 + 1234));
+    await store.write(media, long);
+    requested.length = 0;
+    const file = await store.open(media);
+    assert.equal(file.size, long.length);
+    assert.deepEqual(
+      await file.read(65536 * 3 + 10, 65536 * 3 + 99),
+      long.subarray(65536 * 3 + 10, 65536 * 3 + 100),
+    );
+    assert.deepEqual(requested, [
+      "0-27",
+      `${28 + 3 * 65552}-${28 + 4 * 65552 - 1}`,
+    ]);
+    assert.deepEqual(
+      await file.read(65536 * 5, long.length + 500),
+      long.subarray(65536 * 5),
+    );
+    assert.deepEqual(await store.read(media), long);
     await store.delete(key);
     await store.delete(key);
     await assert.rejects(store.read(key));

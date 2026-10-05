@@ -38,6 +38,23 @@ Measured on the same 5,000-task and 5,000-bookmark fixture with `npx tsx scripts
 
 Cursors are keyed on the sort columns (due date, creation time and identifier for tasks; creation time and identifier for bookmarks) rather than row offsets, so completing, deleting or editing an item between pages cannot skip or repeat other items. Task search folds case with the browser's Unicode rules through a registered SQLite function; it scans only the owner's matching status rows and is not backed by FTS5. Page size is capped at 100 rows on the server. Bookmark search keeps FTS5 with substring and typo fallback.
 
+## Media delivery
+
+`npx tsx scripts/benchmark-media.ts` writes a 25 MiB and a 100 MiB (the upload maximum) encrypted file, then measures each scenario in its own process so peak memory is attributable. "Legacy" is the earlier behavior: authenticate and decrypt the whole `CILOENC1` object, then slice. Measured on this VM on 2026-10-05; timings vary by roughly 2x between runs on this shared host, so peak memory is the stable result.
+
+| File    | Scenario                      | Median time | Peak RSS growth |
+| ------- | ----------------------------- | ----------: | --------------: |
+| 25 MiB  | Seek, 1 MiB, legacy           |       129ms |         203 MiB |
+| 25 MiB  | Seek, 1 MiB, chunked          |        41ms |          39 MiB |
+| 25 MiB  | Full download, legacy         |       192ms |         299 MiB |
+| 25 MiB  | Full download, chunked stream |       335ms |          79 MiB |
+| 100 MiB | Seek, 1 MiB, legacy           |       577ms |         405 MiB |
+| 100 MiB | Seek, 1 MiB, chunked          |        40ms |          42 MiB |
+| 100 MiB | Full download, legacy         |       834ms |         540 MiB |
+| 100 MiB | Full download, chunked stream |     1,242ms |          83 MiB |
+
+Seeking no longer scales with file size. A full chunked download is slower than a single in-memory decrypt (about 85 MB/s here, well above media bit rates) in exchange for bounded memory. Concurrent seeks multiply the per-request figure, not the file size. The 40 MiB floor includes runtime and allocator overhead, not file data. This measures server functions and response streaming, not browser decoding or network latency.
+
 ## Browser harness
 
 The browser review uses a separate owner and encrypted instance on port 3004, configured with `CILO_PUBLIC_URL=http://localhost:3004` to match the runner origin. `scripts/seed-library-review.ts` refuses other directories or owners. `scripts/run-capture-review.mjs` uses a protected temporary session file and runs the same interactions through Playwright Chromium, Firefox and WebKit; browser binaries can be installed with `npx playwright install firefox webkit`, plus the platform dependencies where needed. The review context blocks service workers so injected network failures are intercepted consistently; this run does not verify the PWA service worker. Playwright is a development dependency and is excluded from the runtime image.

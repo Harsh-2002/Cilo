@@ -137,6 +137,8 @@ Encryption at rest is mandatory, with no UI or environment switch to turn it off
 
 The default setup creates a random 32-byte `encryption.key` in the data directory with owner-only permissions. That keeps a complete folder backup restorable. A backup containing both encrypted data and this key does not protect against someone obtaining the entire backup. For that threat, supply `CILO_ENCRYPTION_KEY` as a random 64-character hexadecimal key from a secret manager, or `CILO_ENCRYPTION_KEY_FILE` pointing to a separately mounted file of exactly 32 raw bytes. Compose forwards both variables; a key-file path also requires the corresponding read-only mount in your Compose override. Keep externally managed keys outside the data backup and retain them separately for recovery.
 
+Files written by this version use a chunked encrypted format (`CILOENC2`) that earlier releases cannot read, so restore a backup taken before upgrading if you need to return to an older release. Attachments written by earlier releases remain readable, and those of 1 MiB or more are converted to the chunked format the first time they are opened; no administrator action is needed.
+
 Do not change or delete an established key: existing data requires the original key, including restored S3 objects. Incorrect or missing keys stop startup; Cilo never creates a replacement for an encrypted database. Key rotation is not yet an exposed operation. This protects stored data, not a compromised running server; use HTTPS for traffic. Authorized readers receive decrypted content, and share links intentionally expose their published snapshot. Explicit Markdown and bundle exports contain readable content for portability; protect downloaded exports separately.
 
 ## Bookmarks

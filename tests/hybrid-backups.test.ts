@@ -122,7 +122,7 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
     assert.ok(listed >= 2);
     assert.equal((await backups.listBackups()).length, 1);
     for (const value of objects.values())
-      assert.equal(value.subarray(0, 8).toString(), "CILOENC1");
+      assert.match(value.subarray(0, 8).toString(), /^CILOENC[12]$/);
     assert.equal((await backups.copyStoredFiles("local")).files, 1);
     assert.equal(
       (await createStorage({ CILO_DATA_DIR: directory }).read(file)).toString(),

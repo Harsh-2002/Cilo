@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fileResponse } from "../src/lib/server/file-response";
+import { fileResponse, memorySource } from "../src/lib/server/file-response";
 const data = Uint8Array.from([0, 1, 2, 3, 4, 5]);
 const file = { mime: "audio/wav", name: "Recording.wav" };
 test("media byte ranges support seeking and retain safe private headers", async () => {
@@ -10,9 +10,9 @@ test("media byte ranges support seeking and retain safe private headers", async 
     ["bytes=-2", [4, 5], "bytes 4-5/6"],
     ["bytes=0-99", [0, 1, 2, 3, 4, 5], "bytes 0-5/6"],
   ] as const) {
-    const response = fileResponse(
+    const response = await fileResponse(
       new Request("https://cilo.test/file", { headers: { Range: range } }),
-      data,
+      memorySource(data),
       file,
     );
     assert.equal(response.status, 206);
@@ -40,17 +40,17 @@ test("invalid ranges and active documents cannot bypass file response protection
     "bytes=99999999999999999999-",
     "items=0-1",
   ]) {
-    const response = fileResponse(
+    const response = await fileResponse(
       new Request("https://cilo.test/file", { headers: { Range: range } }),
-      data,
+      memorySource(data),
       file,
     );
     assert.equal(response.status, 416);
     assert.equal(response.headers.get("Content-Range"), "bytes */6");
   }
-  const response = fileResponse(
+  const response = await fileResponse(
     new Request("https://cilo.test/file"),
-    data,
+    memorySource(data),
     { mime: "text/html", name: "active.html" },
     true,
   );
@@ -64,18 +64,18 @@ test("invalid ranges and active documents cannot bypass file response protection
     "default-src 'none'; sandbox",
   );
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  const conditional = fileResponse(
+  const conditional = await fileResponse(
     new Request("https://cilo.test/file", {
       headers: { Range: "bytes=0-1", "If-Range": '"unknown"' },
     }),
-    data,
+    memorySource(data),
     file,
   );
   assert.equal(conditional.status, 200);
   assert.equal((await conditional.arrayBuffer()).byteLength, 6);
 });
 
-test("legacy binary media receive non-executable content types from their signatures", () => {
+test("legacy binary media receive non-executable content types from their signatures", async () => {
   for (const [signature, mime] of [
     ["RIFF0000WAVE", "audio/wav"],
     ["0000ftypisom", "video/mp4"],
@@ -83,17 +83,17 @@ test("legacy binary media receive non-executable content types from their signat
     ["OggS", "audio/ogg"],
     ["fLaC", "audio/flac"],
   ]) {
-    const response = fileResponse(
+    const response = await fileResponse(
       new Request("https://cilo.test/file"),
-      new TextEncoder().encode(signature),
+      memorySource(new TextEncoder().encode(signature)),
       { name: "recording", mime: "application/octet-stream" },
     );
     assert.equal(response.headers.get("Content-Type"), mime);
     assert.match(response.headers.get("Content-Disposition")!, /^inline/);
   }
-  const active = fileResponse(
+  const active = await fileResponse(
     new Request("https://cilo.test/file"),
-    new TextEncoder().encode("<html><script>alert(1)</script>"),
+    memorySource(new TextEncoder().encode("<html><script>alert(1)</script>")),
     { name: "movie.mp4", mime: "application/octet-stream" },
   );
   assert.equal(active.headers.get("Content-Type"), "application/octet-stream");

@@ -1,5 +1,5 @@
 import { runtimeFs } from "./runtime-fs";
-const { mkdir, readFile, writeFile, unlink, rename } = runtimeFs.promises;
+const { mkdir, open, readFile, writeFile, unlink, rename } = runtimeFs.promises;
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import {
@@ -10,10 +10,16 @@ import {
 } from "@aws-sdk/client-s3";
 import { dataDir, sqlite } from "./db";
 import {
+  chunkedHeaderLength,
+  chunkedLayout,
+  isChunked,
   isEncrypted,
+  isSingleMessage,
   masterKey,
-  seal,
+  openChunk,
+  sealChunked,
   unseal,
+  unsealChunked,
   syncDirectory,
 } from "./encryption";
 export interface StorageAdapter {
@@ -21,12 +27,24 @@ export interface StorageAdapter {
   read(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
 }
+export interface StoredFile {
+  size: number;
+  // Both bounds are inclusive plaintext offsets; only the covering chunks are read and authenticated.
+  read(start: number, end: number): Promise<Buffer>;
+}
 interface RawStorageAdapter extends StorageAdapter {
   replace(key: string, data: Uint8Array): Promise<void>;
+  readRange(
+    key: string,
+    offset: number,
+    length: number,
+  ): Promise<{ data: Buffer; size: number }>;
 }
 interface EncryptedStorageAdapter extends StorageAdapter {
+  open(key: string): Promise<StoredFile>;
   migrateLegacy(key: string): Promise<void>;
 }
+const upgradeThreshold = 1024 * 1024;
 function validateKey(key: string) {
   if (!/^[a-f0-9-]{36}$/.test(key)) throw new Error("Invalid storage key");
   return key;
@@ -53,6 +71,29 @@ function createRawStorage(
       },
       async read(key) {
         return readFile(file(key));
+      },
+      async readRange(key, offset, length) {
+        const handle = await open(file(key), "r");
+        try {
+          const { size } = await handle.stat();
+          const data = Buffer.allocUnsafe(
+            Math.max(0, Math.min(length, size - offset)),
+          );
+          let filled = 0;
+          while (filled < data.length) {
+            const { bytesRead } = await handle.read(
+              data,
+              filled,
+              data.length - filled,
+              offset + filled,
+            );
+            if (!bytesRead) break;
+            filled += bytesRead;
+          }
+          return { data: data.subarray(0, filled), size };
+        } finally {
+          await handle.close();
+        }
       },
       async replace(key, data) {
         const temporary = `${file(key)}.${randomUUID()}.tmp`;
@@ -118,6 +159,25 @@ function createRawStorage(
       if (!result.Body) throw new Error("Stored file is empty.");
       return Buffer.from(await result.Body.transformToByteArray());
     },
+    async readRange(key, offset, length) {
+      const result = await client.send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: objectKey(key),
+          Range: `bytes=${offset}-${offset + length - 1}`,
+        }),
+      );
+      if (!result.Body) throw new Error("Stored file is empty.");
+      const data = Buffer.from(await result.Body.transformToByteArray());
+      const total = /\/(\d+)$/.exec(result.ContentRange || "")?.[1];
+      // A server that ignores Range returns the whole object.
+      if (total === undefined)
+        return {
+          data: data.subarray(offset, offset + length),
+          size: data.length,
+        };
+      return { data, size: Number(total) };
+    },
     async replace(key, data) {
       await client.send(
         new PutObjectCommand({
@@ -135,24 +195,99 @@ function createRawStorage(
     },
   };
 }
+const upgrades = new Map<string, Promise<void>>();
+let upgradeQueue: Promise<void> = Promise.resolve();
 export function createStorage(
   env: Record<string, string | undefined> = process.env,
 ): EncryptedStorageAdapter {
   const raw = createRawStorage(env);
   const key = masterKey(path.resolve(env.CILO_DATA_DIR || dataDir), false, env);
+  const context = (id: string) => `object:${validateKey(id)}`;
+  async function upgradeLegacy(id: string, plain: Buffer) {
+    if (upgrades.has(id)) return;
+    const task = upgradeQueue.then(async () => {
+      const sealed = sealChunked(plain, key, context(id));
+      if (!unsealChunked(sealed, key, context(id)).equals(plain))
+        throw new Error("Converted file did not verify.");
+      const current = await raw.readRange(id, 0, 8);
+      if (!isSingleMessage(current.data)) return;
+      await raw.replace(id, sealed);
+    });
+    const tracked = task
+      .catch(() =>
+        console.warn(
+          "A stored file could not be converted to chunked encryption; the original is unchanged.",
+        ),
+      )
+      .finally(() => upgrades.delete(id));
+    upgrades.set(id, tracked);
+    upgradeQueue = tracked;
+  }
+  async function open(id: string): Promise<StoredFile> {
+    const head = await raw.readRange(id, 0, chunkedHeaderLength);
+    if (isChunked(head.data)) {
+      const layout = chunkedLayout(head.data, head.size);
+      const step = layout.chunkSize + 16;
+      return {
+        size: layout.size,
+        async read(start, end) {
+          const last = Math.min(end, layout.size - 1);
+          if (start < 0 || start > last) return Buffer.alloc(0);
+          const first = Math.floor(start / layout.chunkSize);
+          const final = Math.floor(last / layout.chunkSize);
+          const stored = await raw.readRange(
+            id,
+            chunkedHeaderLength + first * step,
+            (final - first + 1) * step,
+          );
+          const parts: Buffer[] = [];
+          for (let index = first; index <= final; index++)
+            parts.push(
+              openChunk(
+                layout,
+                key,
+                context(id),
+                index,
+                stored.data.subarray(
+                  (index - first) * step,
+                  (index - first + 1) * step,
+                ),
+              ),
+            );
+          return Buffer.concat(parts).subarray(
+            start - first * layout.chunkSize,
+            last - first * layout.chunkSize + 1,
+          );
+        },
+      };
+    }
+    const plain = unseal(await raw.read(id), key, context(id));
+    if (plain.length >= upgradeThreshold) void upgradeLegacy(id, plain);
+    return {
+      size: plain.length,
+      read: async (start, end) =>
+        plain.subarray(Math.max(0, start), Math.min(end, plain.length - 1) + 1),
+    };
+  }
   return {
-    write: (id, bytes) =>
-      raw.write(id, seal(bytes, key, `object:${validateKey(id)}`)),
-    read: async (id) =>
-      unseal(await raw.read(id), key, `object:${validateKey(id)}`),
-    delete: (id) => raw.delete(id),
+    write: (id, bytes) => raw.write(id, sealChunked(bytes, key, context(id))),
+    open,
+    read: async (id) => {
+      const file = await open(id);
+      return file.size ? file.read(0, file.size - 1) : Buffer.alloc(0);
+    },
+    delete: async (id) => {
+      await upgrades.get(id);
+      await raw.delete(id);
+    },
     async migrateLegacy(id) {
       const bytes = await raw.read(id);
       if (isEncrypted(bytes)) {
-        unseal(bytes, key, `object:${validateKey(id)}`);
+        if (isChunked(bytes)) unsealChunked(bytes, key, context(id));
+        else unseal(bytes, key, context(id));
         return;
       }
-      await raw.replace(id, seal(bytes, key, `object:${validateKey(id)}`));
+      await raw.replace(id, sealChunked(bytes, key, context(id)));
     },
   };
 }
@@ -186,6 +321,7 @@ export function pinStoredFiles(keys: string[]) {
 export const storage: EncryptedStorageAdapter = {
   write: (key, data) => (adapter ||= createStorage()).write(key, data),
   read: (key) => (adapter ||= createStorage()).read(key),
+  open: (key) => (adapter ||= createStorage()).open(key),
   delete: async (key) => {
     if (pins.has(key)) {
       deferred.add(key);

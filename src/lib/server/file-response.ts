@@ -16,6 +16,34 @@ const inlineTypes = new Set([
   "video/webm",
   "video/ogg",
 ]);
+export type FileSource = {
+  size: number;
+  // Both bounds are inclusive byte offsets.
+  read(start: number, end: number): Promise<Uint8Array>;
+};
+export const memorySource = (bytes: Uint8Array): FileSource => ({
+  size: bytes.length,
+  read: async (start, end) => bytes.subarray(start, end + 1),
+});
+const streamStep = 1024 * 1024;
+async function body(source: FileSource, start: number, end: number) {
+  if (end - start < streamStep) {
+    return (await source.read(start, end)) as Uint8Array<ArrayBuffer>;
+  }
+  let position = start;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const last = Math.min(end, position + streamStep - 1);
+        controller.enqueue(await source.read(position, last));
+        position = last + 1;
+        if (position > end) controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
 function mediaMime(bytes: Uint8Array) {
   const header = new TextDecoder().decode(bytes.subarray(0, 12));
   if (header.startsWith("RIFF") && header.slice(8, 12) === "WAVE")
@@ -33,15 +61,16 @@ function mediaMime(bytes: Uint8Array) {
     return "video/webm";
   return undefined;
 }
-export function fileResponse(
+export async function fileResponse(
   request: Request,
-  bytes: Uint8Array,
+  source: FileSource,
   file: { mime: string; name: string },
   published = false,
 ) {
+  const length = source.size;
   const mime =
-    file.mime === "application/octet-stream"
-      ? mediaMime(bytes) || file.mime
+    file.mime === "application/octet-stream" && length
+      ? mediaMime(await source.read(0, 11)) || file.mime
       : file.mime;
   const inline = inlineTypes.has(mime);
   const headers = new Headers({
@@ -54,17 +83,19 @@ export function fileResponse(
   });
   const range = request.headers.get("range");
   if (!range || request.headers.has("if-range")) {
-    headers.set("Content-Length", String(bytes.length));
-    return new Response(new Uint8Array(bytes), { headers });
+    headers.set("Content-Length", String(length));
+    return new Response(length ? await body(source, 0, length - 1) : null, {
+      headers,
+    });
   }
   const match = /^bytes=(\d*)-(\d*)$/.exec(range);
   const start = match?.[1]
     ? Number(match[1])
-    : Math.max(0, bytes.length - Number(match?.[2]));
+    : Math.max(0, length - Number(match?.[2]));
   const end =
     match?.[1] && match[2]
-      ? Math.min(Number(match[2]), bytes.length - 1)
-      : bytes.length - 1;
+      ? Math.min(Number(match[2]), length - 1)
+      : length - 1;
   if (
     !match ||
     match
@@ -74,16 +105,16 @@ export function fileResponse(
     !Number.isSafeInteger(start) ||
     !Number.isSafeInteger(end) ||
     start < 0 ||
-    start >= bytes.length ||
+    start >= length ||
     end < start ||
     (!match[1] && Number(match[2]) <= 0)
   ) {
-    headers.set("Content-Range", `bytes */${bytes.length}`);
+    headers.set("Content-Range", `bytes */${length}`);
     return new Response(null, { status: 416, headers });
   }
-  headers.set("Content-Range", `bytes ${start}-${end}/${bytes.length}`);
+  headers.set("Content-Range", `bytes ${start}-${end}/${length}`);
   headers.set("Content-Length", String(end - start + 1));
-  return new Response(new Uint8Array(bytes.subarray(start, end + 1)), {
+  return new Response(await body(source, start, end), {
     status: 206,
     headers,
   });
