@@ -52,6 +52,9 @@ export function sqlite() {
       connection.pragma("temp_store = MEMORY");
       connection.pragma("foreign_keys = ON");
       connection.pragma("busy_timeout = 5000");
+      connection.function("cilo_fold", { deterministic: true }, (value) =>
+        String(value ?? "").toLocaleLowerCase(),
+      );
       connection.exec(
         "CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)",
       );

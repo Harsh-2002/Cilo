@@ -3,7 +3,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { db, sqlite } from "./db";
 import { tasks, notes } from "./schema";
 import { HttpError } from "./http";
-import type { Task } from "../types";
+import type { Page, Task, TaskFilter } from "../types";
+import { decodeCursor, encodeCursor } from "./pagination";
 import { nextDate, validDate, type Recurrence } from "../dates";
 import { requireLinkedNote } from "./connections";
 const fields = {
@@ -44,6 +45,68 @@ export function listTasks(owner: string): Task[] {
     .where(eq(tasks.ownerId, owner))
     .orderBy(asc(tasks.createdAt))
     .all();
+}
+const taskColumns =
+  "t.id,t.title,t.completed_at AS completedAt,t.revision,t.created_at AS createdAt,t.updated_at AS updatedAt,t.due_date AS dueDate,t.recurrence,t.recurrence_day AS recurrenceDay,t.parent_task_id AS parentTaskId,t.note_id AS noteId,n.title AS noteTitle";
+const taskOrder = "COALESCE(t.due_date,'9999'),t.created_at,t.id";
+export function listTaskPage(
+  owner: string,
+  options: {
+    filter: TaskFilter;
+    query: string;
+    today: string;
+    limit: number;
+    after?: string | null;
+  },
+): Page<Task> {
+  const where = ["t.owner_id=?"];
+  const values: (string | number)[] = [owner];
+  if (options.filter === "completed") where.push("t.completed_at IS NOT NULL");
+  else {
+    where.push("t.completed_at IS NULL");
+    if (options.filter === "today") {
+      where.push("t.due_date IS NOT NULL AND t.due_date<=?");
+      values.push(options.today);
+    } else if (options.filter === "upcoming") {
+      where.push("t.due_date>?");
+      values.push(options.today);
+    }
+  }
+  const term = options.query.trim().slice(0, 300);
+  if (term) {
+    where.push("instr(cilo_fold(t.title),cilo_fold(?))>0");
+    values.push(term);
+  }
+  const cursor = decodeCursor(options.after ?? null, [
+    "string",
+    "number",
+    "string",
+  ]);
+  if (cursor) {
+    where.push(`(${taskOrder})>(?,?,?)`);
+    values.push(...cursor);
+  }
+  const rows = sqlite()
+    .prepare(
+      `SELECT ${taskColumns} FROM tasks t LEFT JOIN notes n ON n.id=t.note_id AND n.kind='note' WHERE ${where.join(" AND ")} ORDER BY ${taskOrder} LIMIT ?`,
+    )
+    .all(...values, options.limit + 1) as Task[];
+  const items = rows.slice(0, options.limit);
+  const last = items[items.length - 1];
+  return {
+    items,
+    next:
+      rows.length > options.limit && last
+        ? encodeCursor([last.dueDate ?? "9999", last.createdAt, last.id])
+        : null,
+  };
+}
+export function taskCounts(owner: string) {
+  return sqlite()
+    .prepare(
+      "SELECT COUNT(*) FILTER (WHERE completed_at IS NULL) AS open,COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS completed FROM tasks WHERE owner_id=?",
+    )
+    .get(owner) as { open: number; completed: number };
 }
 export function createTask(
   owner: string,

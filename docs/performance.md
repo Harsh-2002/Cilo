@@ -1,6 +1,6 @@
 # Library performance and browser review
 
-Cilo keeps SQLite local and encrypted. The active browser session loads note previews in pages of 60, with full documents fetched only when opened. Tag lookups are batched. Linked task and bookmark titles use joins rather than one extra lookup per item. Tasks and bookmarks initially render 60 rows, with a Load more action; their existing APIs still fetch the complete section so counts and client-side filters remain accurate.
+Cilo keeps SQLite local and encrypted. The active browser session loads note previews in pages of 60, with full documents fetched only when opened. Tag lookups are batched. Linked task and bookmark titles use joins rather than one extra lookup per item. Tasks and bookmarks are paged by the server in 60-row pages using stable keyset cursors, with a Load more action. Status filters, search, favorites, collection filters, counts and the collection list are computed in SQLite, so the browser never holds the complete section. Migration 0012 adds the matching ordering indexes.
 
 Migration 0011 adds covering search-order indexes. Global search chooses bounded result IDs before fetching FTS5 snippets for those results. Match markers become plain text and character ranges, rendered by React; imported content is never inserted as search-result HTML. A bounded 128-entry fuzzy-query cache invalidates after writes from this connection or another SQLite connection.
 
@@ -19,7 +19,24 @@ Recorded on this development VM on 2026-10-05:
 | Repeated typo search         |                      1,023ms |                           46ms |           7,693 bytes |
 | Repeated missing-term search |                        300ms |                           18ms |               2 bytes |
 
-The earlier full note list was 20,375,339 bytes. Paging and truncating previews provide the deterministic payload reduction; timing differences are indicative because machine load varied between runs. First measured typo/missing-term requests still took approximately 570/654ms on this large fixture before the cache was warm. This is not a latency guarantee or proof that every library size is equally fast. Further server pagination for tasks/bookmarks remains a future scaling improvement.
+The earlier full note list was 20,375,339 bytes. Paging and truncating previews provide the deterministic payload reduction; timing differences are indicative because machine load varied between runs. First measured typo/missing-term requests still took approximately 570/654ms on this large fixture before the cache was warm. This is not a latency guarantee or proof that every library size is equally fast.
+
+### Paged tasks and bookmarks
+
+Measured on the same 5,000-task and 5,000-bookmark fixture with `npx tsx scripts/benchmark-library.ts` on 2026-10-05 (server functions only; warm medians of ten calls):
+
+| Operation                                 | Full list (before)  | Paged (after)               |
+| ----------------------------------------- | ------------------- | --------------------------- |
+| Tasks, first view                         | 389ms, 1,685,561 B  | 1.4ms, 19,848 B for 60 rows |
+| Tasks, deep page by cursor                | not available       | 5.2ms, 20,371 B             |
+| Task search ("task 4999")                 | client-side         | 18ms, 361 B                 |
+| Task counts                               | derived client-side | 2.2ms, 27 B                 |
+| Bookmarks, first view                     | 403ms, 2,129,451 B  | 1.4ms, 25,701 B for 60 rows |
+| Bookmarks, deep page by cursor            | not available       | 4.2ms, 25,104 B             |
+| Bookmark search ("nebula reference 4999") | 22ms, whole list    | 22ms, 877 B                 |
+| Bookmark total and collection list        | derived client-side | 4.5ms, 31 B                 |
+
+Cursors are keyed on the sort columns (due date, creation time and identifier for tasks; creation time and identifier for bookmarks) rather than row offsets, so completing, deleting or editing an item between pages cannot skip or repeat other items. Task search folds case with the browser's Unicode rules through a registered SQLite function; it scans only the owner's matching status rows and is not backed by FTS5. Page size is capped at 100 rows on the server. Bookmark search keeps FTS5 with substring and typo fallback.
 
 ## Browser harness
 

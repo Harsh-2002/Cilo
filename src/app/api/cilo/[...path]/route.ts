@@ -1,4 +1,6 @@
 import { fileResponse, safeName } from "@/lib/server/file-response";
+import { pageLimit } from "@/lib/server/pagination";
+import { validDate } from "@/lib/dates";
 import { bookmarkUrl, imageMime } from "@/lib/server/link-metadata";
 import { backupStatus, startBackup, verifyBackup } from "@/lib/server/backups";
 import {
@@ -6,7 +8,8 @@ import {
   createBookmark,
   exportBookmarkBundle,
   deleteBookmark,
-  listBookmarks,
+  bookmarkSummary,
+  listBookmarkPage,
   refreshBookmark,
   updateBookmark,
 } from "@/lib/server/bookmarks";
@@ -50,7 +53,9 @@ import {
 import {
   createTask,
   deleteTask,
+  listTaskPage,
   listTasks,
+  taskCounts,
   updateTask,
 } from "@/lib/server/tasks";
 import {
@@ -372,13 +377,26 @@ async function handle(
       }
     }
     if (area === "bookmarks") {
-      if (method === "GET" && !id)
+      if (method === "GET" && !id) {
+        const params = new URL(request.url).searchParams;
+        const filters = {
+          query: params.get("q") || "",
+          favorite: params.get("favorite") === "1",
+          unfiled: params.get("unfiled") === "1",
+          collection: params.has("collection")
+            ? params.get("collection")!.slice(0, 80)
+            : undefined,
+        };
+        if (params.get("summary") === "1")
+          return response(bookmarkSummary(owner.id, filters));
         return response(
-          listBookmarks(
-            owner.id,
-            new URL(request.url).searchParams.get("q") || "",
-          ),
+          listBookmarkPage(owner.id, {
+            ...filters,
+            limit: pageLimit(params.get("limit")),
+            after: params.get("after"),
+          }),
         );
+      }
       if (
         method === "GET" &&
         id &&
@@ -429,7 +447,27 @@ async function handle(
       }
     }
     if (area === "tasks") {
-      if (method === "GET" && !id) return response(listTasks(owner.id));
+      if (method === "GET" && !id) {
+        const params = new URL(request.url).searchParams;
+        if (params.get("summary") === "1")
+          return response(taskCounts(owner.id));
+        const filter = z
+          .enum(["open", "completed", "today", "upcoming"])
+          .default("open")
+          .parse(params.get("filter") ?? undefined);
+        const today =
+          params.get("today") || new Date().toISOString().slice(0, 10);
+        if (!validDate(today)) throw new HttpError(400, "Choose a valid date.");
+        return response(
+          listTaskPage(owner.id, {
+            filter,
+            query: params.get("q") || "",
+            today,
+            limit: pageLimit(params.get("limit")),
+            after: params.get("after"),
+          }),
+        );
+      }
       if (method === "POST" && !id) {
         const input = z
           .object({ title: z.string().trim().min(1).max(300), ...taskSchedule })

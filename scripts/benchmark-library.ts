@@ -8,8 +8,10 @@ async function main() {
   process.env.CILO_DATA_DIR = directory;
   const { sqlite } = await import("../src/lib/server/db");
   const { listNotes, getNote } = await import("../src/lib/server/notes");
-  const { listTasks } = await import("../src/lib/server/tasks");
-  const { listBookmarks } = await import("../src/lib/server/bookmarks");
+  const { listTasks, listTaskPage, taskCounts } =
+    await import("../src/lib/server/tasks");
+  const { listBookmarks, listBookmarkPage, bookmarkSummary } =
+    await import("../src/lib/server/bookmarks");
   const { searchWorkspace } = await import("../src/lib/server/unified-search");
   const { workspaceOverview } = await import("../src/lib/server/overview");
   const database = sqlite();
@@ -101,6 +103,12 @@ async function main() {
         rows: Array.isArray(output) ? output.length : undefined,
       };
     };
+    const lateTaskCursor = Buffer.from(
+      JSON.stringify(["9999", 4900, "0"]),
+    ).toString("base64url");
+    const lateBookmarkCursor = Buffer.from(JSON.stringify([100, ""])).toString(
+      "base64url",
+    );
     console.log(
       JSON.stringify(
         {
@@ -117,6 +125,45 @@ async function main() {
             measure("open-note", () => getNote(target)),
             measure("tasks", () => listTasks(owner)),
             measure("bookmarks", () => listBookmarks(owner)),
+            measure("task-page", () =>
+              listTaskPage(owner, {
+                filter: "open",
+                query: "",
+                today: "2026-10-05",
+                limit: 60,
+              }),
+            ),
+            measure("task-page-late", () =>
+              listTaskPage(owner, {
+                filter: "open",
+                query: "",
+                today: "2026-10-05",
+                limit: 60,
+                after: lateTaskCursor,
+              }),
+            ),
+            measure("task-search-page", () =>
+              listTaskPage(owner, {
+                filter: "open",
+                query: "task 4999",
+                today: "2026-10-05",
+                limit: 60,
+              }),
+            ),
+            measure("task-counts", () => taskCounts(owner)),
+            measure("bookmark-page", () =>
+              listBookmarkPage(owner, { limit: 60 }),
+            ),
+            measure("bookmark-page-late", () =>
+              listBookmarkPage(owner, { limit: 60, after: lateBookmarkCursor }),
+            ),
+            measure("bookmark-search-page", () =>
+              listBookmarkPage(owner, {
+                query: "nebula reference 4999",
+                limit: 60,
+              }),
+            ),
+            measure("bookmark-summary", () => bookmarkSummary(owner, {})),
             measure("overview", () => workspaceOverview(owner, "2026-10-05")),
             measure("search-common", () => searchWorkspace(owner, "nebula")),
             measure("search-typo", () => searchWorkspace(owner, "neubla")),

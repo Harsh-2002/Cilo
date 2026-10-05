@@ -148,9 +148,11 @@ export default async function verifyCaptureRetrieval(
     "Capture discarded task draft",
   );
   await page.getByRole("textbox", { name: "New task", exact: true }).fill("");
-  const tasks = await (await page.request.get(`${base}/api/cilo/tasks`)).json();
+  const tasks = await (
+    await page.request.get(`${base}/api/cilo/tasks?q=Captured%20task%20fixture`)
+  ).json();
   check(
-    tasks.some((task) => task.title === "Captured task fixture"),
+    tasks.items.some((task) => task.title === "Captured task fixture"),
     "Captured task missing",
   );
   await openCapture();
@@ -161,7 +163,7 @@ export default async function verifyCaptureRetrieval(
     await page.request.get(`${base}/api/cilo/bookmarks`)
   ).json();
   check(
-    bookmarks.some(
+    bookmarks.items.some(
       (bookmark) =>
         bookmark.url === linkURL && bookmark.metadataStatus === "unavailable",
     ),
@@ -317,9 +319,29 @@ export default async function verifyCaptureRetrieval(
     }),
     "Duplicate note rows",
   );
+  const listSizes = [];
+  page.on("response", async (response) => {
+    const url = new URL(response.url());
+    if (
+      response.request().method() === "GET" &&
+      /^\/api\/cilo\/(tasks|bookmarks)$/.test(url.pathname)
+    )
+      listSizes.push(
+        (await response.body().catch(() => Buffer.alloc(0))).length,
+      );
+  });
   await page.getByRole("button", { name: "Tasks", exact: true }).click();
   await page.waitForFunction(
     () => document.querySelectorAll(".task-row").length === 60,
+  );
+  check(
+    /^Open\s*\d{4,}/.test(
+      await page
+        .locator(".task-filters")
+        .getByRole("button", { name: /^Open/ })
+        .innerText(),
+    ),
+    "Task count did not come from the complete library",
   );
   await page
     .getByRole("button", { name: "Load more tasks", exact: true })
@@ -327,15 +349,83 @@ export default async function verifyCaptureRetrieval(
   await page.waitForFunction(
     () => document.querySelectorAll(".task-row").length === 120,
   );
+  const openBefore = Number(
+    (
+      await page
+        .locator(".task-filters")
+        .getByRole("button", { name: /^Open/ })
+        .innerText()
+    ).replace(/\D/g, ""),
+  );
+  const firstTask = page.locator(".task-row").first();
+  const firstTitle = await firstTask
+    .locator(".task-title, p, span")
+    .first()
+    .innerText();
+  await firstTask.getByRole("checkbox").click();
+  await page.waitForFunction(
+    (count) =>
+      Number(
+        [...document.querySelectorAll(".task-filters button")]
+          .find((b) => /^Open/.test(b.textContent || ""))
+          ?.textContent?.replace(/\D/g, ""),
+      ) === count,
+    openBefore - 1,
+  );
+  check(
+    !(await page.locator(".task-row").first().innerText()).includes(firstTitle),
+    "Completed task stayed in the open list",
+  );
+  await page
+    .getByRole("button", { name: "Load more tasks", exact: true })
+    .click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".task-row").length >= 119,
+  );
+  check(
+    await page.locator(".task-row").evaluateAll((rows) => {
+      const text = rows.map((row) => row.textContent);
+      return new Set(text).size === text.length;
+    }),
+    "Duplicate task rows after completing between pages",
+  );
+  await page
+    .getByRole("textbox", { name: "Search tasks", exact: true })
+    .fill("task 4999 ");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".task-row").length === 1,
+  );
+  await page
+    .getByRole("textbox", { name: "Search tasks", exact: true })
+    .fill("");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".task-row").length === 60,
+  );
   await page.getByRole("button", { name: "Bookmarks", exact: true }).click();
   await page.waitForFunction(
     () => document.querySelectorAll(".bookmark-card").length === 60,
+  );
+  check(
+    /\b[5-9]\d{3,}\s+bookmarks\b/.test(
+      await page.locator(".task-summary").innerText(),
+    ),
+    "Bookmark total did not come from the complete library",
   );
   await page
     .getByRole("button", { name: "Load more bookmarks", exact: true })
     .click();
   await page.waitForFunction(
     () => document.querySelectorAll(".bookmark-card").length === 120,
+  );
+  await page
+    .getByRole("textbox", { name: "Search bookmarks", exact: true })
+    .fill("Nebula reference 4999");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".bookmark-card").length === 1,
+  );
+  check(
+    listSizes.length >= 4 && listSizes.every((size) => size < 150_000),
+    `List responses were not bounded: ${listSizes.join(",")}`,
   );
   await page.reload();
   const saved = await (

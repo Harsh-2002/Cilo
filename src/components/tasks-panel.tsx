@@ -16,7 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
-import type { Task } from "@/lib/types";
+import type { Page, Task } from "@/lib/types";
 import { formatDate, localDate, type Recurrence } from "@/lib/dates";
 import { DatePicker } from "./date-picker";
 import { NotePicker } from "./note-picker";
@@ -39,6 +39,24 @@ import {
 import { useConfirm } from "./confirm-provider";
 import type { CapturedItem } from "./quick-capture";
 
+type TaskCounts = { open: number; completed: number };
+const taskParams = (filter: string, query: string) =>
+  new URLSearchParams({
+    filter,
+    today: localDate(),
+    limit: "60",
+    ...(query.trim() ? { q: query.trim() } : {}),
+  });
+const compareTasks = (a: Task, b: Task) =>
+  (a.dueDate || "9999").localeCompare(b.dueDate || "9999") ||
+  a.createdAt - b.createdAt ||
+  (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+function mergeTasks(items: Task[], incoming: Task[]) {
+  const replaced = new Set(incoming.map((task) => task.id));
+  return [...items.filter((task) => !replaced.has(task.id)), ...incoming].sort(
+    compareTasks,
+  );
+}
 export function TasksPanel({
   onNavigation,
   registerGuard,
@@ -55,7 +73,9 @@ export function TasksPanel({
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [page, setPage] = useState({ key: "", count: 60 });
+  const [next, setNext] = useState<string | null>(null);
+  const [counts, setCounts] = useState({ open: 0, completed: 0 });
+  const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState("");
   const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<
@@ -74,14 +94,22 @@ export function TasksPanel({
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+  const refreshCounts = useCallback(async () => {
+    try {
+      setCounts(await api<TaskCounts>("tasks?summary=1"));
+    } catch {}
+  }, []);
   useEffect(() => {
     const received = (event: Event) => {
       const result = (event as CustomEvent<CapturedItem>).detail;
-      if (result.type === "task") setTasks((items) => [...items, result.item]);
+      if (result.type !== "task") return;
+      void refreshCounts();
+      if (filter === "open" && !query.trim() && next === null)
+        setTasks((items) => mergeTasks(items, [result.item]));
     };
     window.addEventListener("cilo:captured", received);
     return () => window.removeEventListener("cilo:captured", received);
-  }, []);
+  }, [filter, query, next, refreshCounts]);
   const editDirty =
     !!editing &&
     (editTitle !== editing.title ||
@@ -91,21 +119,58 @@ export function TasksPanel({
   useEffect(() => {
     if (focusCreate) input.current?.focus();
   }, [focusCreate]);
-  const load = useCallback(async () => {
-    setLoading(true);
+  const view = `${filter}\n${query}`;
+  const currentView = useRef(view);
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      currentView.current = view;
+      setLoading(true);
+      try {
+        const [first, summary] = await Promise.all([
+          api<Page<Task>>(`tasks?${taskParams(filter, query)}`, { signal }),
+          api<TaskCounts>("tasks?summary=1", { signal }),
+        ]);
+        if (signal?.aborted) return;
+        setTasks(first.items);
+        setNext(first.next);
+        setCounts(summary);
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError((e as Error).message);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [filter, query, view],
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => void load(controller.signal),
+      query.trim() ? 180 : 0,
+    );
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [load, query]);
+  async function loadMore() {
+    if (!next || loadingMore) return;
+    const started = view;
+    setLoadingMore(true);
     try {
-      setTasks(await api<Task[]>("tasks"));
-      setError("");
+      const more = await api<Page<Task>>(
+        `tasks?${taskParams(filter, query)}&after=${encodeURIComponent(next)}`,
+      );
+      if (currentView.current !== started) return;
+      setTasks((items) => mergeTasks(items, more.items));
+      setNext(more.next);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
-  useEffect(() => {
-    const timer = setTimeout(() => void load(), 0);
-    return () => clearTimeout(timer);
-  }, [load]);
+  }
   useEffect(() => {
     registerGuard(
       async () =>
@@ -138,8 +203,7 @@ export function TasksPanel({
     try {
       await action();
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409)
-        setTasks(await api<Task[]>("tasks").catch(() => tasks));
+      if (e instanceof ApiError && e.status === 409) await load();
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -153,10 +217,12 @@ export function TasksPanel({
         method: "POST",
         body: JSON.stringify({ title: title.trim() }),
       });
-      setTasks((t) => [...t, task]);
+      if (filter === "open" && !query.trim() && next === null)
+        setTasks((items) => mergeTasks(items, [task]));
       setTitle("");
       setFilter("open");
       setQuery("");
+      void refreshCounts();
       input.current?.focus();
     });
   }
@@ -171,20 +237,17 @@ export function TasksPanel({
     },
   ) {
     await mutate(async () => {
-      const next = await api<Task>(`tasks/${task.id}`, {
+      const updated = await api<Task>(`tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ revision: task.revision, ...change }),
       });
-      setTasks((t) => t.map((item) => (item.id === next.id ? next : item)));
-      if (change.completed && task.recurrence)
-        setTasks(await api<Task[]>("tasks"));
+      setTasks((items) => mergeTasks(items, [updated]));
+      if (change.completed && task.recurrence) await load();
+      else void refreshCounts();
       if (change.title !== undefined) setEditing(null);
     });
   }
-  const openCount = tasks.filter((t) => t.completedAt === null).length;
   const today = localDate();
-  const pageKey = `${filter}:${query}`;
-  const visibleCount = page.key === pageKey ? page.count : 60;
   const visible = tasks
     .filter(
       (t) =>
@@ -198,11 +261,7 @@ export function TasksPanel({
                 : true)) &&
         t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
     )
-    .sort(
-      (a, b) =>
-        (a.dueDate || "9999").localeCompare(b.dueDate || "9999") ||
-        a.createdAt - b.createdAt,
-    );
+    .sort(compareTasks);
   return (
     <section className="tasks-panel" aria-label="Tasks">
       <header className="tasks-header">
@@ -255,7 +314,7 @@ export function TasksPanel({
                 disabled={busy || !!editing}
                 onClick={() => setFilter("open")}
               >
-                Open<span>{openCount}</span>
+                Open<span>{counts.open}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -279,7 +338,7 @@ export function TasksPanel({
                 disabled={busy || !!editing}
                 onClick={() => setFilter("completed")}
               >
-                Completed<span>{tasks.length - openCount}</span>
+                Completed<span>{counts.completed}</span>
               </Button>
             </div>
             <div className="task-search">
@@ -305,7 +364,7 @@ export function TasksPanel({
               </Button>
             </div>
           )}
-          {loading ? (
+          {loading && !tasks.length ? (
             <div
               className="task-skeleton"
               role="status"
@@ -319,9 +378,10 @@ export function TasksPanel({
           ) : visible.length ? (
             <ul
               className="task-list"
+              aria-busy={loading}
               aria-label={`${filter === "open" ? "Open" : filter === "completed" ? "Completed" : filter === "today" ? "Today" : "Upcoming"} tasks`}
             >
-              {visible.slice(0, visibleCount).map((task) => (
+              {visible.map((task) => (
                 <li
                   key={task.id}
                   className={`task-row ${task.completedAt !== null ? "is-complete" : ""}`}
@@ -506,9 +566,10 @@ export function TasksPanel({
                                     revision: task.revision,
                                   }),
                                 });
-                                setTasks((t) =>
-                                  t.filter((item) => item.id !== task.id),
+                                setTasks((items) =>
+                                  items.filter((item) => item.id !== task.id),
                                 );
+                                void refreshCounts();
                                 if (editing?.id === task.id) setEditing(null);
                               });
                           })()
@@ -540,7 +601,7 @@ export function TasksPanel({
                       ? "Nothing due today."
                       : filter === "upcoming"
                         ? "Nothing scheduled ahead."
-                        : tasks.length
+                        : counts.open + counts.completed
                           ? "Everything is checked off."
                           : "Make room for your next step."}
               </h3>
@@ -555,21 +616,19 @@ export function TasksPanel({
               </p>
             </div>
           )}
-          {visible.length > visibleCount && (
+          {next !== null && (
             <div className="list-continuation">
               <Button
                 variant="ghost"
-                disabled={busy || !!editing}
-                onClick={() =>
-                  setPage({ key: pageKey, count: visibleCount + 60 })
-                }
+                disabled={busy || loadingMore || !!editing}
+                onClick={() => void loadMore()}
               >
-                Load more tasks
+                {loadingMore ? "Loading…" : "Load more tasks"}
               </Button>
             </div>
           )}
           <p className="task-summary" aria-live="polite">
-            {openCount} open · {tasks.length - openCount} completed
+            {counts.open} open · {counts.completed} completed
             {busy && <Loader2 size={13} className="animate-spin" />}
           </p>
         </div>

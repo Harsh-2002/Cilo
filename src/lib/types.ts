@@ -101,3 +101,5 @@ export type Overview = {
   >[];
   refreshedAt: number;
 };
+export type Page<T> = { items: T[]; next: string | null };
+export type TaskFilter = "open" | "completed" | "today" | "upcoming";

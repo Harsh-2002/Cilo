@@ -71,6 +71,14 @@ test("connected workspace retains private search, recovery, templates and schedu
     );
     return response.json();
   };
+  const allTasks = async () =>
+    (
+      await Promise.all(
+        ["open", "completed"].map((filter) =>
+          value<{ items: Task[] }>(`tasks?filter=${filter}&limit=100`),
+        ),
+      )
+    ).flatMap((page) => page.items);
   const document = (text: string) => ({
     schemaVersion: 1,
     blocks: [
@@ -374,7 +382,7 @@ test("connected workspace retains private search, recovery, templates and schedu
           }),
         ]);
         assert.deepEqual(completions.map((r) => r.status).sort(), [200, 409]);
-        let list = await value<Task[]>("tasks");
+        let list = await allTasks();
         const next = list.find((r) => r.parentTaskId === recurring.id)!;
         assert.equal(next.dueDate, "2026-02-28");
         assert.equal(next.noteId, target.id);
@@ -388,7 +396,7 @@ test("connected workspace retains private search, recovery, templates and schedu
           revision: editedNext.revision,
           completed: true,
         });
-        list = await value<Task[]>("tasks");
+        list = await allTasks();
         assert.equal(
           list.find((r) => r.parentTaskId === next.id)?.dueDate,
           "2026-03-31",
@@ -403,9 +411,8 @@ test("connected workspace retains private search, recovery, templates and schedu
           completed: true,
         });
         assert.equal(
-          (await value<Task[]>("tasks")).filter(
-            (r) => r.parentTaskId === recurring.id,
-          ).length,
+          (await allTasks()).filter((r) => r.parentTaskId === recurring.id)
+            .length,
           1,
         );
         assert.equal(
@@ -550,22 +557,22 @@ test("connected workspace retains private search, recovery, templates and schedu
         invalid.tasks[0].parentTaskId = invalid.tasks[0].id;
         const invalidEntries = unzipSync(bytes);
         invalidEntries["manifest.json"] = strToU8(JSON.stringify(invalid));
-        const countBeforeInvalid = (await value<Task[]>("tasks")).length;
+        const countBeforeInvalid = (await allTasks()).length;
         assert.equal(
           (await call("import/bundle", "POST", zipSync(invalidEntries))).status,
           400,
         );
-        assert.equal((await value<Task[]>("tasks")).length, countBeforeInvalid);
+        assert.equal((await allTasks()).length, countBeforeInvalid);
 
         assert.ok(manifest.history.length);
-        const before = await value<Task[]>("tasks");
+        const before = await allTasks();
         const imported = await value<{ dailyConflicts: number }>(
           "import/bundle",
           "POST",
           bytes,
         );
         assert.equal(imported.dailyConflicts, 1);
-        const after = await value<Task[]>("tasks");
+        const after = await allTasks();
         const restored = after.filter(
           (r) => !before.some((b) => b.id === r.id),
         );

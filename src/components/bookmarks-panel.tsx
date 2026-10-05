@@ -16,7 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
-import type { Bookmark } from "@/lib/types";
+import type { Bookmark, Page } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -53,6 +53,31 @@ function PreviewImage({
     <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
   );
 }
+type BookmarkSummary = { total: number; collections: string[] };
+const bookmarkParams = (
+  query: string,
+  favorites: boolean,
+  collection: string,
+  summary = false,
+) =>
+  new URLSearchParams({
+    ...(summary ? { summary: "1" } : { limit: "60" }),
+    ...(query.trim() ? { q: query.trim() } : {}),
+    ...(favorites ? { favorite: "1" } : {}),
+    ...(collection === "unfiled"
+      ? { unfiled: "1" }
+      : collection !== "all"
+        ? { collection: collection.slice(2) }
+        : {}),
+  });
+const compareBookmarks = (a: Bookmark, b: Bookmark) =>
+  b.createdAt - a.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+function mergeBookmarks(items: Bookmark[], incoming: Bookmark[]) {
+  const replaced = new Set(incoming.map((item) => item.id));
+  return [...items.filter((item) => !replaced.has(item.id)), ...incoming].sort(
+    compareBookmarks,
+  );
+}
 export function BookmarksPanel({
   onNavigation,
   registerGuard,
@@ -67,8 +92,12 @@ export function BookmarksPanel({
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [page, setPage] = useState({ key: "", count: 60 });
-  const [results, setResults] = useState<Bookmark[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [summary, setSummary] = useState<BookmarkSummary>({
+    total: 0,
+    collections: [],
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
   const [url, setUrl] = useState("");
   const [newCollection, setNewCollection] = useState("");
   const [query, setQuery] = useState(initialQuery);
@@ -79,18 +108,29 @@ export function BookmarksPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [searchError, setSearchError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+  const unfiltered = !query.trim() && !favorites && collection === "all";
+  const refreshSummary = useCallback(async () => {
+    try {
+      setSummary(
+        await api<BookmarkSummary>(
+          `bookmarks?${bookmarkParams(query, favorites, collection, true)}`,
+        ),
+      );
+    } catch {}
+  }, [query, favorites, collection]);
   useEffect(() => {
     const received = (event: Event) => {
       const result = (event as CustomEvent<CapturedItem>).detail;
-      if (result.type === "bookmark")
-        setBookmarks((items) => [result.item, ...items]);
+      if (result.type !== "bookmark") return;
+      void refreshSummary();
+      if (unfiltered)
+        setBookmarks((items) => mergeBookmarks(items, [result.item]));
     };
     window.addEventListener("cilo:captured", received);
     return () => window.removeEventListener("cilo:captured", received);
-  }, []);
+  }, [unfiltered, refreshSummary]);
   useEffect(() => {
     if (focusCreate) input.current?.focus();
   }, [focusCreate]);
@@ -106,46 +146,64 @@ export function BookmarksPanel({
       window.removeEventListener("beforeunload", leaving);
     };
   }, [busy, url, newCollection, editing]);
-  const load = useCallback(async () => {
-    setLoading(true);
+  const view = `${query}\n${favorites}\n${collection}`;
+  const currentView = useRef(view);
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      currentView.current = view;
+      setLoading(true);
+      try {
+        const [first, counts] = await Promise.all([
+          api<Page<Bookmark>>(
+            `bookmarks?${bookmarkParams(query, favorites, collection)}`,
+            { signal },
+          ),
+          api<BookmarkSummary>(
+            `bookmarks?${bookmarkParams(query, favorites, collection, true)}`,
+            { signal },
+          ),
+        ]);
+        if (signal?.aborted) return;
+        setBookmarks(first.items);
+        setNext(first.next);
+        setSummary(counts);
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError((e as Error).message);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [query, favorites, collection, view],
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => void load(controller.signal),
+      query.trim() ? 180 : 0,
+    );
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [load, query]);
+  async function loadMore() {
+    if (!next || loadingMore) return;
+    const started = view;
+    setLoadingMore(true);
     try {
-      setBookmarks(await api<Bookmark[]>("bookmarks"));
-      setError("");
+      const more = await api<Page<Bookmark>>(
+        `bookmarks?${bookmarkParams(query, favorites, collection)}&after=${encodeURIComponent(next)}`,
+      );
+      if (currentView.current !== started) return;
+      setBookmarks((items) => mergeBookmarks(items, more.items));
+      setNext(more.next);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
-  useEffect(() => {
-    const timer = setTimeout(() => void load(), 0);
-    return () => clearTimeout(timer);
-  }, [load]);
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setSearchError("");
-      if (!query.trim()) {
-        setResults(null);
-        return;
-      }
-      void api<Bookmark[]>(`bookmarks?q=${encodeURIComponent(query)}`, {
-        signal: controller.signal,
-      })
-        .then((list) => {
-          if (active) setResults(list);
-        })
-        .catch((e) => {
-          if (active) setSearchError((e as Error).message);
-        });
-    }, 180);
-    return () => {
-      active = false;
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [query, bookmarks]);
+  }
   useEffect(() => {
     registerGuard(
       async () =>
@@ -167,8 +225,7 @@ export function BookmarksPanel({
     try {
       await action();
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409)
-        setBookmarks(await api<Bookmark[]>("bookmarks").catch(() => bookmarks));
+      if (e instanceof ApiError && e.status === 409) await load();
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -178,14 +235,15 @@ export function BookmarksPanel({
     e.preventDefault();
     if (!url.trim() || busy) return;
     await mutate(async () => {
-      const next = await api<Bookmark>("bookmarks", {
+      const saved = await api<Bookmark>("bookmarks", {
         method: "POST",
         body: JSON.stringify({
           url: url.trim(),
           collection: newCollection.trim(),
         }),
       });
-      setBookmarks((list) => [next, ...list]);
+      setBookmarks((list) => mergeBookmarks(list, [saved]));
+      void refreshSummary();
       setUrl("");
       setNewCollection("");
       setQuery("");
@@ -193,7 +251,7 @@ export function BookmarksPanel({
       setFavorites(false);
       input.current?.focus();
       setNotice(
-        next.metadataStatus === "ready"
+        saved.metadataStatus === "ready"
           ? "Bookmark saved."
           : "Link saved. This site’s preview could not be fetched; you can edit its details or retry from the card menu.",
       );
@@ -209,20 +267,18 @@ export function BookmarksPanel({
     >,
   ) {
     await mutate(async () => {
-      const next = await api<Bookmark>(`bookmarks/${item.id}`, {
+      const updated = await api<Bookmark>(`bookmarks/${item.id}`, {
         method: "PATCH",
         body: JSON.stringify({ revision: item.revision, ...changes }),
       });
-      setBookmarks((list) => list.map((b) => (b.id === next.id ? next : b)));
+      setBookmarks((list) => mergeBookmarks(list, [updated]));
+      if (query.trim()) await load();
+      else void refreshSummary();
       if (changes.title !== undefined) setEditing(null);
     });
   }
-  const collections = [
-    ...new Set(bookmarks.map((b) => b.collection).filter(Boolean)),
-  ].sort();
-  const pageKey = `${collection}:${favorites}:${query}`;
-  const visibleCount = page.key === pageKey ? page.count : 60;
-  const visible = (query.trim() ? results || [] : bookmarks).filter(
+  const collections = summary.collections;
+  const visible = bookmarks.filter(
     (b) =>
       (!favorites || b.favorite) &&
       (collection === "all" ||
@@ -344,9 +400,9 @@ export function BookmarksPanel({
               />
             </div>
           </div>
-          {(error || searchError) && (
+          {error && (
             <div className="tasks-error" role="alert">
-              <p>{error || searchError}</p>
+              <p>{error}</p>
               <Button
                 variant="outline"
                 disabled={busy || !!editing}
@@ -356,7 +412,7 @@ export function BookmarksPanel({
               </Button>
             </div>
           )}
-          {loading ? (
+          {loading && !bookmarks.length ? (
             <div
               className="task-skeleton"
               role="status"
@@ -368,8 +424,12 @@ export function BookmarksPanel({
               <span />
             </div>
           ) : visible.length ? (
-            <ul className="bookmark-grid" aria-label="Saved bookmarks">
-              {visible.slice(0, visibleCount).map((item) => (
+            <ul
+              className="bookmark-grid"
+              aria-label="Saved bookmarks"
+              aria-busy={loading}
+            >
+              {visible.map((item) => (
                 <li key={item.id} className="bookmark-card">
                   {editing?.id === item.id ? (
                     <form
@@ -530,7 +590,7 @@ export function BookmarksPanel({
                             <DropdownMenuItem
                               onSelect={() =>
                                 void mutate(async () => {
-                                  const next = await api<Bookmark>(
+                                  const refreshed = await api<Bookmark>(
                                     `bookmarks/${item.id}/refresh`,
                                     {
                                       method: "POST",
@@ -540,9 +600,7 @@ export function BookmarksPanel({
                                     },
                                   );
                                   setBookmarks((list) =>
-                                    list.map((b) =>
-                                      b.id === next.id ? next : b,
-                                    ),
+                                    mergeBookmarks(list, [refreshed]),
                                   );
                                 })
                               }
@@ -571,6 +629,7 @@ export function BookmarksPanel({
                                       setBookmarks((list) =>
                                         list.filter((b) => b.id !== item.id),
                                       );
+                                      void refreshSummary();
                                     });
                                 })()
                               }
@@ -612,21 +671,19 @@ export function BookmarksPanel({
               </p>
             </div>
           )}
-          {visible.length > visibleCount && (
+          {next !== null && (
             <div className="list-continuation">
               <Button
                 variant="ghost"
-                disabled={busy || !!editing}
-                onClick={() =>
-                  setPage({ key: pageKey, count: visibleCount + 60 })
-                }
+                disabled={busy || loadingMore || !!editing}
+                onClick={() => void loadMore()}
               >
-                Load more bookmarks
+                {loadingMore ? "Loading…" : "Load more bookmarks"}
               </Button>
             </div>
           )}
           <p className="task-summary" aria-live="polite">
-            {visible.length} {visible.length === 1 ? "bookmark" : "bookmarks"}
+            {summary.total} {summary.total === 1 ? "bookmark" : "bookmarks"}
             {busy && <Loader2 size={13} className="animate-spin" />}
           </p>
         </div>

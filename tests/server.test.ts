@@ -875,7 +875,8 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           await call("import/bundle", "POST", bundle)
         ).json();
         assert.equal(imported.importedTasks, 1);
-        const restored = await (await call("tasks")).json();
+        const restored = (await (await call("tasks?filter=completed")).json())
+          .items;
         assert.equal(restored.length, 2);
         assert.ok(
           restored.every(
@@ -935,7 +936,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           })
         ).json();
         assert.equal(
-          (await (await call("bookmarks?q=concurency")).json()).length,
+          (await (await call("bookmarks?q=concurency")).json()).items.length,
           1,
         );
         assert.equal(
@@ -984,7 +985,7 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
           await call("import/bundle", "POST", archive)
         ).json();
         assert.equal(imported.importedBookmarks, 1);
-        const restored = (await (await call("bookmarks")).json())[0];
+        const restored = (await (await call("bookmarks")).json()).items[0];
         assert.equal(restored.title, updated.title);
         assert.equal(restored.favorite, true);
         assert.equal(restored.collection, "Reading");

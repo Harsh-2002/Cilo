@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db, sqlite } from "./db";
-import { bookmarks, notes } from "./schema";
-import { and, desc, eq } from "drizzle-orm";
+import { bookmarks } from "./schema";
+import { and, eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { HttpError } from "./http";
 import { fuzzyQuery } from "./search";
@@ -13,7 +13,8 @@ import {
   imageMime,
   parseMetadata,
 } from "./link-metadata";
-import type { Bookmark } from "../types";
+import type { Bookmark, Page } from "../types";
+import { decodeCursor, encodeCursor } from "./pagination";
 type Row = {
   id: string;
   owner_id: string;
@@ -98,34 +99,120 @@ function need(owner: string, id: string): Row {
   if (!row) throw new HttpError(404, "This bookmark was not found.");
   return row;
 }
-export function listBookmarks(owner: string, query = ""): Bookmark[] {
-  const term = query.trim().slice(0, 300);
-  let rows = term
-    ? sqlite()
-        .prepare(
-          `SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE b.owner_id=? AND
-    (b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) OR
-    instr(lower(b.title || ' ' || b.description || ' ' || b.url || ' ' || b.collection),lower(?))>0)
-    ORDER BY b.created_at DESC,b.id`,
-        )
-        .all(owner, ftsQuery(term), term)
-    : db()
-        .select({ ...fields, linkedTitle: notes.title })
-        .from(bookmarks)
-        .leftJoin(notes, eq(notes.id, bookmarks.noteId))
-        .where(eq(bookmarks.ownerId, owner))
-        .orderBy(desc(bookmarks.createdAt), bookmarks.id)
-        .all();
-  if (term && !rows.length) {
-    const fallback = fuzzyQuery(term, "bookmarks");
-    if (fallback)
-      rows = sqlite()
-        .prepare(
-          "SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE b.owner_id=? AND b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) ORDER BY b.created_at DESC,b.id",
-        )
-        .all(owner, fallback);
+export type BookmarkQuery = {
+  query?: string;
+  favorite?: boolean;
+  collection?: string;
+  unfiled?: boolean;
+};
+function bookmarkWhere(owner: string, options: BookmarkQuery, search?: string) {
+  const where = ["b.owner_id=?"];
+  const values: (string | number)[] = [owner];
+  if (search !== undefined) {
+    where.push(
+      "(b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) OR instr(lower(b.title || ' ' || b.description || ' ' || b.url || ' ' || b.collection),lower(?))>0)",
+    );
+    values.push(ftsQuery(search), search);
   }
-  return (rows as Row[]).map(expose);
+  if (options.favorite) where.push("b.favorite=1");
+  if (options.unfiled) where.push("b.collection=''");
+  else if (options.collection !== undefined) {
+    where.push("b.collection=?");
+    values.push(options.collection);
+  }
+  return { where, values };
+}
+const bookmarkOrder = "b.created_at DESC,b.id";
+function queryBookmarks(
+  owner: string,
+  options: BookmarkQuery,
+  limit?: number,
+  after?: (string | number)[],
+) {
+  const term = (options.query || "").trim().slice(0, 300);
+  const run = (match?: string) => {
+    const { where, values } = bookmarkWhere(owner, options);
+    if (match !== undefined) {
+      where.push(
+        "b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?)",
+      );
+      values.push(match);
+    }
+    return { where, values };
+  };
+  const build = (base: { where: string[]; values: (string | number)[] }) => {
+    const where = [...base.where];
+    const values = [...base.values];
+    if (after) {
+      where.push("(b.created_at<? OR (b.created_at=? AND b.id>?))");
+      values.push(after[0], after[0], after[1]);
+    }
+    return sqlite()
+      .prepare(
+        `SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE ${where.join(" AND ")} ORDER BY ${bookmarkOrder}${limit ? " LIMIT ?" : ""}`,
+      )
+      .all(...values, ...(limit ? [limit] : [])) as Row[];
+  };
+  const primary = term ? bookmarkWhere(owner, options, term) : run();
+  let rows = build(primary);
+  if (term && !rows.length && !after) {
+    const fallback = fuzzyQuery(term, "bookmarks");
+    if (fallback) rows = build(run(fallback));
+  }
+  return rows;
+}
+export function listBookmarks(owner: string, query = ""): Bookmark[] {
+  return queryBookmarks(owner, { query }).map(expose);
+}
+export function listBookmarkPage(
+  owner: string,
+  options: BookmarkQuery & { limit: number; after?: string | null },
+): Page<Bookmark> {
+  const cursor = decodeCursor(options.after ?? null, ["number", "string"]);
+  const rows = queryBookmarks(owner, options, options.limit + 1, cursor);
+  const items = rows.slice(0, options.limit);
+  const last = items[items.length - 1];
+  return {
+    items: items.map(expose),
+    next:
+      rows.length > options.limit && last
+        ? encodeCursor([last.created_at, last.id])
+        : null,
+  };
+}
+export function bookmarkSummary(owner: string, options: BookmarkQuery) {
+  const term = (options.query || "").trim().slice(0, 300);
+  const count = (search?: string, match?: string) => {
+    const { where, values } = bookmarkWhere(owner, options, search);
+    if (match !== undefined) {
+      where.push(
+        "b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?)",
+      );
+      values.push(match);
+    }
+    return (
+      sqlite()
+        .prepare(
+          `SELECT COUNT(*) AS n FROM bookmarks b WHERE ${where.join(" AND ")}`,
+        )
+        .get(...values) as { n: number }
+    ).n;
+  };
+  let total = count(term || undefined);
+  if (term && !total) {
+    const fallback = fuzzyQuery(term, "bookmarks");
+    if (fallback) total = count(undefined, fallback);
+  }
+  const collections = (
+    sqlite()
+      .prepare(
+        "SELECT DISTINCT collection FROM bookmarks WHERE owner_id=? AND collection<>''",
+      )
+      .all(owner) as { collection: string }[]
+  )
+    .map((row) => row.collection)
+    .sort();
+  return { total, collections };
 }
 async function metadata(url: string) {
   const assets: { key: string; mime: string }[] = [];
