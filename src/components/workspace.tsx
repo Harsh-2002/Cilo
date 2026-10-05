@@ -63,9 +63,10 @@ import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
 import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
-import { BookmarksPanel } from "./bookmarks-panel";
-import { OverviewPanel } from "./overview-panel";
-import { TasksPanel } from "./tasks-panel";
+import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
+import { OverviewPanel, prefetchOverview } from "./overview-panel";
+import { TasksPanel, prefetchTasks } from "./tasks-panel";
+import { sectionCache } from "@/lib/section-cache";
 
 export function Workspace({
   owner,
@@ -85,6 +86,8 @@ export function Workspace({
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("updated");
+  const [listScope, setListScope] = useState("");
+  const loadedNotes = useRef<NoteSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -143,7 +146,10 @@ export function Workspace({
         api<Tag[]>("tags"),
       ]);
       if (seq === loadSequence.current) {
-        setNotes(list.slice(0, 60));
+        const loaded = list.slice(0, 60);
+        loadedNotes.current = loaded;
+        setNotes(loaded);
+        setListScope(`${view}|${tag}`);
         setHasMore(list.length > 60);
         setMoreError("");
         setLoadingMore(false);
@@ -156,7 +162,8 @@ export function Workspace({
     }
   }, [view, tag, search, sort]);
   const loadMore = async () => {
-    if (loadingMore || loading || !hasMore) return;
+    if (loadingMore || loading || !hasMore || listScope !== `${view}|${tag}`)
+      return;
     const seq = loadSequence.current;
     setLoadingMore(true);
     setMoreError("");
@@ -191,6 +198,39 @@ export function Workspace({
     }, 0);
     return () => clearTimeout(timer);
   }, [load]);
+  useEffect(() => {
+    if (listScope !== `${view}|${tag}` || search || loading) return;
+    // A list that no longer matches the last server copy was edited locally, so other cached sections are stale.
+    if (notes !== loadedNotes.current) sectionCache.clear("notes:", "overview");
+    sectionCache.set(`notes:${listScope}|${sort}`, { notes, hasMore });
+  }, [notes, hasMore, listScope, view, tag, search, sort, loading]);
+  useEffect(() => {
+    const warm = () =>
+      void Promise.allSettled([
+        prefetchOverview(),
+        prefetchTasks(),
+        prefetchBookmarks(),
+        ...["all", "favorites", "templates", "trash"].map(async (name) => {
+          const key = `notes:${name}||updated`;
+          if (sectionCache.get(key)) return;
+          const list = await api<NoteSummary[]>(
+            `notes?${new URLSearchParams({ view: name, sort: "updated", q: "", limit: "61", preview: "1" })}`,
+          );
+          if (!sectionCache.get(key))
+            sectionCache.set(key, {
+              notes: list.slice(0, 60),
+              hasMore: list.length > 60,
+            });
+        }),
+      ]);
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(warm, { timeout: 3000 })
+      : window.setTimeout(warm, 1200);
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else clearTimeout(idle);
+    };
+  }, []);
   const onSaved = useCallback((note: Note) => {
     setNotes((previous) =>
       previous.map((n) => (n.id === note.id ? { ...n, ...note } : n)),
@@ -574,6 +614,16 @@ export function Workspace({
         : view === "templates"
           ? "Templates"
           : "All notes";
+  const scope = `${view}|${tag}`;
+  const cachedList = search
+    ? undefined
+    : sectionCache.get<{ notes: NoteSummary[]; hasMore: boolean }>(
+        `notes:${scope}|${sort}`,
+      );
+  const listReady = listScope === scope;
+  const shownNotes = listReady ? notes : cachedList?.notes;
+  const shownHasMore = listReady ? hasMore : !!cachedList?.hasMore;
+  const rows = shownNotes ?? [];
   return (
     <main
       className={`workspace ${active ? "has-note" : ""} ${sidebar ? "" : "rail-hidden"}`}
@@ -643,9 +693,11 @@ export function Workspace({
                   <Menu size={18} />
                 </Button>
                 <h1>{title}</h1>
-                <span className="note-count">
-                  {notes.length}
-                  {hasMore ? "+" : ""}
+                <span
+                  className={`note-count ${shownNotes ? "" : "is-pending"}`}
+                >
+                  {rows.length}
+                  {shownHasMore ? "+" : ""}
                 </span>
               </div>
               {view === "templates" && (
@@ -702,20 +754,20 @@ export function Workspace({
                     Try again
                   </Button>
                 </div>
-              ) : loading && !notes.length ? (
+              ) : shownNotes === undefined ? (
                 <div
                   className="list-skeleton"
                   role="status"
                   aria-label="Loading notes"
                 >
-                  {[1, 2, 3].map((n) => (
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
                     <div key={n}>
                       <span />
                       <span />
                     </div>
                   ))}
                 </div>
-              ) : !notes.length ? (
+              ) : !rows.length ? (
                 <div className="list-empty">
                   <FileText size={25} />
                   <h2>
@@ -748,7 +800,7 @@ export function Workspace({
                   )}
                 </div>
               ) : (
-                notes.map((note) => (
+                rows.map((note) => (
                   <button
                     className={`note-list-item ${active?.id === note.id ? "selected" : ""}`}
                     key={note.id}
@@ -782,7 +834,7 @@ export function Workspace({
                   </button>
                 ))
               )}
-              {!error && hasMore && (
+              {!error && shownHasMore && (
                 <div className="note-list-more">
                   {moreError && <p role="alert">{moreError}</p>}
                   <Button
@@ -907,6 +959,7 @@ export function Workspace({
         onSignOut={logout}
         beforeAction={() => guard.current()}
         onImported={async () => {
+          sectionCache.clear();
           await load();
           if (view === "tasks" || view === "bookmarks")
             setGeneration((value) => value + 1);

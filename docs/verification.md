@@ -226,3 +226,13 @@ Automated checks: round trips at empty, one-byte, chunk-boundary and multi-chunk
 A bug found along the way: `fileResponse` became asynchronous and was returned from inside the route's `try` block without `await`, so a damaged file would have bypassed the route's error handling; the route test now covers it.
 
 Limits: the benchmark measures server functions and streaming, not browser decoding or real network behavior; a response that has started streaming cannot change status, so damage found midway aborts it; uploads, bundle export/import and the per-object step of backups still hold whole files in memory (bounded by the 100 MiB upload ceiling); and conversion of legacy files has been verified on synthetic data and the local adapter, not on the owner's real library or a production S3 service.
+
+## Section switching without layout shift — 2026-10-05
+
+Reported: switching sections briefly showed the previous section's data under the new heading, and content then jumped into place. Reproduced on the 10,002-note, 5,000-task, 5,000-bookmark disposable library: the first frame after clicking Templates showed the Notes list and Trash showed the Templates list; Tasks and Bookmarks passed through a three-row skeleton with a footer that jumped (layout shift 0.0185 and 0.0141) and Overview used a skeleton whose card heights did not match the real layout.
+
+Fixes: lists carry the section they were loaded for and are not drawn for another section; a memory-only cache shows last-known rows, counts and the Overview snapshot on revisit; sections are warmed shortly after startup; skeletons match real row and card sizes; the footer and count chips render only when data exists or reserve their width.
+
+Measured with the browser layout-shift API in Chromium at 1440 and 390 px across Tasks, Bookmarks, Overview, Favorites, Templates, Trash and Notes, first visit and revisit: 0.0000 to 0.0001 per switch. A cold first visit with the task API delayed 800 ms measured 0.0001 (desktop) and 0.0000 (mobile). Firefox and WebKit do not implement the layout-shift API, so their evidence is behavioral: the capture harness now checks in Chromium, Firefox and WebKit that the first frame after each section click never contains another section's rows and, where the API exists, that the shift stays under 0.02. All three engines passed. The full suite passed with 81 tests.
+
+Limits: warm data can be briefly out of date until the background refresh returns, and the cache does not cover Settings, the editor pane or Journal's daily-note creation; the measurement is a synthetic library on one VM and does not include physical-device scroll or touch behavior.

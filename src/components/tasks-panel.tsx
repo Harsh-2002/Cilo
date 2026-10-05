@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import type { Page, Task } from "@/lib/types";
+import { sectionCache } from "@/lib/section-cache";
 import { formatDate, localDate, type Recurrence } from "@/lib/dates";
 import { DatePicker } from "./date-picker";
 import { NotePicker } from "./note-picker";
@@ -40,6 +41,17 @@ import { useConfirm } from "./confirm-provider";
 import type { CapturedItem } from "./quick-capture";
 
 type TaskCounts = { open: number; completed: number };
+type TaskList = { items: Task[]; next: string | null };
+const listKey = (filter: string) => `tasks:list:${filter}`;
+export async function prefetchTasks() {
+  if (sectionCache.get(listKey("open"))) return;
+  const [first, counts] = await Promise.all([
+    api<Page<Task>>(`tasks?${taskParams("open", "")}`),
+    api<TaskCounts>("tasks?summary=1"),
+  ]);
+  sectionCache.set(listKey("open"), { items: first.items, next: first.next });
+  sectionCache.set("tasks:counts", counts);
+}
 const taskParams = (filter: string, query: string) =>
   new URLSearchParams({
     filter,
@@ -72,9 +84,13 @@ export function TasksPanel({
   focusCreate?: boolean;
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [next, setNext] = useState<string | null>(null);
-  const [counts, setCounts] = useState({ open: 0, completed: 0 });
+  const warm = sectionCache.get<TaskList>(listKey(initialFilter));
+  const [tasks, setTasks] = useState<Task[]>(warm?.items ?? []);
+  const [next, setNext] = useState<string | null>(warm?.next ?? null);
+  const [listFilter, setListFilter] = useState(warm ? initialFilter : "");
+  const [counts, setCounts] = useState<TaskCounts | null>(
+    () => sectionCache.get<TaskCounts>("tasks:counts") ?? null,
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState("");
   const [query, setQuery] = useState(initialQuery);
@@ -89,10 +105,11 @@ export function TasksPanel({
     id: string | null;
     title: string | null;
   }>({ id: null, title: null });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!warm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const invalidate = () => sectionCache.clear("tasks:list:", "overview");
   const confirm = useConfirm();
   const refreshCounts = useCallback(async () => {
     try {
@@ -133,6 +150,7 @@ export function TasksPanel({
         if (signal?.aborted) return;
         setTasks(first.items);
         setNext(first.next);
+        setListFilter(filter);
         setCounts(summary);
         setError("");
       } catch (e) {
@@ -154,6 +172,11 @@ export function TasksPanel({
       controller.abort();
     };
   }, [load, query]);
+  useEffect(() => {
+    if (listFilter === filter && !query.trim() && !loading)
+      sectionCache.set(listKey(filter), { items: tasks, next });
+    if (counts) sectionCache.set("tasks:counts", counts);
+  }, [tasks, next, counts, listFilter, filter, query, loading]);
   async function loadMore() {
     if (!next || loadingMore) return;
     const started = view;
@@ -217,6 +240,7 @@ export function TasksPanel({
         method: "POST",
         body: JSON.stringify({ title: title.trim() }),
       });
+      invalidate();
       if (filter === "open" && !query.trim() && next === null)
         setTasks((items) => mergeTasks(items, [task]));
       setTitle("");
@@ -241,6 +265,7 @@ export function TasksPanel({
         method: "PATCH",
         body: JSON.stringify({ revision: task.revision, ...change }),
       });
+      invalidate();
       setTasks((items) => mergeTasks(items, [updated]));
       if (change.completed && task.recurrence) await load();
       else void refreshCounts();
@@ -248,7 +273,13 @@ export function TasksPanel({
     });
   }
   const today = localDate();
-  const visible = tasks
+  const cached = query.trim()
+    ? undefined
+    : sectionCache.get<TaskList>(listKey(filter));
+  const ready = listFilter === filter;
+  const rows = ready ? tasks : cached?.items;
+  const hasMore = ready ? next !== null : !!cached?.next;
+  const visible = (rows ?? [])
     .filter(
       (t) =>
         (filter === "completed"
@@ -314,7 +345,7 @@ export function TasksPanel({
                 disabled={busy || !!editing}
                 onClick={() => setFilter("open")}
               >
-                Open<span>{counts.open}</span>
+                Open<span>{counts?.open}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -338,7 +369,7 @@ export function TasksPanel({
                 disabled={busy || !!editing}
                 onClick={() => setFilter("completed")}
               >
-                Completed<span>{counts.completed}</span>
+                Completed<span>{counts?.completed}</span>
               </Button>
             </div>
             <div className="task-search">
@@ -364,16 +395,16 @@ export function TasksPanel({
               </Button>
             </div>
           )}
-          {loading && !tasks.length ? (
+          {rows === undefined && !error ? (
             <div
               className="task-skeleton"
               role="status"
               aria-label="Loading tasks"
               aria-busy="true"
             >
-              <span />
-              <span />
-              <span />
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <span key={n} />
+              ))}
             </div>
           ) : visible.length ? (
             <ul
@@ -566,6 +597,7 @@ export function TasksPanel({
                                     revision: task.revision,
                                   }),
                                 });
+                                invalidate();
                                 setTasks((items) =>
                                   items.filter((item) => item.id !== task.id),
                                 );
@@ -601,7 +633,7 @@ export function TasksPanel({
                       ? "Nothing due today."
                       : filter === "upcoming"
                         ? "Nothing scheduled ahead."
-                        : counts.open + counts.completed
+                        : counts && counts.open + counts.completed
                           ? "Everything is checked off."
                           : "Make room for your next step."}
               </h3>
@@ -616,7 +648,7 @@ export function TasksPanel({
               </p>
             </div>
           )}
-          {next !== null && (
+          {hasMore && (
             <div className="list-continuation">
               <Button
                 variant="ghost"
@@ -627,10 +659,14 @@ export function TasksPanel({
               </Button>
             </div>
           )}
-          <p className="task-summary" aria-live="polite">
-            {counts.open} open · {counts.completed} completed
-            {busy && <Loader2 size={13} className="animate-spin" />}
-          </p>
+          {rows !== undefined && (
+            <p className="task-summary" aria-live="polite">
+              {counts
+                ? `${counts.open} open · ${counts.completed} completed`
+                : "\u00a0"}
+              {busy && <Loader2 size={13} className="animate-spin" />}
+            </p>
+          )}
         </div>
       </div>
     </section>

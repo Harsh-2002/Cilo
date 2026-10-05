@@ -18,7 +18,23 @@ import type { Overview } from "@/lib/types";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
+import { sectionCache } from "@/lib/section-cache";
 
+const snapshotKey = "overview:snapshot";
+const freshSnapshot = () => {
+  const cached = sectionCache.get<{ date: string; data: Overview }>(
+    snapshotKey,
+  );
+  return cached?.date === localDate() ? cached.data : null;
+};
+export async function prefetchOverview() {
+  if (freshSnapshot()) return;
+  const date = localDate();
+  sectionCache.set(snapshotKey, {
+    date,
+    data: await api<Overview>(`overview?date=${date}`),
+  });
+}
 export function OverviewPanel({
   onNavigation,
   onOpenNote,
@@ -30,9 +46,9 @@ export function OverviewPanel({
   onSection: (section: "all" | "tasks" | "bookmarks", query?: string) => void;
   onCreate: (kind: "note" | "task" | "bookmark" | "daily") => void;
 }) {
-  const [data, setData] = useState<Overview | null>(null);
+  const [data, setData] = useState<Overview | null>(freshSnapshot);
   const [now, setNow] = useState<Date | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !freshSnapshot());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -42,10 +58,12 @@ export function OverviewPanel({
     request.current = controller;
     setLoading(true);
     try {
-      const snapshot = await api<Overview>(`overview?date=${localDate()}`, {
+      const date = localDate();
+      const snapshot = await api<Overview>(`overview?date=${date}`, {
         signal: controller.signal,
       });
       if (!controller.signal.aborted) {
+        sectionCache.set(snapshotKey, { date, data: snapshot });
         setData(snapshot);
         setError("");
       }
@@ -100,6 +118,7 @@ export function OverviewPanel({
         method: "PATCH",
         body: JSON.stringify({ revision: task.revision, completed: true }),
       });
+      sectionCache.clear("tasks:");
       await refresh();
       toast.success(
         task.recurrence
@@ -214,7 +233,10 @@ export function OverviewPanel({
                     aria-hidden="true"
                   >
                     <div />
-                    {[0, 1, 2].map((row) => (
+                    {Array.from(
+                      { length: panel === "overview-tasks" ? 5 : 3 },
+                      (_, row) => row,
+                    ).map((row) => (
                       <div key={row}>
                         <span />
                         <span />

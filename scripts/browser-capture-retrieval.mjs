@@ -427,6 +427,54 @@ export default async function verifyCaptureRetrieval(
     listSizes.length >= 4 && listSizes.every((size) => size < 150_000),
     `List responses were not bounded: ${listSizes.join(",")}`,
   );
+  await page.evaluate(() => {
+    window.__shifts = 0;
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) window.__shifts += entry.value;
+      }).observe({ type: "layout-shift", buffered: false });
+    } catch {}
+  });
+  const firstRow = () =>
+    page.evaluate(
+      () =>
+        document.querySelector(".task-row,.bookmark-card,.note-list-item")
+          ?.textContent || "",
+    );
+  let previous = "";
+  for (const section of [
+    "Tasks",
+    "Bookmarks",
+    "Templates",
+    "Trash",
+    "Favorites",
+    "Notes",
+    "Tasks",
+    "Notes",
+  ]) {
+    await page.evaluate(() => (window.__shifts = 0));
+    await page
+      .getByRole("button", { name: section, exact: true })
+      .first()
+      .click();
+    await page.waitForTimeout(20);
+    const early = await firstRow();
+    await page.waitForTimeout(900);
+    const settled = await firstRow();
+    check(
+      !early || early === settled,
+      `${section} briefly showed another section's rows: "${early.slice(0, 40)}" then "${settled.slice(0, 40)}"`,
+    );
+    check(
+      !previous || !settled || settled !== previous,
+      `${section} still shows the previous section's rows`,
+    );
+    check(
+      (await page.evaluate(() => window.__shifts)) < 0.02,
+      `${section} layout shifted while loading`,
+    );
+    previous = settled;
+  }
   await page.reload();
   const saved = await (
     await page.request.get(

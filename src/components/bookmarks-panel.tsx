@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import type { Bookmark, Page } from "@/lib/types";
+import { sectionCache } from "@/lib/section-cache";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -54,6 +55,28 @@ function PreviewImage({
   );
 }
 type BookmarkSummary = { total: number; collections: string[] };
+type BookmarkList = {
+  items: Bookmark[];
+  next: string | null;
+  total: number | null;
+};
+const scopeOf = (favorites: boolean, collection: string) =>
+  `${favorites}|${collection}`;
+const listKey = (scope: string) => `bookmarks:list:${scope}`;
+export async function prefetchBookmarks() {
+  const key = listKey(scopeOf(false, "all"));
+  if (sectionCache.get(key)) return;
+  const [first, counts] = await Promise.all([
+    api<Page<Bookmark>>(`bookmarks?${bookmarkParams("", false, "all")}`),
+    api<BookmarkSummary>(`bookmarks?${bookmarkParams("", false, "all", true)}`),
+  ]);
+  sectionCache.set(key, {
+    items: first.items,
+    next: first.next,
+    total: counts.total,
+  });
+  sectionCache.set("bookmarks:collections", counts.collections);
+}
 const bookmarkParams = (
   query: string,
   favorites: boolean,
@@ -91,12 +114,14 @@ export function BookmarksPanel({
   focusCreate?: boolean;
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [next, setNext] = useState<string | null>(null);
-  const [summary, setSummary] = useState<BookmarkSummary>({
-    total: 0,
-    collections: [],
-  });
+  const warm = sectionCache.get<BookmarkList>(listKey(scopeOf(false, "all")));
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(warm?.items ?? []);
+  const [next, setNext] = useState<string | null>(warm?.next ?? null);
+  const [listScope, setListScope] = useState(warm ? scopeOf(false, "all") : "");
+  const [total, setTotal] = useState<number | null>(warm?.total ?? null);
+  const [collections, setCollections] = useState<string[]>(
+    () => sectionCache.get<string[]>("bookmarks:collections") ?? [],
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [url, setUrl] = useState("");
   const [newCollection, setNewCollection] = useState("");
@@ -104,20 +129,21 @@ export function BookmarksPanel({
   const [collection, setCollection] = useState("all");
   const [favorites, setFavorites] = useState(false);
   const [editing, setEditing] = useState<Bookmark | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!warm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const unfiltered = !query.trim() && !favorites && collection === "all";
+  const invalidate = () => sectionCache.clear("bookmarks:list:", "overview");
   const refreshSummary = useCallback(async () => {
     try {
-      setSummary(
-        await api<BookmarkSummary>(
-          `bookmarks?${bookmarkParams(query, favorites, collection, true)}`,
-        ),
+      const counts = await api<BookmarkSummary>(
+        `bookmarks?${bookmarkParams(query, favorites, collection, true)}`,
       );
+      setTotal(counts.total);
+      setCollections(counts.collections);
     } catch {}
   }, [query, favorites, collection]);
   useEffect(() => {
@@ -166,7 +192,9 @@ export function BookmarksPanel({
         if (signal?.aborted) return;
         setBookmarks(first.items);
         setNext(first.next);
-        setSummary(counts);
+        setListScope(scopeOf(favorites, collection));
+        setTotal(counts.total);
+        setCollections(counts.collections);
         setError("");
       } catch (e) {
         if (!signal?.aborted) setError((e as Error).message);
@@ -187,6 +215,25 @@ export function BookmarksPanel({
       controller.abort();
     };
   }, [load, query]);
+  useEffect(() => {
+    if (
+      listScope === scopeOf(favorites, collection) &&
+      !query.trim() &&
+      !loading
+    )
+      sectionCache.set(listKey(listScope), { items: bookmarks, next, total });
+    sectionCache.set("bookmarks:collections", collections);
+  }, [
+    bookmarks,
+    next,
+    total,
+    collections,
+    listScope,
+    favorites,
+    collection,
+    query,
+    loading,
+  ]);
   async function loadMore() {
     if (!next || loadingMore) return;
     const started = view;
@@ -242,6 +289,7 @@ export function BookmarksPanel({
           collection: newCollection.trim(),
         }),
       });
+      invalidate();
       setBookmarks((list) => mergeBookmarks(list, [saved]));
       void refreshSummary();
       setUrl("");
@@ -271,14 +319,22 @@ export function BookmarksPanel({
         method: "PATCH",
         body: JSON.stringify({ revision: item.revision, ...changes }),
       });
+      invalidate();
       setBookmarks((list) => mergeBookmarks(list, [updated]));
       if (query.trim()) await load();
       else void refreshSummary();
       if (changes.title !== undefined) setEditing(null);
     });
   }
-  const collections = summary.collections;
-  const visible = bookmarks.filter(
+  const scope = scopeOf(favorites, collection);
+  const cached = query.trim()
+    ? undefined
+    : sectionCache.get<BookmarkList>(listKey(scope));
+  const ready = listScope === scope;
+  const rows = ready ? bookmarks : cached?.items;
+  const hasMore = ready ? next !== null : !!cached?.next;
+  const shownTotal = ready ? total : (cached?.total ?? null);
+  const visible = (rows ?? []).filter(
     (b) =>
       (!favorites || b.favorite) &&
       (collection === "all" ||
@@ -412,16 +468,16 @@ export function BookmarksPanel({
               </Button>
             </div>
           )}
-          {loading && !bookmarks.length ? (
+          {rows === undefined && !error ? (
             <div
-              className="task-skeleton"
+              className="bookmark-grid bookmark-skeleton"
               role="status"
               aria-label="Loading bookmarks"
               aria-busy="true"
             >
-              <span />
-              <span />
-              <span />
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <span key={n} />
+              ))}
             </div>
           ) : visible.length ? (
             <ul
@@ -599,6 +655,7 @@ export function BookmarksPanel({
                                       }),
                                     },
                                   );
+                                  invalidate();
                                   setBookmarks((list) =>
                                     mergeBookmarks(list, [refreshed]),
                                   );
@@ -626,6 +683,7 @@ export function BookmarksPanel({
                                           revision: item.revision,
                                         }),
                                       });
+                                      invalidate();
                                       setBookmarks((list) =>
                                         list.filter((b) => b.id !== item.id),
                                       );
@@ -671,7 +729,7 @@ export function BookmarksPanel({
               </p>
             </div>
           )}
-          {next !== null && (
+          {hasMore && (
             <div className="list-continuation">
               <Button
                 variant="ghost"
@@ -682,10 +740,14 @@ export function BookmarksPanel({
               </Button>
             </div>
           )}
-          <p className="task-summary" aria-live="polite">
-            {summary.total} {summary.total === 1 ? "bookmark" : "bookmarks"}
-            {busy && <Loader2 size={13} className="animate-spin" />}
-          </p>
+          {rows !== undefined && (
+            <p className="task-summary" aria-live="polite">
+              {shownTotal === null
+                ? "\u00a0"
+                : `${shownTotal} ${shownTotal === 1 ? "bookmark" : "bookmarks"}`}
+              {busy && <Loader2 size={13} className="animate-spin" />}
+            </p>
+          )}
         </div>
       </div>
     </section>
