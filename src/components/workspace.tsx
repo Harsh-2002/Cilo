@@ -20,6 +20,7 @@ import {
   Bookmark,
   CalendarDays,
   LayoutTemplate,
+  LayoutDashboard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Mark } from "./auth-screen";
@@ -55,6 +56,7 @@ import { TagColorPicker } from "./tag-color-picker";
 import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
 import { BookmarksPanel } from "./bookmarks-panel";
+import { OverviewPanel } from "./overview-panel";
 import { TasksPanel } from "./tasks-panel";
 
 export function Workspace({
@@ -69,7 +71,7 @@ export function Workspace({
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [active, setActive] = useState<Note | null>(null);
-  const [view, setView] = useState("all");
+  const [view, setView] = useState("overview");
   const [tag, setTag] = useState("");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -198,6 +200,7 @@ export function Workspace({
   };
   const filter = async (next: string, tagId = "") => {
     if (!(await guard.current())) return false;
+    setSectionTarget({ query: "" });
     setView(next);
     setTag(tagId);
     setActive(null);
@@ -373,6 +376,14 @@ export function Workspace({
         Search<span className="nav-shortcut">⌘ K</span>
       </button>
       <nav aria-label="Notes navigation">
+        <button
+          className={`nav-item ${view === "overview" ? "active" : ""}`}
+          aria-current={view === "overview" ? "page" : undefined}
+          onClick={() => void filter("overview")}
+        >
+          <LayoutDashboard size={16} />
+          Overview
+        </button>
         <button className="nav-item" onClick={() => void today()}>
           <CalendarDays size={16} />
           Today
@@ -515,7 +526,23 @@ export function Workspace({
           {navigation}
         </SheetContent>
       </Sheet>
-      {view === "tasks" ? (
+      {view === "overview" ? (
+        <OverviewPanel
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+          onOpenNote={navigateNote}
+          onSection={(section, query = "") => {
+            void filter(section).then((changed) => {
+              if (changed) {
+                setSectionTarget({ query });
+                setGeneration((n) => n + 1);
+              }
+            });
+          }}
+          onCreate={(kind) => void searchCommand(kind)}
+        />
+      ) : view === "tasks" ? (
         <TasksPanel
           key={generation}
           registerGuard={registerGuard}

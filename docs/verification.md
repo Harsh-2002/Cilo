@@ -103,6 +103,20 @@ The exported functions in `scripts/browser-regression.mjs`, `scripts/browser-onb
 
 The backend test suite independently uses fresh temporary directories. Test credentials, MFA secrets, keys, data, generated screenshots, and browser session files are excluded from Git.
 
+## Overview verification — October 5, 2026
+
+Overview was verified against a standalone production build with a fresh disposable `Review Owner` on port 3004 and local encrypted storage. The regular host’s data and storage configuration were not used for fixture checks.
+
+- **47 automated tests passed**, including five new Overview assertions/subtests covering private authentication, validated calendar dates and no-store responses, owner isolation, bounded recents, exclusion of templates/trash, date-aware counts and task ordering, and updates after note edits and recurring-task completion.
+- **56 functional Chromium assertions passed**: 22 Overview interaction checks, one visible-tab automatic-refresh check, two hidden-tab/return checks, and 31 existing task/bookmark/note regression checks. Quick actions, exact note opening, task-title navigation, recurring completion, empty states, refresh failure/retry, reload persistence, unsaved drafts, revision conflicts, and public sharing/revocation were exercised.
+- **Eight Overview width/theme combinations passed** at 1440×900, 768×844, 390×844, and 320×844 in light and dark. No horizontal document overflow, visible native select, or axe WCAG A/AA violation was detected. Sixteen validated screenshots covered the first viewport and lower inner-scroll content, including a long unbroken title. Screenshots remain ignored by Git.
+- Type checking, lint, formatting, production build, bundled recovery CLI/private-data tracing guard, and `git diff --check` passed. No dependencies or schema migrations were added.
+- One Impeccable detector pass returned no findings. Independent finish review identified a tablet layout mismatch and a mobile completion hit area below 44px. Both were corrected in one batch; the rebuilt eight-state audit additionally verified the intended column counts and completion hit area. The reviewer scored both listed fixes resolved and returned **ship** for that correction pass. The documenter confirmed the inherited design fit and preserved `DESIGN.md` and its sidecar.
+
+The earlier connected-workspace and live RustFS checks above remain historical evidence for their own scope. This Overview pass does not claim to rerun the entire earlier browser matrix or certify additional browser engines/devices.
+
+The Overview browser harness is `scripts/browser-overview.mjs`. It accepts a Playwright page and phases `functional`, `polling`, `hidden`, and `responsive`. Functional checks begin with empty notes/tasks/bookmarks; responsive checks accept `theme`, `widths`, `axePath`, and `captureDirectory`. It requires the disposable owner/port guard and must never target user data. Use a fresh artifact directory when replacing the production test build: reusing a runtime directory can retain previous Next.js route-cache entries.
+
 ## Remaining verification limits
 
 - Browser coverage here is Chromium. Firefox, Safari/WebKit, physical iOS/Android, software keyboards, assistive technology and PWA installation on physical devices remain unverified.

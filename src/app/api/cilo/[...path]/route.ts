@@ -39,6 +39,7 @@ import {
   restoreVersion,
 } from "@/lib/server/note-history";
 import { syncNoteLinks, connectionsFor } from "@/lib/server/connections";
+import { workspaceOverview } from "@/lib/server/overview";
 import { searchWorkspace } from "@/lib/server/unified-search";
 import {
   ensureTemplates,
@@ -283,6 +284,10 @@ async function handle(
     });
     if (!session || !owner || session.user.id !== owner.id)
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "overview" && method === "GET" && !id) {
+      const today = calendarDate.parse(url.searchParams.get("date"));
+      return response(workspaceOverview(owner.id, today));
+    }
     if (area === "search" && method === "GET")
       return response(
         searchWorkspace(

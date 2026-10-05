@@ -86,3 +86,14 @@ export type Connections = {
   tasks: { id: string; title: string; completed: boolean }[];
   bookmarks: { id: string; title: string; url: string }[];
 };
+
+export type Overview = {
+  counts: { open: number; today: number; overdue: number };
+  tasks: Pick<Task, "id" | "title" | "revision" | "dueDate" | "recurrence">[];
+  notes: Pick<Note, "id" | "title" | "updatedAt">[];
+  bookmarks: Pick<
+    Bookmark,
+    "id" | "title" | "url" | "description" | "siteName" | "updatedAt"
+  >[];
+  refreshedAt: number;
+};

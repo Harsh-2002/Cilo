@@ -34,6 +34,12 @@ The viewport and single scrolling wrapper follow [BlockNote's mobile keyboard gu
 
 An ordered migration adds publications and publication files. Publishing checks the expected note revision, copies only referenced note-owned attachments, rewrites their URLs to token-scoped public endpoints, and commits the snapshot and file records together. Private drawing scene data is omitted; readers see its preview. Public APIs return no owner, private note IDs, tags, or draft revisions. Later private edits do not change a publication. Updates preserve its link; revocation deletes the publication and its copies, and a subsequent publication gets a new token. Trashing a note revokes it. Public pages and files are network-only with no persistent service-worker caching.
 
+## Overview
+
+The default Overview reads an authenticated, owner-filtered snapshot from `GET /api/cilo/overview?date=YYYY-MM-DD`. The supplied date is validated and comes from the browser’s local calendar, so due-today and overdue counts follow the owner’s device rather than the server timezone. Drizzle queries inside one SQLite read transaction count all open tasks and return bounded lists of five tasks, five recently edited active notes, and four recent bookmarks. Templates and trashed notes are excluded; document bodies and attachment data are not included.
+
+The client refreshes on mount, window focus, tab visibility return, every 30 seconds while visible, and after inline task completion. Hidden tabs suspend polling and the minute-aligned local clock timer; unmount aborts outstanding snapshot requests. Task mutations use existing expected-revision checks and recurrence transactions. Overview reuses guarded workspace navigation and existing creation flows; it introduces no database tables, persistent preferences, event stream, or dependencies.
+
 ## Search and tags
 
 FTS5 covers note titles, prose, code, and drawing text, with prefix matching and relevance ordering. If the normal query finds no notes, a vocabulary-based fallback finds close spellings (one edit for words of at least four characters, two for words of at least eight, including adjacent transpositions). Short words and exact matches retain their normal behavior. Up to eight terms participate in typo correction. Favorites, tag, and trash filters apply to both paths. This does not extract text from PDFs, images, or videos.

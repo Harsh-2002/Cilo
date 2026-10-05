@@ -43,3 +43,11 @@ Completing a daily, weekly or monthly task creates one next open occurrence with
 Version-two Cilo bundles preserve histories, templates, daily dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
 
 Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications, chosen daily template and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
+
+## Overview
+
+Overview is the first navigation section and the default landing view after signing in. It shows your device’s full local date and year, a clock updated at each minute, open tasks, five recently edited notes, and four recently updated bookmarks. Recent notes exclude templates and trash.
+
+Tasks show the total open count, due-today and overdue counts, and up to five open tasks ordered by due date; undated tasks come last. Complete a task directly from Overview, including recurring tasks. Selecting a task opens Tasks with its title as the search query; selecting a note opens its editor. Bookmark links open the saved website in a new tab. View all clears any previous section search.
+
+Quick actions create a note, focus the task or bookmark creation field, or open today’s daily note. The overview updates after task completion, when returning to the tab or window, and every 30 seconds while visible. Hidden tabs suspend polling and the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.

@@ -9,6 +9,7 @@ export default async function verifyCilo(page, phase) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(base.origin);
   await page.getByRole("button", { name: "Tasks", exact: true }).waitFor();
+  await page.getByRole("button", { name: "All notes", exact: true }).click();
   const passed = [];
   const check = (condition, name) => {
     if (!condition) throw new Error(name);
