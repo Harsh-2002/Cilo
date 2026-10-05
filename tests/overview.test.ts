@@ -91,7 +91,6 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
           .prepare("UPDATE notes SET trashed_at=?,updated_at=? WHERE id=?")
           .run(Date.now(), Date.now(), note.id),
     );
-    await value("templates", "POST", { title: "Excluded template" });
     for (let i = 0; i < 7; i++)
       db()
         .insert(bookmarks)
@@ -129,7 +128,7 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
         });
     }
     await t.test(
-      "caps recents, excludes trash and templates, and sorts by latest edit",
+      "caps recents, excludes trash, and sorts by latest edit",
       async () => {
         const snapshot = await value("overview?date=2026-10-05");
         assert.deepEqual(

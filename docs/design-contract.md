@@ -16,7 +16,7 @@ Onboarding establishes ownership and saves a recovery code. The owner creates or
 
 ## FIRST VIEWPORT
 
-The sidebar places Search above Overview, Favorites, Notes, Journal, Tasks, Bookmarks, Templates, and Trash, with Settings alone at the footer and no avatar or account strip. The Overview leads with live local date and time, quick actions, and task, note, and bookmark widgets; it has no header bar or promotional headline/tagline. Its mobile navigation button remains visible.
+The sidebar places Search above Overview, Favorites, Notes, Journal, Tasks, Bookmarks, and Trash, with Capture pinned last above the footer, with Settings alone at the footer and no avatar or account strip. The Overview leads with live local date and time, quick actions, and task, note, and bookmark widgets; it has no header bar or promotional headline/tagline. Its mobile navigation button remains visible.
 
 In the notes view, desktop uses a 216px navigation rail, 300px searchable list, and fluid editor with a 740px outer writing-surface maximum. Its 44px desktop gutters leave a 652px content measure, with 44px above the title. The title, tags, save state, and note actions stay close to the writing surface. Tablet collapses the rail. Mobile shows the list or editor with a visible back action, 26px writing gutters, and 44px touch targets.
 

@@ -45,11 +45,7 @@ import {
 import { syncNoteLinks, connectionsFor } from "@/lib/server/connections";
 import { workspaceOverview } from "@/lib/server/overview";
 import { searchWorkspace } from "@/lib/server/unified-search";
-import {
-  ensureTemplates,
-  instantiate,
-  dailyNote,
-} from "@/lib/server/templates";
+import { dailyNote } from "@/lib/server/journal";
 import {
   createTask,
   deleteTask,
@@ -290,49 +286,6 @@ async function handle(
             .parse(url.searchParams.get("q") || ""),
         ),
       );
-    if (area === "templates") {
-      ensureTemplates(owner.id);
-      if (method === "GET" && !id)
-        return response(listNotes(new URLSearchParams({ view: "templates" })));
-      if (method === "POST" && !id) {
-        const input = z
-          .object({
-            sourceId: z.string().uuid().optional(),
-            revision: z.number().int().positive().optional(),
-            title: z.string().trim().min(1).max(300),
-          })
-          .parse(await json(request));
-        const source = input.sourceId ? needNote(input.sourceId) : undefined;
-        if (source && source.revision !== input.revision)
-          throw new HttpError(
-            409,
-            "This note changed. Save it before creating a template.",
-          );
-        return response(
-          await instantiate(owner.id, source, {
-            title: input.title,
-            kind: "template",
-          }),
-          201,
-        );
-      }
-      if (method === "POST" && id) {
-        const source = needNote(id);
-        if (source.kind !== "template" || source.trashedAt)
-          throw new HttpError(400, "Choose an available template.");
-        if (action === "daily-default") {
-          database
-            .prepare("UPDATE instance SET daily_template_id=? WHERE id=1")
-            .run(id);
-          return response({ ok: true });
-        }
-        if (action === "instantiate")
-          return response(
-            await instantiate(owner.id, source, { title: source.title }),
-            201,
-          );
-      }
-    }
     if (area === "settings") {
       if (method === "GET") return response(settings());
       if (method === "PATCH") {
@@ -552,12 +505,6 @@ async function handle(
           return response(restoreVersion(id, path[3], input.revision));
         }
       }
-      if (
-        method === "GET" &&
-        !id &&
-        url.searchParams.get("view") === "templates"
-      )
-        ensureTemplates(owner.id);
       if (id && action === "publication") {
         const note = needNote(id);
         if (method === "GET") return response(publicationFor(id));
@@ -1029,12 +976,6 @@ async function handle(
       for (const task of manifest.tasks)
         if (task.recurrence && !task.dueDate)
           throw new HttpError(400, "A repeating task is missing its due date.");
-      if (
-        manifest.notes.some(
-          (note) => note.kind === "template" && note.dailyDate,
-        )
-      )
-        throw new HttpError(400, "A template cannot also be a daily note.");
       const parents = new Map<string, string>();
       const children = new Set<string>();
       for (const task of manifest.tasks) {
@@ -1130,7 +1071,9 @@ async function handle(
           .transaction(() => {
             for (const note of manifest.notes) {
               const parsed = remapDocument(note.document, fileIds, noteIds);
+              const wasTemplate = note.kind === "template";
               const dailyDate =
+                !wasTemplate &&
                 note.dailyDate &&
                 !database
                   .prepare(
@@ -1151,10 +1094,10 @@ async function handle(
                   JSON.stringify(parsed),
                   plainText(parsed.blocks),
                   Number(note.favorite),
-                  note.trashedAt,
+                  wasTemplate ? (note.trashedAt ?? Date.now()) : note.trashedAt,
                   note.createdAt,
                   note.updatedAt,
-                  note.kind,
+                  "note",
                   dailyDate,
                   note.revision,
                   note.editorWidth,

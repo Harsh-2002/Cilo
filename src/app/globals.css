@@ -567,9 +567,24 @@ button:disabled {
 .empty-tags span {
   color: var(--foreground);
 }
-.navigation-footer {
+.navigation-bottom {
   margin-top: auto;
-  padding-top: 20px;
+  padding-top: 16px;
+}
+.navigation-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.navigation-footer .nav-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+.navigation-footer .collapse-sidebar {
+  flex-shrink: 0;
+  margin-left: 0;
 }
 .notes-list {
   display: flex;
@@ -721,11 +736,17 @@ button:disabled {
   margin-right: auto;
 }
 .note-list-item footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 1px 5px;
-  max-width: 65px;
+  padding: 1px 6px;
+  max-width: 84px;
+  min-width: 0;
+}
+.note-list-item footer .tag-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2935,23 +2956,15 @@ button:disabled {
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.history-error,
-.template-form {
+.history-error {
   display: grid;
   gap: 12px;
   font-size: 14px;
 }
-.template-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
-}
 @media (max-width: 767px) {
   .global-search-dialog [data-slot="command-input"],
   .note-picker-popover [data-slot="command-input"],
-  .date-picker-popover input,
-  .template-form input {
+  .date-picker-popover input {
     font-size: 16px;
   }
   .task-schedule-controls > *,

@@ -24,16 +24,15 @@ export function listNotes(
   params: URLSearchParams,
   queryOverride?: string,
 ): NoteSummary[] {
+  const view = params.get("view");
   const where = [
-    params.get("view") === "trash"
-      ? "1=1"
-      : params.get("view") === "templates"
-        ? "n.kind='template'"
-        : "n.kind='note'",
-    params.get("view") === "trash"
-      ? "n.trashed_at IS NOT NULL"
-      : "n.trashed_at IS NULL",
+    view === "trash" ? "1=1" : "n.kind='note'",
+    view === "trash" ? "n.trashed_at IS NOT NULL" : "n.trashed_at IS NULL",
   ];
+  // Journal entries live in their own section, so Notes lists only undated notes.
+  if (view === "journal") where.push("n.daily_date IS NOT NULL");
+  else if (view === "all" && !params.get("tag"))
+    where.push("n.daily_date IS NULL");
   const values: (string | number)[] = [];
   const search = queryOverride ?? ftsQuery(params.get("q") || "");
   if (search) {
@@ -42,7 +41,7 @@ export function listNotes(
     );
     values.push(search);
   }
-  if (params.get("view") === "favorites") where.push("n.favorite=1");
+  if (view === "favorites") where.push("n.favorite=1");
   if (params.get("tag")) {
     where.push(
       "EXISTS (SELECT 1 FROM note_tags WHERE note_id=n.id AND tag_id=?)",
@@ -51,11 +50,13 @@ export function listNotes(
   }
   const order = search
     ? "(SELECT rank FROM notes_fts WHERE rowid=n.rowid AND notes_fts MATCH ?)"
-    : params.get("sort") === "title"
-      ? "n.title COLLATE NOCASE"
-      : params.get("sort") === "created"
-        ? "n.created_at DESC"
-        : "n.updated_at DESC";
+    : view === "journal"
+      ? "n.daily_date DESC"
+      : params.get("sort") === "title"
+        ? "n.title COLLATE NOCASE"
+        : params.get("sort") === "created"
+          ? "n.created_at DESC"
+          : "n.updated_at DESC";
   if (search) values.push(search);
   const bounded = params.has("limit");
   const limit = Math.max(

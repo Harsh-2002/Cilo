@@ -100,7 +100,7 @@ export const notes = sqliteTable(
       .references(() => user.id),
     title: text("title").notNull().default(""),
     document: text("document", { mode: "json" }).$type<Document>().notNull(),
-    kind: text("kind").$type<"note" | "template">().notNull().default("note"),
+    kind: text("kind").$type<"note">().notNull().default("note"),
     dailyDate: text("daily_date"),
     editorWidth: text("editor_width")
       .$type<"standard" | "wide">()
@@ -148,12 +148,6 @@ export const instance = sqliteTable("instance", {
   recoveryHash: text("recovery_hash"),
   theme: text("theme").notNull().default("system"),
   uploadLimit: integer("upload_limit").notNull().default(26214400),
-  templatesSeeded: integer("templates_seeded", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  dailyTemplateId: text("daily_template_id").references(() => notes.id, {
-    onDelete: "set null",
-  }),
 });
 
 export const publications = sqliteTable("publications", {

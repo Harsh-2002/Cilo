@@ -21,7 +21,6 @@ import {
   StickyNote,
   SquareCheckBig,
   LibraryBig,
-  NotebookTabs,
   Trash,
   Inbox,
 } from "lucide-react";
@@ -67,6 +66,8 @@ import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
 import { OverviewPanel, prefetchOverview } from "./overview-panel";
 import { TasksPanel, prefetchTasks } from "./tasks-panel";
 import { sectionCache } from "@/lib/section-cache";
+import { matches, shortcuts } from "@/lib/shortcuts";
+import { Shortcut, ShortcutKeys } from "./shortcut";
 
 export function Workspace({
   owner,
@@ -211,7 +212,7 @@ export function Workspace({
         prefetchOverview(),
         prefetchTasks(),
         prefetchBookmarks(),
-        ...["all", "favorites", "templates", "trash"].map(async (name) => {
+        ...["all", "favorites", "journal", "trash"].map(async (name) => {
           const key = `notes:${name}||updated`;
           if (sectionCache.get(key)) return;
           const list = await api<NoteSummary[]>(
@@ -256,24 +257,21 @@ export function Workspace({
   }
   const adopt = (note: Note) => {
     setFocusTerms([]);
-    setView(note.kind === "template" ? "templates" : "all");
+    setView(note.dailyDate ? "journal" : "all");
     setTag("");
     setQuery("");
     setActive(note);
     setGeneration((n) => n + 1);
     void load();
   };
-  async function create(template = false) {
+  async function create() {
     if (!(await guard.current())) {
       toast.error("Save your current edits before creating a note.");
       return false;
     }
     try {
-      const note = await api<Note>(template ? "templates" : "notes", {
-        method: "POST",
-        body: template ? JSON.stringify({ title: "Untitled template" }) : "{}",
-      });
-      setView(template ? "templates" : "all");
+      const note = await api<Note>("notes", { method: "POST", body: "{}" });
+      setView("all");
       setTag("");
       setQuery("");
       setActive(note);
@@ -318,7 +316,7 @@ export function Workspace({
           );
           return false;
         }
-        setView(note.kind === "template" ? "templates" : "all");
+        setView(note.dailyDate ? "journal" : "all");
         setTag("");
         setQuery("");
         setActive(note);
@@ -398,16 +396,16 @@ export function Workspace({
   }
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (matches(e, shortcuts.search)) {
         e.preventDefault();
         setDrawer(false);
         globalSearch.current?.toggle();
       }
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "n") {
+      if (matches(e, shortcuts.newNote)) {
         e.preventDefault();
         void create();
       }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "Enter") {
+      if (matches(e, shortcuts.capture)) {
         if (
           document.querySelector(
             '[data-slot="dialog-content"],[data-slot="alert-dialog-content"]',
@@ -466,19 +464,11 @@ export function Workspace({
       <header className="workspace-brand">
         <Mark small />
         <span>Cilo</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Collapse sidebar"
-          className="collapse-sidebar"
-          onClick={() => setSidebar(false)}
-        >
-          <PanelLeftClose size={16} />
-        </Button>
       </header>
       <Button className="new-note" onClick={() => void create()}>
         <Plus size={16} />
-        New note<span>⌥ N</span>
+        New note
+        <Shortcut chord={shortcuts.newNote} />
       </Button>
       <button
         className="nav-item workspace-search"
@@ -489,7 +479,8 @@ export function Workspace({
         }}
       >
         <Search size={16} />
-        Search<span className="nav-shortcut">⌘ K</span>
+        Search
+        <Shortcut chord={shortcuts.search} className="nav-shortcut" />
       </button>
       <nav aria-label="Notes navigation">
         {[
@@ -499,46 +490,19 @@ export function Workspace({
           { id: "journal", label: "Journal", Icon: NotebookPen },
           { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
           { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
-          { id: "templates", label: "Templates", Icon: NotebookTabs },
           { id: "trash", label: "Trash", Icon: Trash },
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
-            className={`nav-item ${
-              (
-                id === "journal"
-                  ? !!active?.dailyDate
-                  : view === id && !tag && (id !== "all" || !active?.dailyDate)
-              )
-                ? "active"
-                : ""
-            }`}
-            aria-current={
-              (
-                id === "journal"
-                  ? !!active?.dailyDate
-                  : view === id && !tag && (id !== "all" || !active?.dailyDate)
-              )
-                ? "page"
-                : undefined
-            }
-            onClick={() => void (id === "journal" ? today() : filter(id))}
+            className={`nav-item ${view === id && !tag ? "active" : ""}`}
+            aria-current={view === id && !tag ? "page" : undefined}
+            onClick={() => void filter(id)}
           >
             <Icon size={18} strokeWidth={1.6} />
             {label}
           </button>
         ))}
       </nav>
-      <button
-        className="nav-item"
-        onClick={() => {
-          setDrawer(false);
-          capture.current?.open();
-        }}
-      >
-        <Inbox size={16} />
-        Capture<span className="nav-shortcut">⇧ ⌘ ↵</span>
-      </button>
       <div className="tags-heading">
         <span>Tags</span>
         <Button
@@ -593,18 +557,40 @@ export function Workspace({
           </button>
         )}
       </div>
-      <footer className="navigation-footer">
+      <div className="navigation-bottom">
         <button
           className="nav-item"
           onClick={() => {
             setDrawer(false);
-            setSettingsOpen(true);
+            capture.current?.open();
           }}
         >
-          <SettingsIcon size={16} />
-          Settings
+          <Inbox size={16} />
+          Capture
+          <Shortcut chord={shortcuts.capture} className="nav-shortcut" />
         </button>
-      </footer>
+        <footer className="navigation-footer">
+          <button
+            className="nav-item"
+            onClick={() => {
+              setDrawer(false);
+              setSettingsOpen(true);
+            }}
+          >
+            <SettingsIcon size={16} />
+            Settings
+          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Collapse sidebar"
+            className="collapse-sidebar"
+            onClick={() => setSidebar(false)}
+          >
+            <PanelLeftClose size={16} />
+          </Button>
+        </footer>
+      </div>
     </div>
   );
   const title = tag
@@ -613,8 +599,8 @@ export function Workspace({
       ? "Favorites"
       : view === "trash"
         ? "Trash"
-        : view === "templates"
-          ? "Templates"
+        : view === "journal"
+          ? "Journal"
           : "All notes";
   const scope = `${view}|${tag}`;
   const cachedList = search
@@ -702,12 +688,13 @@ export function Workspace({
                   {shownHasMore ? "+" : ""}
                 </span>
               </div>
-              {view === "templates" && (
+              {view === "journal" && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="Create template"
-                  onClick={() => void create(true)}
+                  aria-label="Write today’s entry"
+                  title="Write today’s entry"
+                  onClick={() => void today()}
                 >
                   <Plus size={16} />
                 </Button>
@@ -779,7 +766,9 @@ export function Workspace({
                         ? "Nothing in trash"
                         : view === "favorites"
                           ? "Keep good ideas close"
-                          : "A fresh page awaits"}
+                          : view === "journal"
+                            ? "Your journal is empty"
+                            : "A fresh page awaits"}
                   </h2>
                   <p>
                     {query
@@ -788,7 +777,9 @@ export function Workspace({
                         ? "Star a note to find it here."
                         : view === "trash"
                           ? "Notes you delete will appear here."
-                          : "Start with a thought. The rest will follow."}
+                          : view === "journal"
+                            ? "One entry for each day you write."
+                            : "Start with a thought. The rest will follow."}
                   </p>
                   {view === "all" && !query && (
                     <Button
@@ -798,6 +789,16 @@ export function Workspace({
                     >
                       <Plus size={14} />
                       Create a note
+                    </Button>
+                  )}
+                  {view === "journal" && !query && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void today()}
+                    >
+                      <Plus size={14} />
+                      Write today’s entry
                     </Button>
                   )}
                 </div>
@@ -829,7 +830,7 @@ export function Workspace({
                       {note.tags.slice(0, 2).map((tag) => (
                         <span key={tag.id}>
                           <span className="tag-dot" data-color={tag.color} />
-                          {tag.name}
+                          <span className="tag-name">{tag.name}</span>
                         </span>
                       ))}
                     </footer>
@@ -894,9 +895,7 @@ export function Workspace({
                     <ArrowRight size={15} />
                   </Button>
                   <span className="shortcut-hint">
-                    <kbd>⌘</kbd>
-                    <kbd>⌥</kbd>
-                    <kbd>N</kbd>
+                    <ShortcutKeys chord={shortcuts.newNote} />
                     <span>to create a note</span>
                   </span>
                 </>

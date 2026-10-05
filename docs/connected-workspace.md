@@ -38,19 +38,17 @@ Quick creation still needs only a title. **Edit task** adds an optional calendar
 
 Completing a daily, weekly or monthly task creates one next open occurrence with the same title and note association. Daily adds one day, weekly adds seven days, and monthly preserves the original day with end-of-month clamping. A January 31 series continues on February 28 and March 31. Reopening and completing an earlier occurrence again does not duplicate its already-created successor. Recurrence advances from the occurrence's date, rather than the date you happened to complete it. It does not send reminders or run a notification scheduler.
 
-## Journal and templates
+## Journal
 
-**Journal** opens or creates one note for the browser's local calendar day. Returning to it reuses that note. If it is in Trash, restore it before opening that day again.
+**Journal** is its own section, separate from Notes. It lists one entry per day, newest first. The **+** button (or **Write today’s entry**) opens or creates one blank entry for the browser's local calendar day, and returning to it reuses that entry. Journal entries are ordinary notes with a date, so they have history, tags, favorites, attachments and sharing, but they do not appear in the Notes list; tag views and global search include them. If an entry is in Trash, restore it before opening that day again.
 
-**Templates** uses the regular list and editor. Journal, Meeting and Project are editable starting points, created once per installation. Create a blank template or choose **Save as template** from a note's actions. **Create note from template** makes an independent note with its own copied attachments. Later template edits do not change existing notes.
-
-**Use for journal** sets the starting point for future daily notes. It does not replace today's existing content. New journal entries start blank unless you explicitly choose a template. Migration 0009 clears only the unchanged seeded Journal default; existing entries and custom template choices are preserved. Templates can be trashed and restored through Trash.
+Templates were removed. Migration 0013 moves any existing template notes to Trash rather than deleting them, so they can be restored as ordinary notes or deleted from there. Older bundles that contain templates import them into Trash as ordinary notes.
 
 ## Portability
 
-Version-two Cilo bundles preserve histories, templates, daily dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
+Version-two Cilo bundles preserve histories, journal dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
 
-Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications, chosen daily template and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
+Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
 
 ## Overview
 

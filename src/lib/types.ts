@@ -25,7 +25,7 @@ export type Note = {
   createdAt: number;
   updatedAt: number;
   tags: Tag[];
-  kind: "note" | "template";
+  kind: "note";
   dailyDate: string | null;
 };
 export type NoteSummary = Omit<Note, "document">;

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { unzipSync, strFromU8, zipSync, strToU8 } from "fflate";
@@ -24,12 +24,12 @@ test("calendar recurrence preserves dates across leap years and short months", (
   assert.equal(nextDate("2028-02-28", "daily"), "2028-02-29");
   assert.equal(nextDate("2026-12-29", "weekly"), "2027-01-05");
 });
-test("connected workspace retains private search, recovery, templates and scheduled relationships", async (t) => {
+test("connected workspace retains private search, recovery, journal and scheduled relationships", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "cilo-connected-"));
   process.env.CILO_DATA_DIR = directory;
   const routes = await import("../src/app/api/cilo/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
-  const { storage, createStorage } = await import("../src/lib/server/storage");
+  const { createStorage } = await import("../src/lib/server/storage");
   const { checkpoint } = await import("../src/lib/server/note-history");
   let cookie = "";
   const call = (
@@ -85,11 +85,7 @@ test("connected workspace retains private search, recovery, templates and schedu
       { type: "paragraph", content: [{ type: "text", text, styles: {} }] },
     ],
   });
-  let target: Note,
-    source: Note,
-    task: Task,
-    bookmark: Bookmark,
-    template: Note;
+  let target: Note, source: Note, task: Task, bookmark: Bookmark;
   let fileId = "";
   try {
     const setup = await call(
@@ -256,7 +252,7 @@ test("connected workspace retains private search, recovery, templates and schedu
           401,
         );
         assert.equal(
-          (await call("templates", "GET", undefined, false)).status,
+          (await call("notes?view=journal", "GET", undefined, false)).status,
           401,
         );
       },
@@ -436,46 +432,28 @@ test("connected workspace retains private search, recovery, templates and schedu
       },
     );
     await t.test(
-      "daily creation is unique and templates clone attachments without changing originals",
+      "journal entries are blank, unique per day, and listed apart from notes",
       async () => {
-        const builtins = await value<Note[]>("templates");
-        assert.equal(builtins.length, 3);
-        assert.equal((await value<Note[]>("templates")).length, 3);
-        const seeded = builtins.find((note) => note.title === "Journal")!;
-        sqlite()
-          .prepare("UPDATE instance SET daily_template_id=? WHERE id=1")
-          .run(seeded.id);
-        sqlite().exec(
-          await readFile("migrations/0009_blank_journal_default.sql", "utf8"),
-        );
-        assert.equal(
-          (
-            sqlite()
-              .prepare("SELECT daily_template_id FROM instance WHERE id=1")
-              .get() as { daily_template_id: string | null }
-          ).daily_template_id,
-          null,
-        );
-        assert.ok(
-          (await value<Note[]>("templates")).some(
-            (note) => note.id === seeded.id,
-          ),
-        );
         const blank = await value<Note>("notes/daily", "POST", {
           date: "2026-10-03",
         });
         assert.equal(blank.text.trim(), "");
         assert.equal(blank.document.blocks.length, 1);
+        assert.equal(blank.dailyDate, "2026-10-03");
         const trashed = await value<Note>(`notes/${blank.id}`, "PATCH", {
           revision: blank.revision,
           trashed: true,
         });
+        assert.equal(
+          (await call("notes/daily", "POST", { date: "2026-10-03" })).status,
+          409,
+        );
         await value(`notes/${blank.id}`, "DELETE", {
           revision: trashed.revision,
         });
         const form = new FormData();
         form.set("note", source.id);
-        form.set("file", new File(["template payload"], "reference.txt"));
+        form.set("file", new File(["attachment payload"], "reference.txt"));
         const file = await value<{ id: string; url: string }>(
           "files",
           "POST",
@@ -491,61 +469,36 @@ test("connected workspace retains private search, recovery, templates and schedu
             ],
           },
         });
-        template = await value<Note>("templates", "POST", {
-          sourceId: source.id,
-          revision: source.revision,
-          title: "Custom journal",
-        });
-        assert.equal(template.kind, "template");
-        const templateFiles = await value<{ id: string }[]>(
-          `files?note=${template.id}`,
-        );
-        assert.equal(templateFiles.length, 1);
-        assert.notEqual(templateFiles[0].id, fileId);
-        await value(`templates/${template.id}/daily-default`, "POST");
-        sqlite().exec(
-          await readFile("migrations/0009_blank_journal_default.sql", "utf8"),
-        );
-        assert.equal(
-          (
-            sqlite()
-              .prepare("SELECT daily_template_id FROM instance WHERE id=1")
-              .get() as { daily_template_id: string | null }
-          ).daily_template_id,
-          template.id,
-        );
         const days = await Promise.all([
           value<Note>("notes/daily", "POST", { date: "2026-10-04" }),
           value<Note>("notes/daily", "POST", { date: "2026-10-04" }),
         ]);
         assert.equal(days[0].id, days[1].id);
         assert.equal(days[0].dailyDate, "2026-10-04");
-        const dailyFiles = await value<{ id: string }[]>(
-          `files?note=${days[0].id}`,
+        const journal = await value<Note[]>("notes?view=journal");
+        assert.deepEqual(
+          journal.map((note) => note.id),
+          [days[0].id],
         );
-        assert.equal(dailyFiles.length, 1);
-        assert.notEqual(dailyFiles[0].id, templateFiles[0].id);
-        assert.equal(
-          (await storage.read(dailyFiles[0].id)).toString(),
-          "template payload",
+        assert.ok(
+          !(await value<Note[]>("notes?view=all")).some(
+            (note) => note.id === days[0].id,
+          ),
         );
-        await value<Note>(`notes/${template.id}`, "PATCH", {
-          revision: template.revision,
-          title: "Changed template",
-          document: document("New starting point"),
-        });
-        assert.match(
-          JSON.stringify((await value<Note>(`notes/${days[0].id}`)).document),
-          /reference.txt/,
+        assert.ok(
+          (await value<Note[]>("notes?view=all")).some(
+            (note) => note.id === source.id,
+          ),
         );
         assert.equal(
           (await call("notes/daily", "POST", { date: "2026-02-30" })).status,
           400,
         );
+        assert.equal((await call("templates")).status, 404);
       },
     );
     await t.test(
-      "version-two bundles remap note links, task series, history and template assets",
+      "version-two bundles remap note links, task series and history",
       async () => {
         const exported = await call("export/bundle");
         const bytes = new Uint8Array(await exported.arrayBuffer());
@@ -585,7 +538,6 @@ test("connected workspace retains private search, recovery, templates and schedu
           `notes/${linked.noteId}/connections`,
         );
         assert.equal(importedTarget.incoming.length, 0);
-        assert.ok((await value<Note[]>("templates")).length >= 8);
         const copies = await value<Note[]>("notes");
         const copiedSource = copies.find(
           (n) => n.title === source.title && n.id !== source.id,
@@ -623,7 +575,7 @@ test("connected workspace retains private search, recovery, templates and schedu
       },
     );
     await t.test(
-      "encrypted full-instance recovery includes connections, schedules, templates and versions",
+      "encrypted full-instance recovery includes connections, schedules, journal and versions",
       async () => {
         const backups = await import("../src/lib/server/backups");
         const backup = await backups.startBackup();
@@ -634,7 +586,7 @@ test("connected workspace retains private search, recovery, templates and schedu
           (
             await createStorage({ CILO_DATA_DIR: destination }).read(fileId)
           ).toString(),
-          "template payload",
+          "attachment payload",
         );
         const Database = (await import("better-sqlite3")).default;
         const { masterKey, deriveKey } =

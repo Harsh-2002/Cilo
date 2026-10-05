@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 
+import { shortcutParts, useIsApple } from "@/lib/shortcuts";
 export type CaptureHandle = { open: () => void };
 export type CapturedItem =
   | { type: "note"; item: Note }
@@ -31,6 +32,7 @@ export function QuickCapture({
   ref: Ref<CaptureHandle>;
   onCaptured: (result: CapturedItem) => void;
 }) {
+  const apple = useIsApple();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [choice, setChoice] = useState<CapturedItem["type"] | null>(null);
@@ -217,7 +219,12 @@ export function QuickCapture({
             </p>
           )}
           <div className="capture-footer">
-            <span className="capture-shortcut">Ctrl / ⌘ + Enter to save</span>
+            <span className="capture-shortcut">
+              {shortcutParts({ key: "Enter", code: "Enter" }, apple).join(
+                apple ? " " : "+",
+              )}{" "}
+              to save
+            </span>
             <Button type="submit" disabled={busy || !valid}>
               {busy && <Loader2 size={14} className="animate-spin" />}
               {busy
