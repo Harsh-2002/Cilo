@@ -204,6 +204,7 @@ export function Workspace({
     if (notes !== loadedNotes.current) sectionCache.clear("notes:", "overview");
     sectionCache.set(`notes:${listScope}|${sort}`, { notes, hasMore });
   }, [notes, hasMore, listScope, view, tag, search, sort, loading]);
+  useEffect(() => () => sectionCache.clear(), []);
   useEffect(() => {
     const warm = () =>
       void Promise.allSettled([
@@ -392,6 +393,7 @@ export function Workspace({
   }
   async function logout() {
     await authRequest("sign-out", {});
+    sectionCache.clear();
     onSignOut();
   }
   useEffect(() => {
