@@ -1009,6 +1009,66 @@ test("Cilo protects ownership and preserves notes, artifacts, and recovery", asy
       },
     );
     await t.test(
+      "note width survives reload, duplication and portable bundles with revision checks",
+      async () => {
+        const note = await (
+          await call("notes", "POST", { title: "Width persistence" })
+        ).json();
+        assert.equal(note.editorWidth, "standard");
+        assert.equal(
+          (
+            await call(`notes/${note.id}`, "PATCH", {
+              revision: note.revision,
+              editorWidth: "invalid",
+            })
+          ).status,
+          400,
+        );
+        const wide = await (
+          await call(`notes/${note.id}`, "PATCH", {
+            revision: note.revision,
+            editorWidth: "wide",
+          })
+        ).json();
+        assert.equal(wide.editorWidth, "wide");
+        assert.equal(
+          (await (await call(`notes/${note.id}`)).json()).editorWidth,
+          "wide",
+        );
+        assert.equal(
+          (
+            await call(`notes/${note.id}`, "PATCH", {
+              revision: note.revision,
+              editorWidth: "standard",
+            })
+          ).status,
+          409,
+        );
+        const duplicate = await (
+          await call(`notes/${note.id}/duplicate`, "POST")
+        ).json();
+        assert.equal(duplicate.editorWidth, "wide");
+        const archive = new Uint8Array(
+          await (await call("export/bundle")).arrayBuffer(),
+        );
+        await call(`notes/${note.id}`, "PATCH", {
+          revision: wide.revision,
+          trashed: true,
+        });
+        await call(`notes/${note.id}`, "DELETE");
+        assert.equal(
+          (await call("import/bundle", "POST", archive)).status,
+          200,
+        );
+        const restored = (await (await call("notes")).json()).find(
+          (item: { id: string; title: string }) =>
+            item.title === "Width persistence" && item.id !== duplicate.id,
+        );
+        assert.ok(restored);
+        assert.equal(restored.editorWidth, "wide");
+      },
+    );
+    await t.test(
       "reopening SQLite preserves data and does not replay migrations",
       async () => {
         const count = (

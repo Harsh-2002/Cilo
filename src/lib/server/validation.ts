@@ -102,6 +102,7 @@ export const noteInput = z.object({
   title: z.string().max(300).optional(),
   document: documentInput.optional(),
   favorite: z.boolean().optional(),
+  editorWidth: z.enum(["standard", "wide"]).optional(),
   trashed: z.boolean().optional(),
   tags: z.array(z.string().uuid()).max(100).optional(),
   revision: z.number().int().positive(),

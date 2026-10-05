@@ -51,3 +51,7 @@ Overview is the first navigation section and the default landing view after sign
 Tasks show the total open count, due-today and overdue counts, and up to five open tasks ordered by due date; undated tasks come last. Complete a task directly from Overview, including recurring tasks. Selecting a task opens Tasks with its title as the search query; selecting a note opens its editor. Bookmark links open the saved website in a new tab. View all clears any previous section search.
 
 Quick actions create a note, focus the task or bookmark creation field, or open journal. The overview updates after task completion, when returning to the tab or window, and every 30 seconds while visible. Hidden tabs suspend polling and the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.
+
+## Writing width
+
+Choose **Note actions → Page width → Standard / Wide**. Standard keeps the centered reading measure; Wide fills the available editor pane with the same responsive gutters. The choice belongs to each note, saves through the normal revision-aware autosave, and survives reload, duplication, template creation and lossless bundles. Existing notes default to Standard. Both modes use the same compact heading hierarchy; mobile layouts remain bounded by the screen. Public sharing retains its independent reading layout.

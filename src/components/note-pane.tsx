@@ -25,6 +25,8 @@ import {
   Share2,
   History,
   LayoutTemplate,
+  AlignCenter,
+  MoveHorizontal,
   CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,6 +34,9 @@ import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -108,9 +113,10 @@ export function NotePane({
   useLayoutEffect(() => {
     const title = titleRef.current;
     if (!title) return;
-    let frame = 0;
     let width = 0;
+    let active = true;
     const resize = () => {
+      if (!active || title.getBoundingClientRect().width <= 0) return;
       title.style.height = "auto";
       title.style.height = `${title.scrollHeight}px`;
     };
@@ -119,13 +125,13 @@ export function NotePane({
       if (entry.contentRect.width <= 0 || entry.contentRect.width === width)
         return;
       width = entry.contentRect.width;
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(resize);
+      resize();
     });
     observer.observe(title);
+    void document.fonts.ready.then(resize);
     return () => {
+      active = false;
       observer.disconnect();
-      cancelAnimationFrame(frame);
     };
   }, [note.title]);
   const flushRef = useRef<() => Promise<boolean>>(async () => true);
@@ -153,6 +159,7 @@ export function NotePane({
             title: snapshot.title,
             document: snapshot.document,
             favorite: snapshot.favorite,
+            editorWidth: snapshot.editorWidth,
             tags: snapshot.tags.map((t) => t.id),
           }),
         });
@@ -399,6 +406,25 @@ export function NotePane({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Page width</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={note.editorWidth}
+                onValueChange={(value) =>
+                  change({
+                    editorWidth: value === "wide" ? "wide" : "standard",
+                  })
+                }
+              >
+                <DropdownMenuRadioItem value="standard">
+                  <AlignCenter size={15} />
+                  Standard
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="wide">
+                  <MoveHorizontal size={15} />
+                  Wide
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => void action(async () => setHistory(true))}
               >
@@ -640,7 +666,7 @@ export function NotePane({
         </div>
       )}
       <div className="note-scroll">
-        <div className="writing-surface">
+        <div className="writing-surface" data-width={note.editorWidth}>
           <div className="note-date">
             {note.kind === "template" ? (
               <span className="note-kind">

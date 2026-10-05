@@ -20,6 +20,7 @@ export type Note = {
   text: string;
   revision: number;
   favorite: boolean;
+  editorWidth: "standard" | "wide";
   trashedAt: number | null;
   createdAt: number;
   updatedAt: number;

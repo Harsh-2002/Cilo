@@ -80,6 +80,14 @@ test("connected-workspace migration preserves existing encrypted notes and backf
     const migrated = sqlite();
     assert.equal(
       (
+        migrated
+          .prepare("SELECT editor_width FROM notes WHERE id=?")
+          .get(source) as { editor_width: string }
+      ).editor_width,
+      "standard",
+    );
+    assert.equal(
+      (
         migrated.prepare("SELECT kind FROM notes WHERE id=?").get(source) as {
           kind: string;
         }

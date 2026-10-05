@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-05T07:15:14Z",
+  "generatedAt": "2026-10-05T08:11:06Z",
   "title": "Design System: Cilo",
   "extensions": {
     "colorMeta": {
@@ -412,6 +412,38 @@
       "code": {
         "displayName": "Code",
         "purpose": "Editor source blocks use a 12px system monospace stack; public-reader code keeps its reading-surface sizing."
+      },
+      "editor-h1": {
+        "displayName": "Editor H1",
+        "purpose": "Level 1 heading in note content, including nested content."
+      },
+      "editor-h2": {
+        "displayName": "Editor H2",
+        "purpose": "Level 2 heading in note content, including nested content."
+      },
+      "editor-h3": {
+        "displayName": "Editor H3",
+        "purpose": "Level 3 heading in note content, including nested content."
+      },
+      "editor-h4": {
+        "displayName": "Editor H4",
+        "purpose": "Level 4 heading in note content, including nested content."
+      },
+      "editor-h5": {
+        "displayName": "Editor H5",
+        "purpose": "Level 5 heading in note content, including nested content."
+      },
+      "editor-h6": {
+        "displayName": "Editor H6",
+        "purpose": "Level 6 heading in note content, including nested content."
+      },
+      "editor-h5-mobile": {
+        "displayName": "Editor H5 Mobile",
+        "purpose": "Mobile size override for level 5 headings in note content."
+      },
+      "editor-h6-mobile": {
+        "displayName": "Editor H6 Mobile",
+        "purpose": "Mobile size override for level 6 headings in note content."
       }
     },
     "shadows": [
@@ -523,9 +555,9 @@
     {
       "name": "Writing Surface",
       "kind": "custom",
-      "description": "Centered 740px writing surface with a compact editor title and dense, open prose area.",
-      "html": "<article class=\"ds-writing-surface\"><time>October 4, 2026</time><textarea rows=\"1\" aria-label=\"Note title\" class=\"ds-note-title\">A place for unfinished ideas</textarea><div class=\"ds-note-body\"><p>Good notes leave room for what comes next.</p><pre><code>const idea = \"write something worth keeping\";</code></pre></div></article>",
-      "css": ".ds-writing-surface{max-width:740px;margin:0 auto;padding:44px 44px 80px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 26px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:none;background:var(--muted);border-radius:4px}\n.ds-note-body{font:400 14px/1.65 var(--font-sans)}\n.ds-note-body > *{margin:0;padding:4px 0}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:12px/1.7 var(--font-mono)}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:24px}.ds-note-body{font-size:16px}}"
+      "description": "Per-note Standard or Wide writing surface; Standard is centered and capped, while Wide fills the available editor pane with the same responsive gutters and type scale.",
+      "html": "<article class=\"ds-writing-surface\" data-width=\"standard\"><time>October 4, 2026</time><textarea rows=\"1\" aria-label=\"Note title\" class=\"ds-note-title\">A place for unfinished ideas</textarea><div class=\"ds-note-body\"><h1>Main section</h1><p>Good notes leave room for what comes next.</p><h2>Smaller section</h2><h3>Nested thought</h3><h4>Detail</h4><h5>Subdetail</h5><h6>Fine detail</h6><pre><code>const idea = \"write something worth keeping\";</code></pre></div></article>",
+      "css": ".ds-writing-surface{width:100%;max-width:740px;margin:0 auto;padding:44px 44px 80px;color:var(--foreground);font-family:var(--font-sans)}\n.ds-writing-surface[data-width=\"wide\"]{max-width:none}\n.ds-writing-surface time{display:block;margin-bottom:18px;color:var(--muted-foreground);font-size:11px}\n.ds-note-title{display:block;width:100%;margin:0;padding:0;overflow:hidden;resize:none;border:0;border-radius:0;background:transparent;color:var(--foreground);font:550 26px/1.4 var(--font-sans);letter-spacing:-.035em}\n.ds-note-title:focus-visible{outline:none;background:var(--muted);border-radius:4px}\n.ds-note-body{font:400 14px/1.65 var(--font-sans)}\n.ds-note-body > *{margin:0;padding:4px 0}\n.ds-note-body h1,.ds-note-body h2,.ds-note-body h3,.ds-note-body h4,.ds-note-body h5,.ds-note-body h6{line-height:1.35;font-weight:600;padding:10px 0 4px}\n.ds-note-body h1{font-size:24px}\n.ds-note-body h2{font-size:20px}\n.ds-note-body h3{font-size:18px}\n.ds-note-body h4{font-size:16px}\n.ds-note-body h5{font-size:15px}\n.ds-note-body h6{font-size:14px}\n.ds-note-body pre{overflow:auto;padding:20px 24px;border-radius:8px;background:#171717;color:#ededed;font:12px/1.7 var(--font-mono)}\n@media(max-width:1100px){.ds-writing-surface{padding:42px 36px 80px}}\n@media(max-width:1023px){.ds-writing-surface{max-width:760px}}\n@media(max-width:767px){.ds-writing-surface{padding:32px 26px 80px}.ds-note-title{font-size:24px}.ds-note-body{font-size:16px}.ds-note-body h5,.ds-note-body h6{font-size:16px}}"
     },
     {
       "name": "Brand Mark",
@@ -581,7 +613,8 @@
       "Do use the locally bundled Geist family for interface, titles, and prose.",
       "Do preserve visible keyboard focus and reduced-motion support.",
       "Do keep the named tag palette on owner-selected tag metadata; let drawings, diagrams, and syntax keep their own color.",
-      "Do keep note actions touch-sized on narrow screens."
+      "Do keep note actions touch-sized on narrow screens.",
+      "Do let each note use its saved Standard or Wide writing width while preserving the responsive gutters and editor type ramp."
     ],
     "donts": [
       "Don't turn the writing workspace into a card dashboard or decorative landing hero.",

@@ -853,6 +853,9 @@ button:disabled {
   margin: 0 auto;
   padding: 44px 44px 80px;
 }
+.writing-surface[data-width="wide"] {
+  max-width: none;
+}
 .note-date {
   color: var(--muted-foreground);
   font-size: 11px;
@@ -933,6 +936,57 @@ button:disabled {
 .writing-surface .bn-editor {
   font-size: 14px;
   line-height: 1.65;
+  --cilo-heading-1: 24px;
+  --cilo-heading-2: 20px;
+  --cilo-heading-3: 18px;
+  --cilo-heading-4: 16px;
+  --cilo-heading-5: 15px;
+  --cilo-heading-6: 14px;
+}
+.writing-surface .bn-editor [data-content-type="heading"] {
+  --level: var(--cilo-heading-1);
+  line-height: 1.35;
+  padding: 10px 0 4px;
+}
+.writing-surface
+  .bn-editor
+  .bn-block-outer
+  .bn-block
+  .bn-block-content[data-content-type="heading"] {
+  font-weight: 600;
+}
+.writing-surface .bn-editor [data-content-type="heading"][data-level="2"] {
+  --level: var(--cilo-heading-2);
+}
+.writing-surface .bn-editor [data-content-type="heading"][data-level="3"] {
+  --level: var(--cilo-heading-3);
+}
+.writing-surface .bn-editor [data-content-type="heading"][data-level="4"] {
+  --level: var(--cilo-heading-4);
+}
+.writing-surface .bn-editor [data-content-type="heading"][data-level="5"] {
+  --level: var(--cilo-heading-5);
+}
+.writing-surface .bn-editor [data-content-type="heading"][data-level="6"] {
+  --level: var(--cilo-heading-6);
+}
+.writing-surface .bn-editor [data-prev-level="1"] {
+  --prev-level: var(--cilo-heading-1);
+}
+.writing-surface .bn-editor [data-prev-level="2"] {
+  --prev-level: var(--cilo-heading-2);
+}
+.writing-surface .bn-editor [data-prev-level="3"] {
+  --prev-level: var(--cilo-heading-3);
+}
+.writing-surface .bn-editor [data-prev-level="4"] {
+  --prev-level: var(--cilo-heading-4);
+}
+.writing-surface .bn-editor [data-prev-level="5"] {
+  --prev-level: var(--cilo-heading-5);
+}
+.writing-surface .bn-editor [data-prev-level="6"] {
+  --prev-level: var(--cilo-heading-6);
 }
 .writing-surface .bn-block-content {
   padding: 4px 0;
@@ -1535,6 +1589,8 @@ button:disabled {
     margin-bottom: 14px;
   }
   .writing-surface .bn-editor {
+    --cilo-heading-5: 16px;
+    --cilo-heading-6: 16px;
     font-size: 16px;
   }
 

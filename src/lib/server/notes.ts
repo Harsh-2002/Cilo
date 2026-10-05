@@ -8,7 +8,7 @@ import { plainText, ftsQuery } from "./validation";
 import { syncNoteLinks } from "./connections";
 
 const columns =
-  "n.id,n.title,n.text,n.revision,n.favorite,n.kind,n.daily_date AS dailyDate,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
+  "n.id,n.title,n.text,n.revision,n.favorite,n.editor_width AS editorWidth,n.kind,n.daily_date AS dailyDate,n.trashed_at AS trashedAt,n.created_at AS createdAt,n.updated_at AS updatedAt";
 export function tagsFor(note: string): Tag[] {
   return sqlite()
     .prepare(

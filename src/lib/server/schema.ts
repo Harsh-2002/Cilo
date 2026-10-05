@@ -102,6 +102,10 @@ export const notes = sqliteTable(
     document: text("document", { mode: "json" }).$type<Document>().notNull(),
     kind: text("kind").$type<"note" | "template">().notNull().default("note"),
     dailyDate: text("daily_date"),
+    editorWidth: text("editor_width")
+      .$type<"standard" | "wide">()
+      .notNull()
+      .default("standard"),
     text: text("text").notNull().default(""),
     revision: integer("revision").notNull().default(1),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),

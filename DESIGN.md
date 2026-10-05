@@ -38,6 +38,46 @@ typography:
     fontWeight: 550
     lineHeight: 1.4
     letterSpacing: "-0.035em"
+  editor-h1:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "24px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h2:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "20px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h3:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "18px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h4:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h5:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "15px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h6:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h5-mobile:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: 1.35
+  editor-h6-mobile:
+    fontFamily: '"Geist Variable", system-ui, sans-serif'
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: 1.35
   body:
     fontFamily: '"Geist Variable", system-ui, sans-serif'
     fontSize: "14px"
@@ -193,11 +233,12 @@ Destructive actions retain a reserved semantic color; it does not become a gener
 - **Interface:** The interface token sets the compact application baseline.
 - **Button:** A slightly stronger interface weight marks actions without changing the family.
 - **Navigation and labels:** Smaller roles support note counts, timestamps, navigation, and tags.
+- **Editor body headings:** The writing surface uses the `editor-h1` through `editor-h6` tokens in level order, with the mobile tokens for H5 and H6. These sizes apply inside note content, including nested content.
 - **Code:** A system monospace stack separates editor source blocks from prose at 12px; public-reader code keeps its reading-surface sizing.
 
 ## Layout
 
-The desktop notes view uses a 216px navigation rail, a 300px searchable note list, and a fluid editor. The writing surface has a 740px outer maximum with 44px horizontal gutters, leaving up to 652px for note content; its top gutter is 44px. Below 1100px the editor gutters reduce to 36px; below 1024px the rail becomes a drawer and the writing surface can grow to 760px. At 767px and below, mobile shows either the list or open note with a visible back action, 26px writing gutters, a 24px editor title, and 16px prose. The mobile viewport resizes for the software keyboard so editing controls remain reachable. The note title, tags, save state, and note actions stay close to the writing surface; formatting and slash-menu controls remain available in the editor without a bottom status strip or persistent insertion toolbar.
+The desktop notes view uses a 216px navigation rail, a 300px searchable note list, and a fluid editor. Standard writing uses a centered 740px outer maximum with 44px horizontal gutters, leaving up to 652px for note content; its top gutter is 44px. Wide writing removes the outer maximum and fills the available editor pane while keeping the same gutters and type scale. Below 1100px the editor gutters reduce to 36px; below 1024px the Standard surface can grow to 760px as the rail becomes a drawer. At 767px and below, mobile shows either the list or open note with a visible back action, 26px writing gutters, a 24px editor title, and 16px prose. The mobile viewport resizes for the software keyboard so editing controls remain reachable. The note title, tags, save state, and note actions stay close to the writing surface; formatting and slash-menu controls remain available in the editor without a bottom status strip or persistent insertion toolbar. The labeled Page width choice is stored with each note.
 
 The note list and note editor own their vertical scrolling inside the viewport. Onboarding and settings reuse the same typography, neutral borders, and theme roles rather than introducing another visual system. Settings sits in a centered 600px dialog with horizontal Appearance, Account, and Import & export tabs; its content scrolls without visible scrollbar chrome. The public reader uses responsive reading gutters and renders the immutable published snapshot as semantic HTML on each request. Its header contains only “Shared note” and the publication date, and code highlighting and diagram rendering load as enhancements.
 
@@ -270,7 +311,7 @@ The folded-page C monogram uses the foreground on a compact rounded square and r
 
 ### Writing Surface
 
-The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. It uses the headline token at 26px on desktop and 24px on mobile; a ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. Desktop BlockNote prose uses the 14px body token with 1.65 line spacing, while mobile prose returns to 16px for comfortable touch reading. BlockNote blocks have 4px vertical padding, and editor source blocks use the 12px monospace token. The public reader retains 16px prose with 1.75 line spacing and its existing title and code sizes. Daily Journal notes begin as blank pages; templates are optional and selected deliberately. Formatting and slash-menu controls stay available through editor interactions. Do not add a bottom status strip or persistent insertion toolbar. The editor preserves the draft during save errors and keeps its save state close to the note.
+The title field stays borderless and uses a muted surface fill with a small radius on keyboard focus instead of an outline. It uses the headline token at 26px on desktop and 24px on mobile; a ResizeObserver recalculates its height after available width changes so wrapped titles remain visible. Desktop BlockNote prose uses the 14px body token with 1.65 line spacing, while mobile prose returns to 16px for comfortable touch reading. Body headings follow the `editor-h1` through `editor-h6` tokens, with the mobile H5/H6 tokens, and remain scoped to note content, including nested content. The explicit sizes prevent headings from inheriting BlockNote’s 3em/2em multipliers. BlockNote blocks have 4px vertical padding, and editor source blocks use the 12px monospace token. The public reader retains 16px prose with 1.75 line spacing and its existing title and code sizes. Daily Journal notes begin as blank pages; templates are optional and selected deliberately. Formatting and slash-menu controls stay available through editor interactions. Do not add a bottom status strip or persistent insertion toolbar. The editor preserves the draft during save errors and keeps its save state close to the note.
 
 ### Public Reader and System Pages
 
@@ -285,6 +326,7 @@ The public reader presents the publication date, “Shared note” label, title,
 - **Do** preserve visible keyboard focus and reduced-motion support.
 - **Do** keep the named tag palette on owner-selected tag metadata; let drawings, diagrams, and syntax keep their own color.
 - **Do** keep note actions touch-sized on narrow screens.
+- **Do** let each note use its saved Standard or Wide writing width while preserving the responsive gutters and editor type ramp.
 
 ### Don't:
 

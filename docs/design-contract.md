@@ -50,3 +50,7 @@ The code-language picker uses a shadcn Popover and Command with one search heade
 The publishing preview and public read-only reader follow the workspace's quiet typography and neutral surfaces with responsive reading gutters. The public reader shows the “Shared note” label and publication date, with no Cilo name or mark. Publishing controls remain separate from the reader content.
 
 The review screenshots are verification fixtures containing synthetic notes and are excluded from Git. No seed, diagram, or screenshot is a substitute for verified application behavior.
+
+Editor body headings use explicit sizes: H1 24px, H2 20px, H3 18px, H4 16px, H5 15px and H6 14px; mobile H5/H6 have a 16px minimum. Heading line-height is 1.35 and weight is 600. Scope this ramp to the writing surface, including nested content, rather than scaling navigation or the public reader.
+
+Page width offers Standard and Wide from note actions. Wide fills the available writing pane without changing typography or responsive gutters; persisted per-note state follows autosave/revision handling and portable bundles.

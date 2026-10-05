@@ -578,13 +578,14 @@ async function handle(
               checkpoint(previous);
             database
               .prepare(
-                "UPDATE notes SET title=?,document=?,text=?,favorite=?,trashed_at=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?",
+                "UPDATE notes SET title=?,document=?,text=?,favorite=?,editor_width=?,trashed_at=?,revision=revision+1,updated_at=? WHERE id=? AND revision=?",
               )
               .run(
                 input.title ?? previous.title,
                 JSON.stringify(document),
                 plainText(document.blocks),
                 Number(input.favorite ?? previous.favorite),
+                input.editorWidth ?? previous.editorWidth,
                 input.trashed === undefined
                   ? previous.trashedAt
                   : input.trashed
@@ -637,9 +638,10 @@ async function handle(
           }
           database.transaction(() => {
             database
-              .prepare("UPDATE notes SET document=? WHERE id=?")
+              .prepare("UPDATE notes SET document=?,editor_width=? WHERE id=?")
               .run(
                 JSON.stringify(remapDocument(original.document, attachmentMap)),
+                original.editorWidth,
                 copy.id,
               );
             for (const tag of original.tags)
@@ -957,6 +959,7 @@ async function handle(
                 title: z.string().max(300),
                 kind: z.enum(["note", "template"]).default("note"),
                 dailyDate: calendarDate.nullable().default(null),
+                editorWidth: z.enum(["standard", "wide"]).default("standard"),
                 revision: z.number().int().positive().default(1),
                 document: documentInput,
                 favorite: z.boolean(),
@@ -1127,7 +1130,7 @@ async function handle(
               if (note.dailyDate && !dailyDate) dailyConflicts++;
               database
                 .prepare(
-                  "INSERT INTO notes(id,owner_id,title,document,text,favorite,trashed_at,created_at,updated_at,kind,daily_date,revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                  "INSERT INTO notes(id,owner_id,title,document,text,favorite,trashed_at,created_at,updated_at,kind,daily_date,revision,editor_width) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 )
                 .run(
                   noteIds.get(note.id),
@@ -1142,6 +1145,7 @@ async function handle(
                   note.kind,
                   dailyDate,
                   note.revision,
+                  note.editorWidth,
                 );
               for (const tag of note.tags) {
                 database

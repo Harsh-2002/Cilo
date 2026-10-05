@@ -134,6 +134,7 @@ export async function instantiate(
             text: plainText(document.blocks),
             kind: options.kind || "note",
             dailyDate: options.dailyDate,
+            editorWidth: source?.editorWidth ?? "standard",
             createdAt: Date.now(),
             updatedAt: Date.now(),
           })
