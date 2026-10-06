@@ -19,7 +19,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { api } from "@/lib/client";
 import {
   fromClipboard,
@@ -128,6 +128,7 @@ export function ArtifactsPanel({
   const [notice, setNotice] = useState("");
   const chain = useRef(Promise.resolve());
   const fileInput = useRef<HTMLInputElement>(null);
+
   const view = `${kind}\n${query}`;
   const currentView = useRef(view);
   const loadVersion = useRef(0);
@@ -263,10 +264,10 @@ export function ArtifactsPanel({
     try {
       const sources = await fromClipboard();
       if (!sources.length)
-        return toast.message("The clipboard has no text or image to save.");
+        return notify.message("The clipboard has no text or image to save.");
       save(sources);
     } catch {
-      toast.error(
+      notify.error(
         "Your browser did not allow clipboard access. Use the keyboard shortcut, Upload or Add text.",
       );
     }
@@ -298,7 +299,7 @@ export function ArtifactsPanel({
       !(await confirm({
         title: "Delete this artifact?",
         description:
-          "It is removed from Nivra, along with any text read from it.",
+          "The artifact and its extracted text will move to Trash. You can restore them there.",
         action: "Delete artifact",
       }))
     )
@@ -310,7 +311,7 @@ export function ArtifactsPanel({
       });
       removed(item.id);
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     }
   }
   function removed(id: string) {
@@ -332,7 +333,7 @@ export function ArtifactsPanel({
         (await api<ArtifactDetail>(`artifacts/${item.id}`)).content,
       );
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     }
   }
   const cached = query.trim()
@@ -504,7 +505,7 @@ export function ArtifactsPanel({
               ))}
             </ul>
           )}
-          <div className="tasks-toolbar artifact-toolbar">
+          <div className="tasks-toolbar artifact-toolbar section-toolbar">
             <div
               className="task-filters artifact-filters"
               role="group"

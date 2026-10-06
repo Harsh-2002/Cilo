@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Globe, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { api } from "@/lib/client";
 import type { Note, Publication } from "@/lib/types";
 import {
@@ -116,14 +116,16 @@ export function PublishDialog({
                         ) as HTMLInputElement;
                         input.focus();
                         input.select();
-                        toast("Link selected. Use your device’s copy action.");
+                        notify.message(
+                          "Link selected. Use your device’s copy action.",
+                        );
                         return;
                       }
                       try {
                         await navigator.clipboard.writeText(link);
-                        toast.success("Link copied.");
+                        notify.success("Link copied.");
                       } catch {
-                        toast.error("Select the link to copy it.");
+                        notify.error("Select the link to copy it.");
                       }
                     }}
                   >
@@ -165,7 +167,7 @@ export function PublishDialog({
                         body: JSON.stringify({ revision: note.revision }),
                       }),
                     );
-                    toast.success("Note published.");
+                    notify.success("Note published.");
                   })
                 }
               >
@@ -184,7 +186,7 @@ export function PublishDialog({
                       method: "DELETE",
                     });
                     setPublication(null);
-                    toast.success("Share link removed.");
+                    notify.success("Share link removed.");
                   })
                 }
               >

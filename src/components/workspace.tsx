@@ -25,7 +25,7 @@ import {
   Trash,
   Inbox,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { Mark } from "./auth-screen";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -65,6 +65,8 @@ import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
 import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
 import { OverviewPanel, prefetchOverview } from "./overview-panel";
+import { FeedbackOutlet } from "./inline-feedback";
+import { TrashPanel } from "./trash-panel";
 import { TasksPanel, prefetchTasks } from "./tasks-panel";
 import { ArtifactsPanel, prefetchArtifacts } from "./artifacts-panel";
 import { useCompletionStream } from "@/lib/completion-client";
@@ -247,7 +249,7 @@ export function Workspace({
   async function open(note: NoteSummary) {
     if (active?.id === note.id) return;
     if (!(await guard.current())) {
-      toast.error("Save your current edits before switching notes.");
+      notify.error("Save your current edits before switching notes.");
       return;
     }
     setOpening(true);
@@ -256,7 +258,7 @@ export function Workspace({
       setFocusTerms([]);
       setGeneration((n) => n + 1);
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     } finally {
       setOpening(false);
     }
@@ -272,7 +274,7 @@ export function Workspace({
   };
   async function create() {
     if (!(await guard.current())) {
-      toast.error("Save your current edits before creating a note.");
+      notify.error("Save your current edits before creating a note.");
       return false;
     }
     try {
@@ -287,7 +289,7 @@ export function Workspace({
       setDrawer(false);
       return true;
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
       return false;
     }
   }
@@ -296,10 +298,11 @@ export function Workspace({
       setActive(null);
       guard.current = async () => true;
       void load();
-    } else toast.error("Your edits haven’t been saved yet.");
+    } else notify.error("Your edits haven’t been saved yet.");
   };
   const filter = async (next: string, tagId = "") => {
     if (!(await guard.current())) return false;
+    notify.dismiss();
     setSectionTarget({ query: "" });
     setView(next);
     setTag(tagId);
@@ -317,7 +320,7 @@ export function Workspace({
       try {
         const note = await api<Note>(`notes/${id}`);
         if (note.trashedAt) {
-          toast.error(
+          notify.error(
             "This linked note is in trash. Restore it to open the connection.",
           );
           return false;
@@ -331,7 +334,7 @@ export function Workspace({
         setDrawer(false);
         return true;
       } catch (e) {
-        toast.error((e as Error).message);
+        notify.error((e as Error).message);
         return false;
       }
     },
@@ -371,7 +374,7 @@ export function Workspace({
       setDrawer(false);
       return true;
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
       return false;
     }
   }
@@ -413,7 +416,7 @@ export function Workspace({
         setDrawer(false);
         globalSearch.current?.toggle();
       }
-      if (matches(e, shortcuts.newNote)) {
+      if (view !== "trash" && matches(e, shortcuts.newNote)) {
         e.preventDefault();
         void create();
       }
@@ -447,7 +450,7 @@ export function Workspace({
       setTagDialog(null);
       await load();
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     } finally {
       setTagBusy(false);
     }
@@ -468,7 +471,7 @@ export function Workspace({
       if (active) adopt(await api<Note>(`notes/${active.id}`));
       await load();
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     }
   }
   const navigation = (
@@ -477,11 +480,6 @@ export function Workspace({
         <Mark small />
         <span>Nivra</span>
       </header>
-      <Button className="new-note" onClick={() => void create()}>
-        <Plus size={16} />
-        New note
-        <Shortcut chord={shortcuts.newNote} />
-      </Button>
       <button
         className="nav-item workspace-search"
         aria-label="Search"
@@ -675,6 +673,12 @@ export function Workspace({
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }
         />
+      ) : view === "trash" ? (
+        <TrashPanel
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+        />
       ) : view === "artifacts" ? (
         <ArtifactsPanel
           key={generation}
@@ -688,6 +692,7 @@ export function Workspace({
       ) : (
         <>
           <section className="notes-list">
+            <FeedbackOutlet />
             <header className="list-header">
               <div>
                 <h1>{title}</h1>
@@ -905,20 +910,28 @@ export function Workspace({
                   <div className="empty-illustration">
                     <FileText size={38} strokeWidth={1} />
                   </div>
-                  <h2>Room for your next idea.</h2>
+                  <h2>
+                    {view === "trash"
+                      ? "Deleted items"
+                      : "Room for your next idea."}
+                  </h2>
                   <p>
-                    Pick a note to keep going,
-                    <br />
-                    or start something new.
+                    {view === "trash"
+                      ? "Select a deleted item to review, restore or delete permanently."
+                      : "Pick a note to keep going, or start something new."}
                   </p>
-                  <Button variant="outline" onClick={() => void create()}>
-                    Create a note
-                    <ArrowRight size={15} />
-                  </Button>
-                  <span className="shortcut-hint">
-                    <ShortcutKeys chord={shortcuts.newNote} />
-                    <span>to create a note</span>
-                  </span>
+                  {view !== "trash" && (
+                    <>
+                      <Button variant="outline" onClick={() => void create()}>
+                        Create a note
+                        <ArrowRight size={15} />
+                      </Button>
+                      <span className="shortcut-hint">
+                        <ShortcutKeys chord={shortcuts.newNote} />
+                        <span>to create a note</span>
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </section>

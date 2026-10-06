@@ -6,7 +6,11 @@ import type { Overview } from "../types";
 export function workspaceOverview(owner: string, today: string): Overview {
   return sqlite().transaction(() => {
     const database = db();
-    const open = and(eq(tasks.ownerId, owner), isNull(tasks.completedAt));
+    const open = and(
+      eq(tasks.ownerId, owner),
+      isNull(tasks.completedAt),
+      isNull(tasks.trashedAt),
+    );
     const taskCounts = database
       .select({
         open: count(),
@@ -63,7 +67,7 @@ export function workspaceOverview(owner: string, today: string): Overview {
           updatedAt: bookmarks.updatedAt,
         })
         .from(bookmarks)
-        .where(eq(bookmarks.ownerId, owner))
+        .where(and(eq(bookmarks.ownerId, owner), isNull(bookmarks.trashedAt)))
         .orderBy(desc(bookmarks.updatedAt), asc(bookmarks.id))
         .limit(4)
         .all(),

@@ -1,3 +1,4 @@
+import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 import { storage } from "./storage";
@@ -64,7 +65,7 @@ function expose(row: Row): Artifact {
 function need(owner: string, id: string): Row {
   const row = sqlite()
     .prepare(
-      `SELECT ${columns.replace("substr(a.content,1,600) AS content", "a.content AS content")} FROM artifacts a WHERE a.id=? AND a.owner_id=?`,
+      `SELECT ${columns.replace("substr(a.content,1,600) AS content", "a.content AS content")} FROM artifacts a WHERE a.id=? AND a.owner_id=? AND a.trashed_at IS NULL`,
     )
     .get(id, owner) as Row | undefined;
   if (!row) throw new HttpError(404, "This artifact was not found.");
@@ -167,7 +168,7 @@ export function listArtifactPage(
   const term = (options.query || "").trim().slice(0, 300);
   const cursor = decodeCursor(options.after ?? null, ["number", "string"]);
   const run = (match?: string) => {
-    const where = ["a.owner_id=?"];
+    const where = ["a.owner_id=?", "a.trashed_at IS NULL"];
     const values: (string | number)[] = [owner];
     if (options.kind) {
       where.push("a.kind=?");
@@ -233,7 +234,7 @@ const database = sqlite;
 export function artifactSummary(owner: string) {
   return sqlite()
     .prepare(
-      "SELECT COUNT(*) AS total,COUNT(*) FILTER (WHERE kind='image') AS images,COUNT(*) FILTER (WHERE kind='text') AS texts,COUNT(*) FILTER (WHERE kind='file') AS files FROM artifacts WHERE owner_id=?",
+      "SELECT COUNT(*) AS total,COUNT(*) FILTER (WHERE kind='image') AS images,COUNT(*) FILTER (WHERE kind='text') AS texts,COUNT(*) FILTER (WHERE kind='file') AS files FROM artifacts WHERE owner_id=? AND trashed_at IS NULL",
     )
     .get(owner) as {
     total: number;
@@ -292,20 +293,7 @@ export async function deleteArtifact(
   id: string,
   revision: number,
 ) {
-  const row = need(owner, id);
-  const removed = sqlite()
-    .prepare("DELETE FROM artifacts WHERE id=? AND owner_id=? AND revision=?")
-    .run(id, owner, revision).changes;
-  if (!removed)
-    throw new HttpError(
-      409,
-      "This artifact changed in another tab. Refresh and try again.",
-    );
-  await Promise.allSettled(
-    [row.storage_key, row.thumb_key]
-      .filter((key) => key !== null)
-      .map((key) => storage.delete(key)),
-  );
+  moveToTrash(owner, "artifact", id, revision);
 }
 export function retryExtraction(owner: string, id: string): Artifact {
   const row = need(owner, id);

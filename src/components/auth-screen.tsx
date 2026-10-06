@@ -168,10 +168,6 @@ export function AuthScreen({
   }
   return (
     <main className="auth-page">
-      <header className="auth-brand">
-        <Mark small />
-        <span>Nivra</span>
-      </header>
       <section className="auth-panel">
         {setup && (
           <div

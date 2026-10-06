@@ -334,7 +334,7 @@ test("artifacts store anything, read text out of it, and make all of it searchab
     );
 
     await t.test(
-      "failed readings can be retried, and deletion removes the stored files",
+      "failed readings can be retried, and Trash retains files until permanent deletion",
       async () => {
         const header = new Uint8Array(40);
         header.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -369,6 +369,12 @@ test("artifacts store anything, read text out of it, and make all of it searchab
         await value(`artifacts/${broken.id}`, {
           method: "DELETE",
           json: { revision: current.revision },
+        });
+        await stat(path.join(directory, "uploads", keys.storage_key));
+        assert.equal((await call(`artifacts/${broken.id}`)).status, 404);
+        await value(`trash/artifact/${broken.id}`, {
+          method: "DELETE",
+          json: { revision: current.revision + 1 },
         });
         await assert.rejects(
           stat(path.join(directory, "uploads", keys.storage_key)),

@@ -1,3 +1,4 @@
+import { moveToTrash } from "./trash";
 import {
   enqueueJob,
   startJobWorker,
@@ -7,7 +8,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { db, sqlite } from "./db";
 import { bookmarks } from "./schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { HttpError } from "./http";
 import { fuzzyQuery } from "./search";
@@ -23,6 +24,7 @@ import type { Bookmark, Page } from "../types";
 import { decodeCursor, encodeCursor } from "./pagination";
 type Row = {
   id: string;
+  trashed_at: number | null;
   owner_id: string;
   url: string;
   title: string;
@@ -44,6 +46,7 @@ type Row = {
 };
 const fields = {
   id: bookmarks.id,
+  trashed_at: bookmarks.trashedAt,
   owner_id: bookmarks.ownerId,
   url: bookmarks.url,
   title: bookmarks.title,
@@ -104,7 +107,13 @@ function need(owner: string, id: string): Row {
   const row = db()
     .select(fields)
     .from(bookmarks)
-    .where(and(eq(bookmarks.id, id), eq(bookmarks.ownerId, owner)))
+    .where(
+      and(
+        eq(bookmarks.id, id),
+        eq(bookmarks.ownerId, owner),
+        isNull(bookmarks.trashedAt),
+      ),
+    )
     .get() as Row | undefined;
   if (!row) throw new HttpError(404, "This bookmark was not found.");
   return row;
@@ -116,7 +125,7 @@ export type BookmarkQuery = {
   unfiled?: boolean;
 };
 function bookmarkWhere(owner: string, options: BookmarkQuery, search?: string) {
-  const where = ["b.owner_id=?"];
+  const where = ["b.owner_id=?", "b.trashed_at IS NULL"];
   const values: (string | number)[] = [owner];
   if (search !== undefined) {
     where.push(
@@ -216,7 +225,7 @@ export function bookmarkSummary(owner: string, options: BookmarkQuery) {
   const collections = (
     sqlite()
       .prepare(
-        "SELECT DISTINCT collection FROM bookmarks WHERE owner_id=? AND collection<>''",
+        "SELECT DISTINCT collection FROM bookmarks WHERE owner_id=? AND trashed_at IS NULL AND collection<>''",
       )
       .all(owner) as { collection: string }[]
   )
@@ -281,7 +290,7 @@ export async function createBookmark(
   if (existing(owner, url))
     throw new HttpError(
       409,
-      "This link is already saved. Search your bookmarks to find it.",
+      "This link is already saved, or is in Trash. Restore it there. Search your bookmarks to find it.",
     );
   const info = {
     title: new URL(url).hostname,
@@ -316,7 +325,10 @@ export async function createBookmark(
       .immediate();
   } catch (error) {
     if (existing(owner, url))
-      throw new HttpError(409, "This link is already saved.");
+      throw new HttpError(
+        409,
+        "This link is already saved, or is in Trash. Restore it there.",
+      );
     throw error;
   }
   startJobWorker();
@@ -447,28 +459,7 @@ export async function deleteBookmark(
   id: string,
   revision: number,
 ) {
-  const row = need(owner, id);
-  if (
-    !db()
-      .delete(bookmarks)
-      .where(
-        and(
-          eq(bookmarks.id, id),
-          eq(bookmarks.ownerId, owner),
-          eq(bookmarks.revision, revision),
-        ),
-      )
-      .run().changes
-  )
-    throw new HttpError(
-      409,
-      "This bookmark changed in another tab. Refresh and try again.",
-    );
-  await Promise.all(
-    [row.thumbnail_key, row.icon_key]
-      .filter((k) => k !== null)
-      .map((k) => storage.delete(k)),
-  );
+  moveToTrash(owner, "bookmark", id, revision);
 }
 export async function bookmarkImage(
   owner: string,
@@ -512,6 +503,7 @@ export async function exportBookmarkBundle(owner: string) {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       noteId: row.note_id,
+      trashedAt: row.trashed_at,
       thumbnail: row.thumbnail_key
         ? { id: row.thumbnail_key, mime: row.thumbnail_mime }
         : null,

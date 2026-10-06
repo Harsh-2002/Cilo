@@ -15,7 +15,7 @@ import {
 import { api } from "@/lib/client";
 import { formatDate, localDate } from "@/lib/dates";
 import type { Overview } from "@/lib/types";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { Button } from "./ui/button";
 import { SectionHeading } from "./section-heading";
 import { Checkbox } from "./ui/checkbox";
@@ -124,13 +124,13 @@ export function OverviewPanel({
       });
       sectionCache.clear("tasks:");
       await refresh();
-      toast.success(
+      notify.success(
         task.recurrence
           ? "Task completed. Next occurrence created."
           : "Task completed.",
       );
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
       await refresh();
     } finally {
       setBusy(null);
@@ -159,32 +159,34 @@ export function OverviewPanel({
         aria-label="Your overview"
       >
         <div className="overview-content section-content">
-          <SectionHeading
-            title="Overview"
-            description="Your notes, tasks and saved links at a glance."
-            onNavigation={onNavigation}
-          />
-          <div className="overview-intro">
-            <div className="overview-clock">
-              <time dateTime={today || undefined} aria-label="Today's date">
-                {now
-                  ? now.toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                  : "Loading date…"}
-              </time>
-              <time dateTime={now?.toISOString()} aria-label="Current time">
-                {now
-                  ? now.toLocaleTimeString(undefined, {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "—"}
-              </time>
-              <span>Local time</span>
+          <div className="overview-header">
+            <SectionHeading
+              title="Overview"
+              description="Your notes, tasks and saved links at a glance."
+              onNavigation={onNavigation}
+            />
+            <div className="overview-intro">
+              <div className="overview-clock">
+                <time dateTime={today || undefined} aria-label="Today's date">
+                  {now
+                    ? now.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "Loading date…"}
+                </time>
+                <time dateTime={now?.toISOString()} aria-label="Current time">
+                  {now
+                    ? now.toLocaleTimeString(undefined, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
+                </time>
+                <span>Local time</span>
+              </div>
             </div>
           </div>
           <div className="overview-actions" aria-label="Quick actions">

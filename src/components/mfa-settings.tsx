@@ -3,7 +3,7 @@ import { useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Download, Loader2, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { authRequest, download } from "@/lib/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -102,7 +102,7 @@ export function MfaSettings({
               setSetup(null);
               setVerified(false);
               onGuardChange(false);
-              toast.success("Two-factor authentication enabled.");
+              notify.success("Two-factor authentication enabled.");
             }}
           >
             Done
@@ -209,7 +209,7 @@ export function MfaSettings({
                   onChanged(false);
                   setPassword("");
                   onGuardChange(false);
-                  toast.success("Two-factor authentication disabled.");
+                  notify.success("Two-factor authentication disabled.");
                 } else {
                   const result = await authRequest("two-factor/enable", {
                     password,

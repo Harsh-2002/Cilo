@@ -6,7 +6,7 @@ import type { JobContext } from "./jobs";
 export async function processArtifact({ job, commit }: JobContext) {
   const row = sqlite()
     .prepare(
-      "SELECT storage_key,name,mime FROM artifacts WHERE id=? AND owner_id=? AND extraction='pending'",
+      "SELECT storage_key,name,mime FROM artifacts WHERE id=? AND owner_id=? AND extraction='pending' AND trashed_at IS NULL",
     )
     .get(job.target_id, job.owner_id) as
     { storage_key: string; name: string; mime: string } | undefined;
@@ -60,7 +60,7 @@ export async function processArtifact({ job, commit }: JobContext) {
   commit(() => {
     sqlite()
       .prepare(
-        "UPDATE artifacts SET content=?,extraction=?,updated_at=? WHERE id=? AND owner_id=? AND extraction='pending'",
+        "UPDATE artifacts SET content=?,extraction=?,updated_at=? WHERE id=? AND owner_id=? AND extraction='pending' AND trashed_at IS NULL",
       )
       .run(result.text, result.status, Date.now(), job.target_id, job.owner_id);
     return result.status;

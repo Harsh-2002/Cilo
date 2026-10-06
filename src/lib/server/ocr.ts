@@ -11,7 +11,9 @@ export async function shutdownOcr() {
 }
 export function resumeOcr() {
   const rows = sqlite()
-    .prepare("SELECT id,owner_id FROM artifacts WHERE extraction='pending'")
+    .prepare(
+      "SELECT id,owner_id FROM artifacts WHERE extraction='pending' AND trashed_at IS NULL",
+    )
     .all() as { id: string; owner_id: string }[];
   for (const row of rows) enqueueJob(row.owner_id, "artifact", row.id);
   startJobWorker();

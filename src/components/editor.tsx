@@ -28,7 +28,7 @@ import { checklistBlockSpec } from "./checklist-block";
 import { audioBlockSpec, videoBlockSpec } from "./media-blocks";
 import { download } from "@/lib/client";
 import { api } from "@/lib/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import type { Document, NoteSummary } from "@/lib/types";
 import { findSearchBlock } from "@/lib/search-context";
 import "@blocknote/shadcn/style.css";
@@ -360,7 +360,7 @@ export default function Editor({
               const notes = await api<NoteSummary[]>(
                 `notes?limit=20&q=${encodeURIComponent(query)}`,
               ).catch(() => {
-                toast.error(
+                notify.error(
                   "Could not find notes. Try linking again when connected.",
                 );
                 return [];

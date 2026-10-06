@@ -1,5 +1,6 @@
 "use client";
 
+import { FeedbackOutlet } from "../inline-feedback";
 import * as React from "react";
 import { cn } from "cn";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -68,6 +69,7 @@ function DialogContent({
         )}
         {...props}
       >
+        <FeedbackOutlet />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>

@@ -116,7 +116,9 @@ test("jobs fence stale leases, deduplicate, cancel deletion and stream only owne
       false,
     );
     assert.equal(
-      db.prepare("SELECT 1 FROM artifacts WHERE id=?").get(artifact.id),
+      db
+        .prepare("SELECT 1 FROM artifacts WHERE id=? AND trashed_at IS NULL")
+        .get(artifact.id),
       undefined,
     );
 

@@ -987,6 +987,18 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           ).status,
           200,
         );
+        assert.equal(
+          (await call(`bookmarks/${item.id}/thumbnail`)).status,
+          404,
+        );
+        assert.equal(
+          (
+            await call(`trash/bookmark/${item.id}`, "DELETE", {
+              revision: queued.revision + 1,
+            })
+          ).status,
+          200,
+        );
         const imported = await (
           await call("import/bundle", "POST", archive)
         ).json();

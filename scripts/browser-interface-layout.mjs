@@ -286,6 +286,50 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
               label + " " + section + " no redundant bar or overflow",
             );
             sections.push({ section, ...metrics });
+            if (section === "Overview") {
+              const overview = await page.evaluate(() => {
+                const header = document.querySelector(".overview-header");
+                const heading = header
+                  .querySelector(".section-heading")
+                  .getBoundingClientRect();
+                const clock = header
+                  .querySelector(".overview-clock")
+                  .getBoundingClientRect();
+                const content = document.querySelector(".overview-content");
+                const bounds = content.getBoundingClientRect();
+                return {
+                  heading: {
+                    x: heading.x,
+                    y: heading.y,
+                    right: heading.right,
+                    bottom: heading.bottom,
+                  },
+                  clock: { x: clock.x, y: clock.y, right: clock.right },
+                  edge:
+                    bounds.right -
+                    parseFloat(getComputedStyle(content).paddingRight),
+                  columns: getComputedStyle(
+                    document.querySelector(".overview-grid"),
+                  ).gridTemplateColumns.split(" ").length,
+                };
+              });
+              check(
+                width >= 1024
+                  ? Math.abs(overview.clock.y - overview.heading.y) < 1 &&
+                      Math.abs(overview.clock.right - overview.edge) < 1
+                  : Math.abs(overview.clock.x - overview.heading.x) < 1 &&
+                      overview.clock.y >= overview.heading.bottom,
+                label + " overview responsive clock placement",
+              );
+              check(
+                overview.columns ===
+                  (width >= 1280 ? 3 : width >= 1024 ? 2 : 1),
+                label + " overview card columns",
+              );
+              await page.screenshot({
+                path: path.join(output, label + "-overview.png"),
+              });
+            }
             if ([390, 1440].includes(width) && section === "Artifacts")
               await page.screenshot({
                 path: path.join(output, label + "-artifacts.png"),

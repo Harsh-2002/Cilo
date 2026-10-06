@@ -7,7 +7,7 @@ import {
   type Ref,
 } from "react";
 import { Bookmark, FileText, ListTodo, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback";
 import { api } from "@/lib/client";
 import type { Note, Task, Bookmark as SavedBookmark } from "@/lib/types";
 import { Button } from "./ui/button";
@@ -109,7 +109,7 @@ export function QuickCapture({
       setText("");
       setChoice(null);
       setOpen(false);
-      toast.success(
+      notify.success(
         type === "note"
           ? "Note saved."
           : type === "task"

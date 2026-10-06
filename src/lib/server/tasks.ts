@@ -1,5 +1,6 @@
+import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db, sqlite } from "./db";
 import { tasks, notes } from "./schema";
 import { HttpError } from "./http";
@@ -9,6 +10,7 @@ import { nextDate, validDate, type Recurrence } from "../dates";
 import { requireLinkedNote } from "./connections";
 const fields = {
   id: tasks.id,
+  trashedAt: tasks.trashedAt,
   title: tasks.title,
   completedAt: tasks.completedAt,
   revision: tasks.revision,
@@ -37,12 +39,17 @@ function enrich(task: Omit<Task, "noteTitle">): Task {
     : undefined;
   return { ...task, noteTitle: note?.title ?? null };
 }
-export function listTasks(owner: string): Task[] {
+export function listTasks(owner: string, includeTrash = false): Task[] {
   return db()
     .select({ ...fields, noteTitle: notes.title })
     .from(tasks)
     .leftJoin(notes, and(eq(notes.id, tasks.noteId), eq(notes.kind, "note")))
-    .where(eq(tasks.ownerId, owner))
+    .where(
+      and(
+        eq(tasks.ownerId, owner),
+        ...(includeTrash ? [] : [isNull(tasks.trashedAt)]),
+      ),
+    )
     .orderBy(asc(tasks.createdAt))
     .all();
 }
@@ -59,7 +66,7 @@ export function listTaskPage(
     after?: string | null;
   },
 ): Page<Task> {
-  const where = ["t.owner_id=?"];
+  const where = ["t.owner_id=?", "t.trashed_at IS NULL"];
   const values: (string | number)[] = [owner];
   if (options.filter === "completed") where.push("t.completed_at IS NOT NULL");
   else {
@@ -104,7 +111,7 @@ export function listTaskPage(
 export function taskCounts(owner: string) {
   return sqlite()
     .prepare(
-      "SELECT COUNT(*) FILTER (WHERE completed_at IS NULL) AS open,COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS completed FROM tasks WHERE owner_id=?",
+      "SELECT COUNT(*) FILTER (WHERE completed_at IS NULL) AS open,COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS completed FROM tasks WHERE owner_id=? AND trashed_at IS NULL",
     )
     .get(owner) as { open: number; completed: number };
 }
@@ -147,7 +154,13 @@ export function updateTask(
       const previous = db()
         .select(fields)
         .from(tasks)
-        .where(and(eq(tasks.id, id), eq(tasks.ownerId, owner)))
+        .where(
+          and(
+            eq(tasks.id, id),
+            eq(tasks.ownerId, owner),
+            isNull(tasks.trashedAt),
+          ),
+        )
         .get();
       if (!previous) throw new HttpError(404, "This task was not found.");
       if (previous.revision !== input.revision)
@@ -199,7 +212,13 @@ export function updateTask(
           !db()
             .select({ id: tasks.id })
             .from(tasks)
-            .where(and(eq(tasks.id, id), eq(tasks.ownerId, owner)))
+            .where(
+              and(
+                eq(tasks.id, id),
+                eq(tasks.ownerId, owner),
+                isNull(tasks.trashedAt),
+              ),
+            )
             .get()
         )
           throw new HttpError(404, "This task was not found.");
@@ -246,20 +265,5 @@ export function updateTask(
     .immediate();
 }
 export function deleteTask(owner: string, id: string, revision: number) {
-  const removed = db()
-    .delete(tasks)
-    .where(
-      and(
-        eq(tasks.id, id),
-        eq(tasks.ownerId, owner),
-        eq(tasks.revision, revision),
-      ),
-    )
-    .returning({ id: tasks.id })
-    .get();
-  if (!removed)
-    throw new HttpError(
-      409,
-      "This task changed or was removed. Refresh tasks and try again.",
-    );
+  moveToTrash(owner, "task", id, revision);
 }

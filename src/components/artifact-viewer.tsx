@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useCompletion } from "@/lib/completion-client";
-import { toast } from "sonner";
+import { FeedbackOutlet } from "./inline-feedback";
+import { notify } from "@/lib/feedback";
 import {
   Copy,
   Download,
@@ -35,9 +36,9 @@ export const artifactLabel = (
 export async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success("Copied.");
+    notify.success("Copied.");
   } catch {
-    toast.error(
+    notify.error(
       "Your browser blocked copying. Select the text and copy it instead.",
     );
   }
@@ -124,7 +125,7 @@ export function ArtifactViewer({
       setTitle(next.title);
       if (changes.content !== undefined) setDraft(next.content);
     } catch (e) {
-      if (currentId.current !== item.id) toast.error((e as Error).message);
+      if (currentId.current !== item.id) notify.error((e as Error).message);
       else setError((e as Error).message);
     } finally {
       if (currentId.current === item.id) setBusy(false);
@@ -136,7 +137,7 @@ export function ArtifactViewer({
       !(await confirm({
         title: "Delete this artifact?",
         description:
-          "It is removed from Nivra, along with any text read from it.",
+          "The artifact and its extracted text will move to Trash. You can restore them there.",
         action: "Delete artifact",
       }))
     )
@@ -258,6 +259,7 @@ export function ArtifactViewer({
           </Button>
         </header>
         <div className="artifact-viewer-body">
+          <FeedbackOutlet />
           {!item ? (
             <div className="artifact-viewer-loading" role="status">
               {error ? (

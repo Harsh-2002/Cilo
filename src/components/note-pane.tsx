@@ -28,7 +28,8 @@ import {
   CalendarDays,
   Inbox,
 } from "lucide-react";
-import { toast } from "sonner";
+import { FeedbackOutlet } from "./inline-feedback";
+import { notify } from "@/lib/feedback";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -230,7 +231,7 @@ export function NotePane({
       if (requireSave && !(await flush())) return;
       await run();
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     }
   }
   async function toggleTrash() {
@@ -285,7 +286,7 @@ export function NotePane({
       savedVersion.current = version.current;
       onSaved(updated);
       onOpen(updated);
-      toast.success("Your edits were saved as a new note.");
+      notify.success("Your edits were saved as a new note.");
     }, false);
   }
   async function upload(file: File) {
@@ -312,7 +313,7 @@ export function NotePane({
         },
       });
       setEditorKey((n) => n + 1);
-      toast.success("File attached.");
+      notify.success("File attached.");
     });
   }
   const [editorKey, setEditorKey] = useState(0);
@@ -338,7 +339,7 @@ export function NotePane({
             });
             onSaved(restored);
             onOpen(restored);
-            toast.success(
+            notify.success(
               "Version restored. Your previous content is kept in history.",
             );
           }}
@@ -398,6 +399,7 @@ export function NotePane({
       )}
       <div className="note-scroll">
         <div className="writing-surface" data-width={note.editorWidth}>
+          <FeedbackOutlet />
           <header className="note-tools">
             <div className="flex items-center gap-2">
               <Button
@@ -411,44 +413,50 @@ export function NotePane({
               </Button>
             </div>
             <div className="flex items-center gap-1">
-              <span className={`save-status ${state}`} role="status">
-                {state === "saving" ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : state === "saved" ? (
-                  <Check size={12} />
-                ) : state === "error" || state === "conflict" ? (
-                  <AlertCircle size={12} />
-                ) : null}
-                {state === "saved"
-                  ? "Saved"
-                  : state === "saving"
-                    ? "Saving"
-                    : "Unsaved"}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Share and publish note"
-                title="Share and publish"
-                disabled={!!note.trashedAt}
-                onClick={() => void action(async () => setSharing(true))}
-              >
-                <Share2 size={17} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={
-                  note.favorite ? "Remove from favorites" : "Add to favorites"
-                }
-                onClick={() => change({ favorite: !note.favorite })}
-                disabled={!!note.trashedAt}
-              >
-                <Star
-                  size={17}
-                  fill={note.favorite ? "currentColor" : "none"}
-                />
-              </Button>
+              {!note.trashedAt && (
+                <>
+                  <span className={`save-status ${state}`} role="status">
+                    {state === "saving" ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : state === "saved" ? (
+                      <Check size={12} />
+                    ) : state === "error" || state === "conflict" ? (
+                      <AlertCircle size={12} />
+                    ) : null}
+                    {state === "saved"
+                      ? "Saved"
+                      : state === "saving"
+                        ? "Saving"
+                        : "Unsaved"}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Share and publish note"
+                    title="Share and publish"
+                    disabled={!!note.trashedAt}
+                    onClick={() => void action(async () => setSharing(true))}
+                  >
+                    <Share2 size={17} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      note.favorite
+                        ? "Remove from favorites"
+                        : "Add to favorites"
+                    }
+                    onClick={() => change({ favorite: !note.favorite })}
+                    disabled={!!note.trashedAt}
+                  >
+                    <Star
+                      size={17}
+                      fill={note.favorite ? "currentColor" : "none"}
+                    />
+                  </Button>
+                </>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Note actions">
@@ -465,92 +473,100 @@ export function NotePane({
                     }
                   }}
                 >
-                  <DropdownMenuLabel>Page width</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={note.editorWidth}
-                    onValueChange={(value) =>
-                      change({
-                        editorWidth: value === "wide" ? "wide" : "standard",
-                      })
-                    }
-                  >
-                    <DropdownMenuRadioItem value="standard">
-                      <AlignCenter size={15} />
-                      Standard
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="wide">
-                      <MoveHorizontal size={15} />
-                      Wide
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => void action(async () => setHistory(true))}
-                  >
-                    <History size={15} />
-                    Version history
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={!!note.trashedAt}
-                    onSelect={() => void action(async () => setSharing(true))}
-                  >
-                    <Share2 size={15} />
-                    Share & publish
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      void action(async () => {
-                        const result = await api<Note>(
-                          `notes/${note.id}/duplicate`,
-                          { method: "POST" },
-                        );
-                        onSaved(result);
-                        onOpen(result);
-                      })
-                    }
-                  >
-                    <Copy size={15} />
-                    Duplicate note
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => uploadRef.current?.click()}
-                    disabled={!!note.trashedAt}
-                  >
-                    <Paperclip size={15} />
-                    Attach a file
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      capturePending.current = true;
-                    }}
-                  >
-                    <Inbox size={15} />
-                    Quick capture
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      void action(async () => {
-                        if (!tools.current)
-                          throw new Error("The editor is still loading.");
-                        await downloadRequest(
-                          `export/markdown/${note.id}`,
-                          `${note.title || "Untitled"}.zip`,
-                          {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              markdown: tools.current.markdown(),
-                            }),
-                          },
-                        );
-                      })
-                    }
-                  >
-                    <Download size={15} />
-                    Export Markdown package
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {!note.trashedAt && (
+                    <>
+                      <DropdownMenuLabel>Page width</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={note.editorWidth}
+                        onValueChange={(value) =>
+                          change({
+                            editorWidth: value === "wide" ? "wide" : "standard",
+                          })
+                        }
+                      >
+                        <DropdownMenuRadioItem value="standard">
+                          <AlignCenter size={15} />
+                          Standard
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="wide">
+                          <MoveHorizontal size={15} />
+                          Wide
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          void action(async () => setHistory(true))
+                        }
+                      >
+                        <History size={15} />
+                        Version history
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={!!note.trashedAt}
+                        onSelect={() =>
+                          void action(async () => setSharing(true))
+                        }
+                      >
+                        <Share2 size={15} />
+                        Share & publish
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          void action(async () => {
+                            const result = await api<Note>(
+                              `notes/${note.id}/duplicate`,
+                              { method: "POST" },
+                            );
+                            onSaved(result);
+                            onOpen(result);
+                          })
+                        }
+                      >
+                        <Copy size={15} />
+                        Duplicate note
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => uploadRef.current?.click()}
+                        disabled={!!note.trashedAt}
+                      >
+                        <Paperclip size={15} />
+                        Attach a file
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          capturePending.current = true;
+                        }}
+                      >
+                        <Inbox size={15} />
+                        Quick capture
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          void action(async () => {
+                            if (!tools.current)
+                              throw new Error("The editor is still loading.");
+                            await downloadRequest(
+                              `export/markdown/${note.id}`,
+                              `${note.title || "Untitled"}.zip`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  markdown: tools.current.markdown(),
+                                }),
+                              },
+                            );
+                          })
+                        }
+                      >
+                        <Download size={15} />
+                        Export Markdown package
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onSelect={() => void toggleTrash()}>
                     {note.trashedAt ? (
                       <>

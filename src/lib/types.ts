@@ -123,3 +123,13 @@ export type Artifact = {
   excerptMatches?: import("./search-context").TextRange[];
 };
 export type ArtifactDetail = Artifact & { content: string };
+
+export type TrashKind = "note" | "journal" | "task" | "bookmark" | "artifact";
+export type TrashItem = {
+  id: string;
+  kind: TrashKind;
+  title: string;
+  excerpt: string;
+  revision: number;
+  trashedAt: number;
+};

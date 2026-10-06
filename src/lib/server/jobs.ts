@@ -117,13 +117,13 @@ async function execute(job: Job) {
         if (job.kind === "artifact")
           sqlite()
             .prepare(
-              "UPDATE artifacts SET extraction='failed',updated_at=? WHERE id=? AND owner_id=? AND extraction='pending'",
+              "UPDATE artifacts SET extraction='failed',updated_at=? WHERE id=? AND owner_id=? AND extraction='pending' AND trashed_at IS NULL",
             )
             .run(Date.now(), job.target_id, job.owner_id);
         else
           sqlite()
             .prepare(
-              "UPDATE bookmarks SET metadata_status='unavailable',updated_at=? WHERE id=? AND owner_id=? AND metadata_status='pending'",
+              "UPDATE bookmarks SET metadata_status='unavailable',updated_at=? WHERE id=? AND owner_id=? AND metadata_status='pending' AND trashed_at IS NULL",
             )
             .run(Date.now(), job.target_id, job.owner_id);
         return "failed";

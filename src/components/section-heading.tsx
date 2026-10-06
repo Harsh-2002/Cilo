@@ -1,3 +1,4 @@
+import { FeedbackOutlet } from "./inline-feedback";
 import { Menu } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -25,6 +26,7 @@ export function SectionHeading({
         </Button>
       </div>
       <p>{description}</p>
+      <FeedbackOutlet />
     </header>
   );
 }

@@ -30,6 +30,7 @@ import {
 import { Button } from "./ui/button";
 import { SectionHeading } from "./section-heading";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import {
   DropdownMenu,
@@ -305,22 +306,30 @@ export function TasksPanel({
             description="A place for what you want to get done."
             onNavigation={onNavigation}
           />
-          <form className="task-create" onSubmit={add}>
-            <Input
-              ref={input}
-              aria-label="New task"
-              placeholder="What needs doing?"
-              value={title}
-              maxLength={300}
-              disabled={busy || !!editing}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+          <form className="task-create section-create" onSubmit={add}>
+            <div className="section-create-field">
+              <Label htmlFor="task-title">Task</Label>
+              <Input
+                id="task-title"
+                ref={input}
+                aria-label="New task"
+                placeholder="What needs doing?"
+                value={title}
+                maxLength={300}
+                disabled={busy || !!editing}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
             <Button type="submit" disabled={busy || !!editing || !title.trim()}>
-              <Plus size={16} />
-              Add task
+              {busy ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Plus size={16} />
+              )}
+              {busy ? "Adding…" : "Add task"}
             </Button>
           </form>
-          <div className="tasks-toolbar">
+          <div className="tasks-toolbar section-toolbar">
             <div className="task-filters" role="group" aria-label="Task status">
               <Button
                 variant="ghost"
@@ -354,6 +363,27 @@ export function TasksPanel({
               >
                 Completed<span>{counts?.completed}</span>
               </Button>
+            </div>
+            <div className="section-filter-select">
+              <Select
+                value={filter}
+                onValueChange={(value) => setFilter(value as typeof filter)}
+                disabled={busy || !!editing}
+              >
+                <SelectTrigger aria-label="Task status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">
+                    Open · {counts?.open ?? "…"}
+                  </SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="completed">
+                    Completed · {counts?.completed ?? "…"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="task-search">
               <Search size={15} />
@@ -569,7 +599,7 @@ export function TasksPanel({
                               await confirm({
                                 title: "Delete this task?",
                                 description:
-                                  "This permanently removes the task from your list.",
+                                  "The task will move to Trash. You can restore it there.",
                                 action: "Delete task",
                               })
                             )

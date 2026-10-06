@@ -361,7 +361,7 @@ export function BookmarksPanel({
             description="Keep useful links close, with a little context."
             onNavigation={onNavigation}
           />
-          <form className="bookmark-create" onSubmit={add}>
+          <form className="bookmark-create section-create" onSubmit={add}>
             <div className="bookmark-url">
               <Label htmlFor="bookmark-url">Link</Label>
               <Input
@@ -404,7 +404,7 @@ export function BookmarksPanel({
               {notice}
             </p>
           )}
-          <div className="bookmark-toolbar">
+          <div className="bookmark-toolbar section-toolbar">
             <div className="bookmark-filters">
               <Button
                 variant="ghost"
@@ -671,7 +671,7 @@ export function BookmarksPanel({
                                     await confirm({
                                       title: "Delete this bookmark?",
                                       description:
-                                        "This removes the saved link and its preview from Nivra.",
+                                        "The bookmark and its preview will move to Trash. You can restore them there.",
                                       action: "Delete bookmark",
                                     })
                                   )

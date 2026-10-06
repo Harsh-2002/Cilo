@@ -2,7 +2,8 @@
 import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import { toast } from "sonner";
+import { FeedbackOutlet } from "./inline-feedback";
+import { notify } from "@/lib/feedback";
 import {
   Download,
   Upload,
@@ -126,7 +127,7 @@ export function SettingsPanel({
       await onImported();
       const count = imported.filter((item) => item.ok).length;
       if (count)
-        toast.success(`${count} ${count === 1 ? "note" : "notes"} imported.`);
+        notify.success(`${count} ${count === 1 ? "note" : "notes"} imported.`);
     });
   }
   return (
@@ -221,6 +222,7 @@ export function SettingsPanel({
               aria-labelledby={`settings-tab-${tab}`}
               tabIndex={0}
             >
+              <FeedbackOutlet />
               {tab === "appearance" && (
                 <>
                   <div className="settings-section-heading">
@@ -298,7 +300,7 @@ export function SettingsPanel({
                               name,
                               username,
                             });
-                            toast.success("Account updated.");
+                            notify.success("Account updated.");
                           });
                         }}
                       >
@@ -384,7 +386,7 @@ export function SettingsPanel({
                             onClick={() =>
                               void run(async () => {
                                 await authRequest("revoke-other-sessions", {});
-                                toast.success("Other sessions signed out.");
+                                notify.success("Other sessions signed out.");
                               })
                             }
                           >
@@ -433,7 +435,7 @@ export function SettingsPanel({
                             setNewPassword("");
                             setConfirm("");
                             setAccountView("profile");
-                            toast.success(
+                            notify.success(
                               "Password changed. Other sessions were signed out.",
                             );
                           });
@@ -717,11 +719,11 @@ export function SettingsPanel({
                             headers: { "Content-Type": "application/zip" },
                           });
                           await onImported();
-                          toast.success(
+                          notify.success(
                             `${result.imported} notes${result.importedTasks ? ` and ${result.importedTasks} tasks` : ""}${result.importedBookmarks ? ` and ${result.importedBookmarks} bookmarks` : ""} restored.`,
                           );
                           if (result.dailyConflicts)
-                            toast.info(
+                            notify.info(
                               `${result.dailyConflicts} daily notes were imported as regular notes because those days already exist.`,
                             );
                         });

@@ -43,7 +43,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
           : area === "bookmark"
             ? "bookmarks"
             : "artifacts";
-    const conditions = ["owner_id=?"];
+    const conditions = ["owner_id=?", "trashed_at IS NULL"];
     const params: (string | number)[] = [owner];
     if (area === "note") conditions.push("trashed_at IS NULL AND kind='note'");
     if (tag) {

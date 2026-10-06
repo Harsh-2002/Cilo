@@ -1,7 +1,7 @@
 "use client";
 import { ConfirmProvider } from "./confirm-provider";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "sonner";
+import { InlineFeedback } from "./inline-feedback";
 import { useEffect } from "react";
 // The server layout initializes theme; client remounts need no executable script.
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -31,7 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       storageKey="nivra-theme"
       scriptProps={{ type: "text/plain" }}
     >
-      <Toaster richColors closeButton />
+      <InlineFeedback />
       <ConfirmProvider>{children}</ConfirmProvider>
     </ThemeProvider>
   );

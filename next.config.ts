@@ -2,6 +2,7 @@ import { historicalNamespace } from "./src/lib/compatibility";
 import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  devIndicators: false,
   experimental: {
     webpackMemoryOptimizations: true,
     turbopackMemoryEviction: "full",

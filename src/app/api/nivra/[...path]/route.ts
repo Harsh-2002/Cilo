@@ -1,3 +1,4 @@
+import { listTrash, restoreTrash, deleteTrash } from "@/lib/server/trash";
 import {
   historicalBundleFormat,
   historicalNamespace,
@@ -350,6 +351,32 @@ async function handle(
         return response(await verifyBackup(id));
       }
     }
+    if (area === "trash") {
+      const kinds = z.enum(["note", "journal", "task", "bookmark", "artifact"]);
+      if (method === "GET" && !id) {
+        const kind = url.searchParams.get("kind");
+        return response(
+          listTrash(
+            owner.id,
+            url.searchParams.get("q") || "",
+            kind ? kinds.parse(kind) : undefined,
+            url.searchParams.get("after"),
+          ),
+        );
+      }
+      if ((method === "POST" || method === "DELETE") && id && action) {
+        const kind = kinds.parse(id);
+        const itemId = z.string().uuid().parse(action);
+        const input = z
+          .object({ revision: z.number().int().positive() })
+          .parse(await json(request));
+        if (method === "POST")
+          restoreTrash(owner.id, kind, itemId, input.revision);
+        else await deleteTrash(owner.id, kind, itemId, input.revision);
+        return response({ ok: true });
+      }
+      throw new HttpError(404, "This Trash action was not found.");
+    }
     if (area === "bookmarks") {
       if (method === "GET" && !id) {
         const params = new URL(request.url).searchParams;
@@ -376,7 +403,7 @@ async function handle(
         id &&
         (action === "thumbnail" || action === "icon")
       )
-        return bookmarkImage(owner.id, id, action);
+        return await bookmarkImage(owner.id, id, action);
       if (method === "POST" && !id) {
         throttle(`bookmark:${owner.id}`);
         const input = z
@@ -853,7 +880,7 @@ async function handle(
             format: "nivra",
             version: 2,
             notes,
-            tasks: listTasks(owner.id),
+            tasks: listTasks(owner.id, true),
             bookmarks: bookmarkExport.items,
             history: (
               database
@@ -987,6 +1014,12 @@ async function handle(
                 collection: z.string().trim().max(80),
                 favorite: z.boolean(),
                 metadataStatus: z.enum(["pending", "ready", "unavailable"]),
+                trashedAt: z
+                  .number()
+                  .int()
+                  .nonnegative()
+                  .nullable()
+                  .default(null),
                 titleEdited: z.boolean().default(true),
                 descriptionEdited: z.boolean().default(true),
                 createdAt: z.number().int().nonnegative(),
@@ -1008,6 +1041,12 @@ async function handle(
                 id: z.string().uuid().optional(),
                 title: z.string().trim().min(1).max(300),
                 completedAt: z.number().int().nonnegative().nullable(),
+                trashedAt: z
+                  .number()
+                  .int()
+                  .nonnegative()
+                  .nullable()
+                  .default(null),
                 createdAt: z.number().int().nonnegative(),
                 updatedAt: z.number().int().nonnegative(),
                 dueDate: calendarDate.nullable().default(null),
@@ -1255,7 +1294,7 @@ async function handle(
               const bookmarkId = randomUUID();
               database
                 .prepare(
-                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id,title_edited,description_edited) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id,title_edited,description_edited,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 )
                 .run(
                   bookmarkId,
@@ -1276,8 +1315,9 @@ async function handle(
                   item.noteId ? noteIds.get(item.noteId) : null,
                   +item.titleEdited,
                   +item.descriptionEdited,
+                  item.trashedAt,
                 );
-              if (item.metadataStatus === "pending")
+              if (!item.trashedAt && item.metadataStatus === "pending")
                 enqueueJob(owner.id, "bookmark", bookmarkId);
             }
             for (const [index, task] of manifest.tasks.entries()) {
@@ -1286,7 +1326,7 @@ async function handle(
                 : [...taskIds.values()][index];
               database
                 .prepare(
-                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,recurrence,recurrence_day,note_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,recurrence,recurrence_day,note_id,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 )
                 .run(
                   assigned,
@@ -1300,6 +1340,7 @@ async function handle(
                   task.recurrenceDay ||
                     (task.dueDate ? Number(task.dueDate.slice(8)) : null),
                   task.noteId ? noteIds.get(task.noteId) : null,
+                  task.trashedAt,
                 );
             }
             for (const task of manifest.tasks)

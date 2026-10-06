@@ -13,7 +13,8 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { useTheme } from "next-themes";
-import { toast } from "sonner";
+import { FeedbackOutlet } from "./inline-feedback";
+import { notify } from "@/lib/feedback";
 import { Loader2, PencilLine } from "lucide-react";
 import {
   Dialog,
@@ -167,7 +168,7 @@ export default function CanvasDialog({
       data.files = stored;
       onSave(JSON.stringify(data), preview.url);
     } catch (e) {
-      toast.error((e as Error).message);
+      notify.error((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -193,6 +194,7 @@ export default function CanvasDialog({
             <DialogDescription>
               Sketch, connect, and explore your ideas.
             </DialogDescription>
+            <FeedbackOutlet />
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={close} disabled={busy}>

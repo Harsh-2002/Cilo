@@ -53,7 +53,7 @@ export function connectionsFor(id: string): Connections {
       .all(id) as Connections["outgoing"],
     tasks: database
       .prepare(
-        "SELECT id,title,completed_at IS NOT NULL AS completed FROM tasks WHERE note_id=? ORDER BY completed_at IS NOT NULL,updated_at DESC LIMIT 100",
+        "SELECT id,title,completed_at IS NOT NULL AS completed FROM tasks WHERE note_id=? AND trashed_at IS NULL ORDER BY completed_at IS NOT NULL,updated_at DESC LIMIT 100",
       )
       .all(id)
       .map((r) => ({
@@ -62,7 +62,7 @@ export function connectionsFor(id: string): Connections {
       })),
     bookmarks: database
       .prepare(
-        "SELECT id,title,url FROM bookmarks WHERE note_id=? ORDER BY updated_at DESC LIMIT 100",
+        "SELECT id,title,url FROM bookmarks WHERE note_id=? AND trashed_at IS NULL ORDER BY updated_at DESC LIMIT 100",
       )
       .all(id) as Connections["bookmarks"],
   };
