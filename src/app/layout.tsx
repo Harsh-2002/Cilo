@@ -1,14 +1,20 @@
 import "@fontsource-variable/geist";
 import type { Metadata, Viewport } from "next";
+import { brandDescription } from "@/lib/brand";
+import { launchImages } from "@/lib/pwa.mjs";
 import { themeBootstrap } from "@/lib/theme";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nivra — a quiet place to think",
-  description:
-    "Your notes, diagrams, and ideas. A minimal, self-hosted workspace.",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Nivra" },
+  title: "Nivra — your personal brain",
+  description: brandDescription,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Nivra",
+    startupImage: launchImages.map(({ url, media }) => ({ url, media })),
+  },
   icons: { icon: "/icon.svg?v=5", apple: "/icons/apple-touch-icon.png?v=5" },
 };
 export const viewport: Viewport = {

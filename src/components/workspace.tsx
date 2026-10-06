@@ -533,93 +533,95 @@ export function Workspace({
         <Mark small />
         <span>Nivra</span>
       </header>
-      <button
-        className="nav-item workspace-search"
-        aria-label="Search"
-        onClick={() => {
-          setDrawer(false);
-          globalSearch.current?.open();
-        }}
-      >
-        <Search size={16} />
-        Search
-        <Shortcut chord={shortcuts.search} className="nav-shortcut" />
-      </button>
-      <nav aria-label="Notes navigation">
-        {[
-          { id: "overview", label: "Overview", Icon: Grid2X2 },
-          { id: "favorites", label: "Favorites", Icon: Heart },
-          { id: "all", label: "Notes", Icon: StickyNote },
-          { id: "journal", label: "Journal", Icon: NotebookPen },
-          { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
-          { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
-          { id: "artifacts", label: "Artifacts", Icon: Layers },
-          { id: "trash", label: "Trash", Icon: Trash },
-        ].map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            className={`nav-item ${view === id && !tag ? "active" : ""}`}
-            aria-current={view === id && !tag ? "page" : undefined}
-            onClick={() => void filter(id)}
-          >
-            <Icon size={18} strokeWidth={1.6} />
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div className="tags-heading">
-        <span>Tags</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Create tag"
-          onClick={() => setTagDialog({ name: "" })}
+      <div className="navigation-scroll">
+        <button
+          className="nav-item workspace-search"
+          aria-label="Search"
+          onClick={() => {
+            setDrawer(false);
+            globalSearch.current?.open();
+          }}
         >
-          <Plus size={14} />
-        </Button>
-      </div>
-      <div className="tag-navigation">
-        {tags.map((item) => (
-          <div
-            key={item.id}
-            className={`tag-nav-row ${tag === item.id ? "active" : ""}`}
-          >
-            <button onClick={() => void filter("all", item.id)}>
-              <span className="tag-dot" data-color={item.color} />
-              <span>{item.name}</span>
+          <Search size={16} />
+          Search
+          <Shortcut chord={shortcuts.search} className="nav-shortcut" />
+        </button>
+        <nav aria-label="Workspace navigation">
+          {[
+            { id: "overview", label: "Overview", Icon: Grid2X2 },
+            { id: "favorites", label: "Favorites", Icon: Heart },
+            { id: "all", label: "Notes", Icon: StickyNote },
+            { id: "journal", label: "Journal", Icon: NotebookPen },
+            { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
+            { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
+            { id: "artifacts", label: "Artifacts", Icon: Layers },
+            { id: "trash", label: "Trash", Icon: Trash },
+          ].map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              className={`nav-item ${view === id && !tag ? "active" : ""}`}
+              aria-current={view === id && !tag ? "page" : undefined}
+              onClick={() => void filter(id)}
+            >
+              <Icon size={18} strokeWidth={1.6} />
+              {label}
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  aria-label={`Actions for ${item.name}`}
-                  className="tag-menu"
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => setTagDialog(item)}>
-                  <Pencil size={14} />
-                  Edit tag
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void deleteTag(item)}>
-                  <Trash2 size={14} />
-                  Delete tag
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-        {!tags.length && (
-          <button
-            className="empty-tags"
+          ))}
+        </nav>
+        <div className="tags-heading">
+          <span>Tags</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Create tag"
             onClick={() => setTagDialog({ name: "" })}
           >
-            Give your ideas a little order.
-            <br />
-            <span>Create your first tag</span>
-          </button>
-        )}
+            <Plus size={14} />
+          </Button>
+        </div>
+        <div className="tag-navigation">
+          {tags.map((item) => (
+            <div
+              key={item.id}
+              className={`tag-nav-row ${tag === item.id ? "active" : ""}`}
+            >
+              <button onClick={() => void filter("all", item.id)}>
+                <span className="tag-dot" data-color={item.color} />
+                <span>{item.name}</span>
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    aria-label={`Actions for ${item.name}`}
+                    className="tag-menu"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onSelect={() => setTagDialog(item)}>
+                    <Pencil size={14} />
+                    Edit tag
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void deleteTag(item)}>
+                    <Trash2 size={14} />
+                    Delete tag
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+          {!tags.length && (
+            <button
+              className="empty-tags"
+              onClick={() => setTagDialog({ name: "" })}
+            >
+              Give your ideas a little order.
+              <br />
+              <span>Create your first tag</span>
+            </button>
+          )}
+        </div>
       </div>
       <div className="navigation-bottom">
         <button
@@ -682,7 +684,20 @@ export function Workspace({
     >
       {sidebar && <aside className="desktop-navigation">{navigation}</aside>}
       <Sheet open={drawer} onOpenChange={setDrawer}>
-        <SheetContent side="left" className="mobile-navigation">
+        <SheetContent
+          side="left"
+          className="mobile-navigation"
+          onCloseAutoFocus={(event) => {
+            if (document.querySelector('[role="dialog"][data-state="open"]'))
+              return;
+            event.preventDefault();
+            document
+              .querySelector<HTMLElement>(
+                '.workspace button[aria-label="Open navigation"]',
+              )
+              ?.focus({ preventScroll: true });
+          }}
+        >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           {navigation}
         </SheetContent>

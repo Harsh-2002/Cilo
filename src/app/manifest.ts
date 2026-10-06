@@ -1,9 +1,10 @@
+import { brandDescription } from "@/lib/brand";
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Nivra",
     short_name: "Nivra",
-    description: "A quiet place for your notes and ideas.",
+    description: brandDescription,
     start_url: "/",
     scope: "/",
     display: "standalone",

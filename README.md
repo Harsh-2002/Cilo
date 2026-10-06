@@ -1,6 +1,6 @@
 # Nivra
 
-A quiet place to think, write, and remember. Nivra is a minimal, self-hosted notes, tasks, bookmarks and artifacts app with rich text, Markdown import/export, tags, search, drawings and attachments. [Artifacts](docs/artifacts.md) saves pasted text, screenshots, documents and media with local OCR and document search.
+Your personal space for thoughts, plans, and everything worth keeping. Nivra is a minimal, self-hosted notes, tasks, bookmarks and artifacts app with rich text, Markdown import/export, tags, search, drawings and attachments. [Artifacts](docs/artifacts.md) saves pasted text, screenshots, documents and media with local OCR and document search.
 
 ## Docker quick start
 

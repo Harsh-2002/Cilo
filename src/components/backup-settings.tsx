@@ -94,11 +94,7 @@ export function BackupSettings({
           <div className="settings-row">
             <div>
               <h3>
-                {status.backend === "off"
-                  ? "Backups are disabled"
-                  : status.backend === "s3"
-                    ? "S3 backups"
-                    : "Local backups"}
+                {status.backend === "s3" ? "S3 backups" : "Local backups"}
               </h3>
               <p>
                 {status.storage === "s3"
@@ -106,20 +102,13 @@ export function BackupSettings({
                   : "Local storage · your data lives in one directory."}
               </p>
               <p>
-                {status.backend === "off"
-                  ? "Enable a backup destination in the server environment."
-                  : `Every ${status.intervalHours} hours · keep ${status.keep} completed backups`}
+                {`Every ${status.intervalHours} hours · keep ${status.keep} completed backups`}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              disabled={
-                busy ||
-                !!verifying ||
-                status.running ||
-                status.backend === "off"
-              }
+              disabled={busy || !!verifying || status.running}
               onClick={() => void backup()}
             >
               {busy || status.running ? (

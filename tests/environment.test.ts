@@ -8,12 +8,12 @@ import { environment } from "../src/lib/server/environment";
 import { deriveKey } from "../src/lib/server/encryption";
 import { hkdfSync } from "node:crypto";
 import { readerUrl } from "../src/lib/reader";
-test("new configuration wins while legacy configuration and encrypted derivation remain compatible", () => {
+test("only current environment names configure Nivra while established encrypted data remains readable", () => {
   const old = {
     [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
     [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
   };
-  assert.equal(environment(old).NIVRA_DATA_DIR, "/legacy");
+  assert.equal(environment(old).NIVRA_DATA_DIR, undefined);
   assert.equal(
     environment({ ...old, NIVRA_DATA_DIR: "/current" }).NIVRA_DATA_DIR,
     "/current",
@@ -23,7 +23,8 @@ test("new configuration wins while legacy configuration and encrypted derivation
     [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
     [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
   });
-  assert.equal(environment(old).NIVRA_S3_PREFIX, `${historicalNamespace}/`);
+  assert.equal(environment(old).NIVRA_S3_PREFIX, undefined);
+  assert.equal(environment(old).NIVRA_STORAGE_BACKEND, undefined);
   assert.equal(
     environment({ ...old, NIVRA_S3_PREFIX: "new/" }).NIVRA_S3_PREFIX,
     "new/",

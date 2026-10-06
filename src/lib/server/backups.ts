@@ -58,7 +58,7 @@ export type BackupInfo = {
   files: number;
 };
 export type BackupStatus = {
-  backend: "local" | "s3" | "off";
+  backend: "local" | "s3";
   storage: "local" | "s3";
   intervalHours: number;
   keep: number;
@@ -338,11 +338,6 @@ export async function createBackup(): Promise<BackupInfo> {
   }
 }
 export function startBackup(): Promise<BackupInfo> {
-  if (backupConfig().backend === "off")
-    throw new HttpError(
-      400,
-      "Backups are disabled by the server configuration.",
-    );
   if (runtime.nivraBackupJob)
     throw new HttpError(409, "A backup is already running.");
   const job = createBackup();
@@ -379,18 +374,16 @@ export async function backupStatus(): Promise<BackupStatus> {
     running: !!runtime.nivraBackupJob || leaseIsAlive(),
     lastSuccess: current.lastSuccess,
     nextAt:
-      config.backend === "off"
-        ? null
-        : (current.lastAttempt ||
-            Number(fs.statSync(databaseFile).birthtimeMs) ||
-            Date.now()) +
-          config.intervalHours * 3_600_000,
+      (current.lastAttempt ||
+        Number(fs.statSync(databaseFile).birthtimeMs) ||
+        Date.now()) +
+      config.intervalHours * 3_600_000,
     error:
       current.error ||
       (fs.existsSync(privatePath("backup.lock")) && !leaseIsAlive()
         ? "A backup was interrupted. Retry to create a new complete copy."
         : null),
-    backups: config.backend === "off" ? [] : await listBackups(),
+    backups: await listBackups(),
   };
 }
 async function readObject(
@@ -540,7 +533,6 @@ export async function verifyBackup(id: string): Promise<BackupInfo> {
 export function startBackupScheduler() {
   const config = backupConfig();
   if (
-    config.backend === "off" ||
     runtime.nivraBackupTimer ||
     process.env.NEXT_PHASE === "phase-production-build"
   )

@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { api } from "@/lib/client";
 import type { Owner, Settings } from "@/lib/types";
+import { LaunchScreen } from "./launch-screen";
 import { AuthScreen, Mark } from "./auth-screen";
 import { Workspace } from "./workspace";
 import { Button } from "./ui/button";
@@ -41,25 +42,16 @@ export function Nivra({
     }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
+  if (!status && !error) return <LaunchScreen />;
   if (!status)
     return (
       <main className="loading-page">
         <Mark />
-        {error ? (
-          <>
-            <p role="alert">{error}</p>
-            <Button variant="outline" onClick={refresh}>
-              <RefreshCw size={16} />
-              Try again
-            </Button>
-          </>
-        ) : (
-          <Loader2
-            size={20}
-            className="animate-spin"
-            aria-label="Opening Nivra"
-          />
-        )}
+        <p role="alert">{error}</p>
+        <Button variant="outline" onClick={refresh}>
+          <RefreshCw size={16} />
+          Try again
+        </Button>
       </main>
     );
   return status.owner ? (

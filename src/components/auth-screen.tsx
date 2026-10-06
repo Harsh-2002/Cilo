@@ -1,5 +1,5 @@
 "use client";
-import { brandPath, brandFramePath } from "@/lib/brand";
+import { brandPath, brandFramePath, brandTagline } from "@/lib/brand";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -310,7 +310,7 @@ export function AuthScreen({
             <Mark />
             <h1>
               {setup
-                ? "A quiet place to think."
+                ? brandTagline
                 : recovering
                   ? "Find your way back."
                   : "Welcome back."}

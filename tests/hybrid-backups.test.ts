@@ -152,31 +152,12 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
       () =>
         backupRepository({
           ...process.env,
-          NIVRA_BACKUP_S3_PREFIX: "media",
+          NIVRA_BACKUP_PREFIX: "media",
         }),
       /separate/,
     );
     assert.ok(objects.has(`/files/media/${file}`));
     await assert.rejects(backupRepository().read("../escape"));
-    const legacy = backupRepository({
-      NIVRA_BACKUP_BACKEND: "s3",
-      NIVRA_BACKUP_S3_ENDPOINT: endpoint,
-      NIVRA_BACKUP_S3_BUCKET: "original-backups",
-      NIVRA_BACKUP_S3_ACCESS_KEY_ID: "fixture-backup",
-      NIVRA_BACKUP_S3_SECRET_ACCESS_KEY: "fixture-secret",
-      NIVRA_BACKUP_S3_PREFIX: "original-recovery",
-    });
-    const key = `${Date.now()}-${randomUUID()}/manifest`;
-    await legacy.write(key, Buffer.from("legacy destination fixture"));
-    assert.ok(objects.has(`/original-backups/original-recovery/${key}`));
-    assert.deepEqual(await legacy.list(), [key]);
-    assert.equal(
-      (await legacy.read(key)).toString(),
-      "legacy destination fixture",
-    );
-    await legacy.remove(key);
-    assert.deepEqual(await legacy.list(), []);
-    assert.ok(objects.has(`/files/media/${file}`));
   } finally {
     db.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

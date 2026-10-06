@@ -3,3 +3,7 @@ export const brandFramePath =
   "M9 1h22a8 8 0 0 1 8 8v22a8 8 0 0 1-8 8H9a8 8 0 0 1-8-8V9a8 8 0 0 1 8-8Z";
 export const brandArtwork = `<path d="${brandFramePath}" fill="#111"/><path d="${brandPath}" fill="#fff"/>`;
 export const brandSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">${brandArtwork}</svg>`;
+
+export const brandTagline = "Your personal brain.";
+export const brandDescription =
+  "Your personal space for thoughts, plans, and everything worth keeping.";

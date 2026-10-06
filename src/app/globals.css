@@ -431,11 +431,19 @@ button:disabled {
 }
 .navigation {
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 12px 12px;
+}
+.navigation-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .workspace-brand {
   display: flex;
@@ -1413,12 +1421,59 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 .mobile-navigation[data-slot="sheet-content"] {
-  width: 240px;
+  width: min(320px, calc(100vw - 48px));
+  max-width: none;
   padding: 0;
+  gap: 0;
   background: var(--sidebar);
 }
 .mobile-navigation > .navigation {
-  padding-top: 28px;
+  padding: max(20px, env(safe-area-inset-top)) 16px
+    max(12px, env(safe-area-inset-bottom));
+}
+.mobile-navigation .workspace-brand {
+  min-height: 44px;
+  margin-bottom: 20px;
+  padding-right: 44px;
+}
+.mobile-navigation [data-slot="sheet-close"] {
+  top: max(20px, env(safe-area-inset-top));
+  right: 16px;
+  width: 44px;
+  height: 44px;
+}
+.mobile-navigation .nav-shortcut {
+  display: none;
+}
+.mobile-navigation .nav-item {
+  min-height: 44px;
+  font-size: 15px;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.mobile-navigation .nav-item > svg {
+  width: 20px;
+  height: 20px;
+}
+.mobile-navigation .tags-heading {
+  margin-top: 20px;
+  font-size: 12px;
+}
+.mobile-navigation .tags-heading button,
+.mobile-navigation .tag-menu {
+  width: 44px;
+  height: 44px;
+}
+.mobile-navigation .tag-nav-row > button:first-child {
+  min-height: 44px;
+  font-size: 15px;
+}
+.mobile-navigation .tag-menu {
+  opacity: 1;
+}
+.mobile-navigation .tag-navigation {
+  flex-shrink: 0;
+  overflow: visible;
 }
 .mobile-navigation .collapse-sidebar {
   display: none;
@@ -4720,4 +4775,18 @@ button:disabled {
   .artifact-layout-switch {
     margin-left: auto;
   }
+}
+
+.launch-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  padding: max(24px, env(safe-area-inset-top)) 24px
+    max(24px, env(safe-area-inset-bottom));
+}
+.launch-screen > svg {
+  width: 64px;
+  height: 64px;
 }

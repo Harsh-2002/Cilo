@@ -1,9 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { LaunchScreen } from "@/components/launch-screen";
 export default function Loading() {
-  return (
-    <main className="system-page" role="status">
-      <Loader2 size={20} className="animate-spin text-muted-foreground" />
-      <span className="sr-only">Opening page</span>
-    </main>
-  );
+  return <LaunchScreen />;
 }

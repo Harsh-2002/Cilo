@@ -1,0 +1,32 @@
+export const launchImages = [
+  [320, 568, 2],
+  [375, 667, 2],
+  [414, 736, 3],
+  [375, 812, 3],
+  [390, 844, 3],
+  [414, 896, 2],
+  [414, 896, 3],
+  [393, 852, 3],
+  [402, 874, 3],
+  [428, 926, 3],
+  [430, 932, 3],
+  [440, 956, 3],
+  [768, 1024, 2],
+  [810, 1080, 2],
+  [820, 1180, 2],
+  [834, 1112, 2],
+  [834, 1194, 2],
+  [1024, 1366, 2],
+  [1032, 1376, 2],
+].flatMap(([width, height, scale]) =>
+  ["portrait", "landscape"].flatMap((orientation) =>
+    ["light", "dark"].map((theme) => ({
+      width: (orientation === "portrait" ? width : height) * scale,
+      height: (orientation === "portrait" ? height : width) * scale,
+      scale,
+      theme,
+      url: `/icons/launch/${width}-${height}-${scale}-${orientation}-${theme}.png?v=1`,
+      media: `(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: ${scale}) and (orientation: ${orientation}) and (prefers-color-scheme: ${theme})`,
+    })),
+  ),
+);

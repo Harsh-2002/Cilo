@@ -1,1 +1,8 @@
-export { brandPath, brandFramePath, brandArtwork, brandSvg } from "./brand.mjs";
+export {
+  brandPath,
+  brandFramePath,
+  brandArtwork,
+  brandSvg,
+  brandTagline,
+  brandDescription,
+} from "./brand.mjs";

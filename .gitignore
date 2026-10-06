@@ -52,3 +52,5 @@ next-env.d.ts
 !.env.example
 
 /generated/
+
+/public/icons/launch/
