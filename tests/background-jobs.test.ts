@@ -42,7 +42,7 @@ test("job migration upgrades existing artifacts without changing content", async
   }
 });
 
-test("jobs fence stale leases, deduplicate, cancel deletion and stream only owner invalidations", async () => {
+test("jobs fence stale leases, deduplicate, cancel deletion and stream only owner invalidations", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "nivra-jobs-"));
   process.env.NIVRA_DATA_DIR = dir;
   const { sqlite } = await import("../src/lib/server/db");
@@ -276,6 +276,29 @@ test("jobs fence stale leases, deduplicate, cancel deletion and stream only owne
         assert.equal((await stream.read()).done, true);
       assert.equal(process.listenerCount(signal), before);
     }
+    await t.test(
+      "ready bookmark work bypasses an extraction backlog without starving artifacts",
+      async () => {
+        await jobs.stopJobWorker();
+        for (let index = 0; index < 5; index++)
+          jobs.enqueueJob(owner, "artifact", `backlog-${index}`);
+        jobs.enqueueJob(owner, "bookmark", "interactive-bookmark");
+        const bookmark = jobs.claimJob(Date.now(), "bookmark")!;
+        assert.equal(bookmark.kind, "bookmark");
+        assert.equal(bookmark.target_id, "interactive-bookmark");
+        assert.equal(
+          jobs.commitJob(bookmark, () => "done"),
+          true,
+        );
+        const artifact = jobs.claimJob(Date.now(), "artifact")!;
+        assert.equal(artifact.kind, "artifact");
+        assert.equal(
+          jobs.commitJob(artifact, () => "done"),
+          true,
+        );
+        assert.equal(jobs.claimJob(Date.now(), "bookmark")!.kind, "artifact");
+      },
+    );
   } finally {
     await jobs.stopJobWorker();
     db.close();

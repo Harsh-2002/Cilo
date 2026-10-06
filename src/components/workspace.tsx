@@ -74,14 +74,21 @@ import { useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
 import { Shortcut, ShortcutKeys } from "./shortcut";
+import {
+  workspacePath,
+  workspaceView,
+  type WorkspaceView,
+} from "@/lib/workspace-routes";
 
 export function Workspace({
   owner,
   initialSettings,
+  initialView = "overview",
   onSignOut,
 }: {
   owner: Owner;
   initialSettings: Settings;
+  initialView?: WorkspaceView;
   onSignOut: () => void;
 }) {
   useCompletionStream(onSignOut);
@@ -89,7 +96,27 @@ export function Workspace({
   const [tags, setTags] = useState<Tag[]>([]);
   const [active, setActive] = useState<Note | null>(null);
   const [focusTerms, setFocusTerms] = useState<string[]>([]);
-  const [view, setView] = useState("overview");
+  const [view, setViewState] = useState<string>(() =>
+    typeof window === "undefined"
+      ? initialView
+      : (workspaceView(window.location.pathname) ?? initialView),
+  );
+  const acceptedUrl = useRef(
+    typeof window === "undefined" ? "" : window.location.href,
+  );
+  const routeSequence = useRef(0);
+  const setView = useCallback((next: string) => {
+    routeSequence.current++;
+    setViewState(next);
+    const url = new URL(window.location.href);
+    const path = workspacePath(next);
+    if (url.pathname !== path) {
+      url.pathname = path;
+      url.searchParams.delete("note");
+      window.history.pushState(null, "", url);
+    }
+    acceptedUrl.current = window.location.href;
+  }, []);
   const [tag, setTag] = useState("");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -316,7 +343,7 @@ export function Workspace({
     return true;
   };
   const navigateNote = useCallback(
-    async (id: string, terms: string[] = []) => {
+    async (id: string, terms: string[] = [], requestedView?: WorkspaceView) => {
       if (!(await guard.current())) return false;
       try {
         const note = await api<Note>(`notes/${id}`);
@@ -326,7 +353,14 @@ export function Workspace({
           );
           return false;
         }
-        setView(note.dailyDate ? "journal" : "all");
+        setView(
+          requestedView &&
+            ["all", "journal", "favorites"].includes(requestedView)
+            ? requestedView
+            : note.dailyDate
+              ? "journal"
+              : "all",
+        );
         setTag("");
         setQuery("");
         setActive(note);
@@ -352,18 +386,56 @@ export function Workspace({
   useEffect(() => {
     if (initialLink.current) return;
     const id = new URL(window.location.href).searchParams.get("note");
+    const requestedView = workspaceView(window.location.pathname) ?? undefined;
     const timer = setTimeout(() => {
       initialLink.current = true;
-      if (id && /^[a-f0-9-]{36}$/.test(id)) void navigateNote(id);
+      if (id && /^[a-f0-9-]{36}$/.test(id))
+        void navigateNote(id, [], requestedView);
     }, 0);
     return () => clearTimeout(timer);
   }, [navigateNote]);
   useEffect(() => {
-    if (!active) return;
     const url = new URL(window.location.href);
-    url.searchParams.set("note", active.id);
+    url.pathname = workspacePath(view);
+    if (active) url.searchParams.set("note", active.id);
+    else url.searchParams.delete("note");
     window.history.replaceState(null, "", url);
-  }, [active]);
+    acceptedUrl.current = url.href;
+  }, [active, view]);
+  useEffect(() => {
+    const restore = () => {
+      const target = new URL(window.location.href);
+      const previous = acceptedUrl.current;
+      const sequence = ++routeSequence.current;
+      void (async () => {
+        const allowed = await guard.current();
+        if (sequence !== routeSequence.current) return;
+        if (!allowed) {
+          window.history.pushState(null, "", previous);
+          notify.error("Your edits haven’t been saved yet.");
+          return;
+        }
+        acceptedUrl.current = target.href;
+        notify.dismiss();
+        setViewState(workspaceView(target.pathname) ?? "overview");
+        setTag("");
+        setQuery("");
+        setSectionTarget({ query: "" });
+        setActive(null);
+        setDrawer(false);
+        guard.current = async () => true;
+        const id = target.searchParams.get("note");
+        if (id && /^[a-f0-9-]{36}$/.test(id))
+          await navigateNote(
+            id,
+            [],
+            workspaceView(target.pathname) ?? undefined,
+          );
+      })();
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [navigateNote]);
   async function today() {
     if (!(await guard.current())) return false;
     try {

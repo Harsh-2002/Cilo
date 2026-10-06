@@ -7,7 +7,12 @@ import type { Owner, Settings } from "@/lib/types";
 import { AuthScreen, Mark } from "./auth-screen";
 import { Workspace } from "./workspace";
 import { Button } from "./ui/button";
-export function Nivra() {
+import type { WorkspaceView } from "@/lib/workspace-routes";
+export function Nivra({
+  initialView = "overview",
+}: {
+  initialView?: WorkspaceView;
+}) {
   const [status, setStatus] = useState<{
     setup: boolean;
     owner: Owner | null;
@@ -59,6 +64,7 @@ export function Nivra() {
     );
   return status.owner ? (
     <Workspace
+      initialView={initialView}
       owner={status.owner}
       initialSettings={status.settings!}
       onSignOut={() => {

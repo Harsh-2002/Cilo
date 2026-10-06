@@ -178,7 +178,19 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           await sidebar
             .getByRole("button", { name: "Artifacts", exact: true })
             .click();
-          await page.locator('.artifact-grid[data-measured="true"]').waitFor();
+          assert.equal(
+            await page
+              .getByRole("button", {
+                name: width < 768 ? "List view" : "Grid view",
+                exact: true,
+              })
+              .getAttribute("aria-pressed"),
+            "true",
+          );
+          await page
+            .getByRole("button", { name: "Grid view", exact: true })
+            .click();
+          await page.locator(".artifact-grid").waitFor();
           await page.waitForFunction(
             () =>
               document.querySelectorAll(".artifact-thumb img").length === 3 &&
@@ -218,6 +230,19 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
                   right: r.right,
                   bottom: r.bottom,
                   height: r.height,
+                  previewRatio:
+                    card
+                      .querySelector(".artifact-thumb")
+                      .getBoundingClientRect().width /
+                    card
+                      .querySelector(".artifact-thumb")
+                      .getBoundingClientRect().height,
+                  footerHeight: card
+                    .querySelector(".artifact-details")
+                    .getBoundingClientRect().height,
+                  imageFit: card.querySelector("img")
+                    ? getComputedStyle(card.querySelector("img")).objectFit
+                    : null,
                   text: card.innerText,
                   label: card.querySelector(".artifact-card-title").textContent,
                   menuHeight: menu.height,
@@ -254,7 +279,12 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           assert.ok(
             geometry.cards.every(
               (card) =>
-                card.labelFits && !card.overflow && card.menuHeight === 44,
+                card.labelFits &&
+                !card.overflow &&
+                card.menuHeight === 44 &&
+                Math.abs(card.previewRatio - 4 / 3) < 0.01 &&
+                card.footerHeight === 72 &&
+                (card.imageFit === null || card.imageFit === "contain"),
             ),
           );
           assert.ok(
@@ -264,8 +294,8 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           );
           assert.ok(
             Math.max(...geometry.cards.map((card) => card.height)) -
-              Math.min(...geometry.cards.map((card) => card.height)) >
-              100,
+              Math.min(...geometry.cards.map((card) => card.height)) <
+              2,
           );
           await page.screenshot({
             path: path.join(output, label + ".png"),
@@ -315,6 +345,89 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           assert.deepEqual(violations, []);
           assert.deepEqual(errors, []);
           reports.push({ label, ...geometry });
+          await page
+            .getByRole("button", { name: "List view", exact: true })
+            .click();
+          await page.locator(".artifact-list").waitFor();
+          const listMetrics = await page.evaluate(() => ({
+            heights: [...document.querySelectorAll(".artifact-card")].map(
+              (el) => el.getBoundingClientRect().height,
+            ),
+            overflow: document.documentElement.scrollWidth > innerWidth,
+            thumbs: [...document.querySelectorAll(".artifact-thumb")].every(
+              (el) =>
+                Math.abs(el.getBoundingClientRect().width - 48) < 1 &&
+                Math.abs(el.getBoundingClientRect().height - 48) < 1,
+            ),
+          }));
+          assert.ok(listMetrics.heights.length);
+          assert.ok(listMetrics.heights.every((h) => Math.abs(h - 74) < 1));
+          assert.equal(listMetrics.overflow, false);
+          assert.equal(listMetrics.thumbs, true);
+          await page.screenshot({
+            path: path.join(output, label + "-list.png"),
+            fullPage: true,
+          });
+          await search.fill("Hiddenindexword2026");
+          await page.waitForFunction(
+            () => document.querySelectorAll(".artifact-card").length === 1,
+          );
+          assert.equal(
+            await page
+              .getByRole("button", { name: "List view", exact: true })
+              .getAttribute("aria-pressed"),
+            "true",
+          );
+          await page
+            .getByRole("button", {
+              name: "Actions for Field-notes.txt",
+              exact: true,
+            })
+            .click();
+          await page
+            .getByRole("menuitem", { name: "Open", exact: true })
+            .click();
+          await page.locator(".artifact-viewer").waitFor();
+          await page
+            .locator(".artifact-viewer")
+            .getByRole("button", { name: "Close", exact: true })
+            .click();
+          await page.reload();
+          await page.locator(".workspace").waitFor();
+          await openNavigation();
+          await sidebar
+            .getByRole("button", { name: "Artifacts", exact: true })
+            .click();
+          await page.locator(".artifact-list").waitFor();
+          if (width < 1024)
+            await page
+              .locator(".mobile-navigation")
+              .waitFor({ state: "hidden" });
+          assert.equal(
+            await page
+              .getByRole("button", { name: "List view", exact: true })
+              .getAttribute("aria-pressed"),
+            "true",
+          );
+          await page.setViewportSize({
+            width: width < 768 ? 1440 : 390,
+            height: 900,
+          });
+          assert.equal(
+            await page
+              .getByRole("button", { name: "List view", exact: true })
+              .getAttribute("aria-pressed"),
+            "true",
+          );
+          await page.setViewportSize({ width, height });
+          await page.addScriptTag({ content: axe });
+          const listViolations = await page.evaluate(async () =>
+            (await window.axe.run(document)).violations
+              .filter((v) => ["serious", "critical"].includes(v.impact))
+              .map((v) => v.id),
+          );
+          assert.deepEqual(listViolations, []);
+          assert.deepEqual(errors, []);
           console.log("Passed", label);
         } finally {
           await context.close();

@@ -17,10 +17,12 @@ const state = globalThis as unknown as {
   nivraJobs?: {
     timer?: ReturnType<typeof setInterval>;
     active: Set<Promise<void>>;
+    activeKinds?: Map<Promise<void>, JobKind>;
     stopped: boolean;
   };
 };
 const runner = (state.nivraJobs ||= { active: new Set(), stopped: false });
+const activeKinds = (runner.activeKinds ||= new Map());
 
 export function enqueueJob(owner: string, kind: JobKind, target: string) {
   const now = Date.now();
@@ -49,14 +51,17 @@ export function completionEvent(
     )
     .run();
 }
-export function claimJob(now = Date.now()): Job | undefined {
+export function claimJob(
+  now = Date.now(),
+  preferredKind?: JobKind,
+): Job | undefined {
   return sqlite()
     .transaction(() => {
       const row = sqlite()
         .prepare(
-          "SELECT * FROM background_jobs WHERE (state='queued' AND available_at<=?) OR (state='running' AND lease_until<=?) ORDER BY available_at,created_at LIMIT 1",
+          "SELECT * FROM background_jobs WHERE (state='queued' AND available_at<=?) OR (state='running' AND lease_until<=?) ORDER BY CASE WHEN kind=? THEN 0 ELSE 1 END,available_at,created_at LIMIT 1",
         )
-        .get(now, now) as Job | undefined;
+        .get(now, now, preferredKind ?? null) as Job | undefined;
       if (!row) return;
       const token = randomUUID();
       sqlite()
@@ -141,10 +146,17 @@ async function execute(job: Job) {
 export function wakeJobs() {
   if (runner.stopped) return;
   while (runner.active.size < 2) {
-    const job = claimJob();
+    const preferred = [...activeKinds.values()].includes("bookmark")
+      ? "artifact"
+      : "bookmark";
+    const job = claimJob(Date.now(), preferred);
     if (!job) break;
-    const work = execute(job).finally(() => runner.active.delete(work));
+    const work = execute(job).finally(() => {
+      runner.active.delete(work);
+      activeKinds.delete(work);
+    });
     runner.active.add(work);
+    activeKinds.set(work, job.kind);
   }
 }
 export function startJobWorker() {

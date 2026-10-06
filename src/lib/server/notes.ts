@@ -36,9 +36,7 @@ export function listNotes(
   const values: (string | number)[] = [];
   const search = queryOverride ?? ftsQuery(params.get("q") || "");
   if (search) {
-    where.push(
-      "n.rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)",
-    );
+    where.push("notes_fts MATCH ?");
     values.push(search);
   }
   if (view === "favorites") where.push("n.favorite=1");
@@ -49,7 +47,7 @@ export function listNotes(
     values.push(params.get("tag")!);
   }
   const order = search
-    ? "(SELECT rank FROM notes_fts WHERE rowid=n.rowid AND notes_fts MATCH ?)"
+    ? "notes_fts.rank"
     : view === "journal"
       ? "n.daily_date DESC"
       : params.get("sort") === "title"
@@ -57,7 +55,9 @@ export function listNotes(
         : params.get("sort") === "created"
           ? "n.created_at DESC"
           : "n.updated_at DESC";
-  if (search) values.push(search);
+  const source = search
+    ? "notes n JOIN notes_fts ON notes_fts.rowid=n.rowid"
+    : "notes n";
   const bounded = params.has("limit");
   const limit = Math.max(
     1,
@@ -73,7 +73,7 @@ export function listNotes(
       : "n.text";
   const rows = sqlite()
     .prepare(
-      `SELECT ${columns},${text} AS text FROM notes n WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
+      `SELECT ${columns},${text} AS text FROM ${source} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
     )
     .all(...values, ...(bounded ? [limit, offset] : [])) as NoteSummary[];
   if (
@@ -82,8 +82,8 @@ export function listNotes(
     queryOverride === undefined &&
     (!offset ||
       !sqlite()
-        .prepare(`SELECT 1 FROM notes n WHERE ${where.join(" AND ")} LIMIT 1`)
-        .get(...values.slice(0, -1)))
+        .prepare(`SELECT 1 FROM ${source} WHERE ${where.join(" AND ")} LIMIT 1`)
+        .get(...values))
   ) {
     const fallback = fuzzyQuery(params.get("q") || "");
     if (fallback) return listNotes(params, fallback);

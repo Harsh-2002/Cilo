@@ -1,7 +1,13 @@
 "use client";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ClipboardPaste,
   Copy,
@@ -12,6 +18,8 @@ import {
   FileText,
   Image as ImageIcon,
   Layers,
+  Grid2X2,
+  List as ListIcon,
   Loader2,
   MoreHorizontal,
   Search,
@@ -51,6 +59,41 @@ import { ArtifactViewer, artifactLabel, copyText } from "./artifact-viewer";
 import { useConfirm } from "./confirm-provider";
 import { shortcutParts, useIsApple } from "@/lib/shortcuts";
 
+type Layout = "grid" | "list";
+const layoutKey = "nivra-artifact-layout";
+let layoutOverride: Layout | null = null;
+const readLayout = (): Layout => {
+  if (layoutOverride) return layoutOverride;
+  try {
+    const saved = localStorage.getItem(layoutKey);
+    if (saved === "grid" || saved === "list") return saved;
+  } catch {}
+  return window.matchMedia("(max-width: 767px)").matches ? "list" : "grid";
+};
+const subscribeLayout = (changed: () => void) => {
+  const media = window.matchMedia("(max-width: 767px)");
+  const storage = (event: StorageEvent) => {
+    if (event.key !== layoutKey && event.key !== null) return;
+    layoutOverride = null;
+    changed();
+  };
+  media.addEventListener("change", changed);
+  window.addEventListener("storage", storage);
+  window.addEventListener("nivra-artifact-layout", changed);
+  return () => {
+    media.removeEventListener("change", changed);
+    window.removeEventListener("storage", storage);
+    window.removeEventListener("nivra-artifact-layout", changed);
+  };
+};
+const serverLayout = (): Layout => "grid";
+const chooseLayout = (layout: Layout) => {
+  layoutOverride = layout;
+  try {
+    localStorage.setItem(layoutKey, layout);
+  } catch {}
+  window.dispatchEvent(new Event("nivra-artifact-layout"));
+};
 type Kind = "all" | "image" | "text" | "file";
 type Summary = { total: number; images: number; texts: number; files: number };
 type List = { items: Artifact[]; next: string | null };
@@ -106,6 +149,11 @@ export function ArtifactsPanel({
   initialQuery?: string;
   openId?: string | null;
 }) {
+  const layout = useSyncExternalStore(
+    subscribeLayout,
+    readLayout,
+    serverLayout,
+  );
   const apple = useIsApple();
   const confirm = useConfirm();
   const warm = sectionCache.get<List>(listKey("all"));
@@ -539,15 +587,43 @@ export function ArtifactsPanel({
                 </SelectContent>
               </Select>
             </div>
-            <div className="task-search">
-              <Search size={15} aria-hidden="true" />
-              <Input
-                aria-label="Search artifacts"
-                placeholder="Search artifacts…"
-                value={query}
-                maxLength={300}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+            <div className="artifact-view-controls">
+              <div className="task-search">
+                <Search size={15} aria-hidden="true" />
+                <Input
+                  aria-label="Search artifacts"
+                  placeholder="Search artifacts…"
+                  value={query}
+                  maxLength={300}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <div
+                className="artifact-layout-switch"
+                role="group"
+                aria-label="Artifact layout"
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Grid view"
+                  title="Grid view"
+                  aria-pressed={layout === "grid"}
+                  onClick={() => chooseLayout("grid")}
+                >
+                  <Grid2X2 size={17} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="List view"
+                  title="List view"
+                  aria-pressed={layout === "list"}
+                  onClick={() => chooseLayout("list")}
+                >
+                  <ListIcon size={17} />
+                </Button>
+              </div>
             </div>
           </div>
           {error && (
@@ -559,9 +635,12 @@ export function ArtifactsPanel({
             </div>
           )}
           {rows === undefined && !error ? (
-            <LoadingState kind="gallery" label="Loading artifacts" />
+            <LoadingState
+              kind={layout === "grid" ? "gallery" : "artifact-list"}
+              label="Loading artifacts"
+            />
           ) : visible.length ? (
-            <ArtifactGallery loading={loading}>
+            <ArtifactGallery loading={loading} layout={layout}>
               {visible.map((item) => {
                 const Icon = typeIcon(item);
                 const label = item.name || artifactLabel(item);
@@ -573,26 +652,27 @@ export function ArtifactsPanel({
                       onClick={() => setViewing(item.id)}
                       aria-label={`Open ${label}`}
                     >
-                      {(item.kind === "image" || item.thumbnail) && (
-                        <span className="artifact-thumb">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`/api/nivra/artifacts/${item.id}/${source}`}
-                            alt=""
-                            loading="lazy"
-                            width={item.width || undefined}
-                            height={item.height || undefined}
-                          />
-                        </span>
-                      )}
-                      <span className="artifact-details">
-                        {item.kind !== "image" && !item.thumbnail && (
+                      <span className="artifact-thumb">
+                        {item.kind === "image" || item.thumbnail ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/nivra/artifacts/${item.id}/${source}`}
+                              alt=""
+                              loading="lazy"
+                              width={item.width || undefined}
+                              height={item.height || undefined}
+                            />
+                          </>
+                        ) : (
                           <Icon
-                            size={20}
-                            strokeWidth={1.6}
+                            size={36}
+                            strokeWidth={1.4}
                             aria-hidden="true"
                           />
                         )}
+                      </span>
+                      <span className="artifact-details">
                         <strong className="artifact-card-title" title={label}>
                           {label}
                         </strong>

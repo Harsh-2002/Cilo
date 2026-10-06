@@ -136,6 +136,31 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
               exact: true,
             });
             await loader.waitFor();
+            if (section === "Artifacts") {
+              assert.equal(
+                await loader.getAttribute("class"),
+                width < 768
+                  ? "loading-state loading-artifact-list"
+                  : "loading-state loading-gallery",
+              );
+              await page
+                .getByRole("button", {
+                  name: width < 768 ? "Grid view" : "List view",
+                  exact: true,
+                })
+                .click();
+              await page
+                .locator(
+                  width < 768 ? ".loading-gallery" : ".loading-artifact-list",
+                )
+                .waitFor();
+              await page
+                .getByRole("button", {
+                  name: width < 768 ? "List view" : "Grid view",
+                  exact: true,
+                })
+                .click();
+            }
             const metrics = await loader.evaluate((element) => ({
               busy: element.getAttribute("aria-busy"),
               bars: element.querySelectorAll(".loading-bar").length,

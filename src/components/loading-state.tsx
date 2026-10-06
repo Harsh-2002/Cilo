@@ -5,6 +5,7 @@ type Kind =
   | "tasks"
   | "trash"
   | "bookmarks"
+  | "artifact-list"
   | "gallery"
   | "overview"
   | "editor"
@@ -31,13 +32,11 @@ export function LoadingState({ kind, label }: { kind: Kind; label: string }) {
   if (kind === "gallery") {
     content = (
       <ArtifactGallery loading>
-        {[240, 120, 180, 0, 0, 0].map((height, index) => (
+        {[0, 1, 2, 3, 4, 5].map((index) => (
           <li className="loading-card" key={index}>
-            {height > 0 && (
-              <div className="loading-media" style={{ height }}>
-                <Bar />
-              </div>
-            )}
+            <div className="loading-media">
+              <Bar />
+            </div>
             <div className="loading-caption">
               <Bar />
               <Bar className="loading-menu" />

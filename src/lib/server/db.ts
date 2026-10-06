@@ -60,6 +60,7 @@ export function sqlite() {
       if (!plaintext) connection.pragma(`key = '${key}'`);
       connection.prepare("SELECT count(*) FROM sqlite_master").get();
       connection.pragma("temp_store = MEMORY");
+      connection.pragma("cache_size = -32768");
       connection.pragma("foreign_keys = ON");
       connection.pragma("busy_timeout = 5000");
       connection.function("nivra_fold", { deterministic: true }, (value) =>

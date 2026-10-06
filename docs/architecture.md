@@ -1,6 +1,8 @@
 # Architecture
 
-Nivra has a Next.js application shell, client-only BlockNote/Excalidraw editors, and authenticated Node.js route handlers. SQLite is the only database. Drizzle defines the schema and handles model/auth mapping; prepared SQL handles FTS5, transactional updates, and ordered startup migrations.
+Nivra has a Next.js application shell, client-only BlockNote/Excalidraw editors, and authenticated Node.js route handlers. Workspace sections have direct URLs: `/overview`, `/notes`, `/favorites`, `/journal`, `/tasks`, `/bookmarks`, `/artifacts` and `/trash`. The root opens Overview. Client navigation updates browser history while retaining the workspace shell; direct loads and refreshes select the section from the path. Existing `?note=` links retain their behavior, and navigation preserves the editor save guard. Unknown section paths return 404. Authentication and private API authorization apply on every section. PWA navigation remains network-only.
+
+SQLite is the only database. Drizzle defines the schema and handles model/auth mapping; prepared SQL handles FTS5, transactional updates, and ordered startup migrations. Each connection targets a 32 MiB SQLite page cache to avoid repeatedly decrypting pages during larger searches. This is a cache target, not a process memory limit.
 
 ## Data and saves
 
@@ -116,7 +118,7 @@ The workspace shows a section's rows only when they belong to that section. Each
 
 ## Private artifact shelf
 
-Migration 0014 adds owner-scoped artifacts and FTS5 indexes. SQLite stores titles, filenames, extracted text, dimensions, extraction state and revisions; originals and thumbnails use the encrypted local/S3 file adapter. Artifact search participates in global full-text and fuzzy search. Uploads preserve originals, while an in-process serialized queue runs bundled English OCR or bounded PDF extraction and resumes pending work after restart. Text and metadata mutations require the current revision. Private file responses retain authenticated range delivery. Full-instance backups enumerate both original and thumbnail keys and validate artifact search indexes during recovery. Note bundles retain their existing scope. See [artifacts.md](artifacts.md) for supported formats and resource limits.
+Migration 0014 adds owner-scoped artifacts and FTS5 indexes. SQLite stores titles, filenames, extracted text, dimensions, extraction state and revisions; originals and thumbnails use the encrypted local/S3 file adapter. Artifact search participates in global full-text and fuzzy search. Uploads preserve originals, while two worker slots claim durable SQLite jobs for bundled English OCR or bounded PDF extraction, recovering expired leases after restart. Text and metadata mutations require the current revision. Private file responses retain authenticated range delivery. Full-instance backups enumerate both original and thumbnail keys and validate artifact search indexes during recovery. Note bundles retain their existing scope. See [artifacts.md](artifacts.md) for supported formats and resource limits.
 
 ## Rename compatibility
 
