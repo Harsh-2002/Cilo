@@ -4273,7 +4273,7 @@ button:disabled {
 }
 .section-content {
   width: 100%;
-  max-width: 1440px;
+  max-width: none;
   margin: 0;
   padding: 40px 40px 64px;
 }
