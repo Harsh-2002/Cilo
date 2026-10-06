@@ -27,10 +27,21 @@ function positive(
   return result;
 }
 export function backupConfig(
-  env: NodeJS.ProcessEnv = environment(),
+  env: Record<string, string | undefined> = environment(),
 ): BackupConfig {
   env = environment(env);
-  const backend = env.NIVRA_BACKUP_BACKEND || "local";
+  const shared = env.NIVRA_S3_BACKUP_ENABLED;
+  if (shared && shared !== "true" && shared !== "false")
+    throw new Error("NIVRA_S3_BACKUP_ENABLED must be true or false.");
+  const legacy = env.NIVRA_BACKUP_BACKEND;
+  if (
+    (shared === "true" && legacy && legacy !== "s3") ||
+    (shared === "false" && legacy === "s3")
+  )
+    throw new Error(
+      "Remove conflicting NIVRA_BACKUP_BACKEND before using NIVRA_S3_BACKUP_ENABLED.",
+    );
+  const backend = shared === "true" ? "s3" : legacy || "local";
   if (backend !== "local" && backend !== "s3" && backend !== "off")
     throw new Error("NIVRA_BACKUP_BACKEND must be local, s3, or off.");
   const keep = positive(env.NIVRA_BACKUP_KEEP, 7, "NIVRA_BACKUP_KEEP", 365);
@@ -64,7 +75,7 @@ export interface BackupRepository {
   remove(key: string): Promise<void>;
 }
 export function backupRepository(
-  env: NodeJS.ProcessEnv = environment(),
+  env: Record<string, string | undefined> = environment(),
 ): BackupRepository {
   env = environment(env);
   const config = backupConfig(env);
@@ -148,15 +159,29 @@ export function backupRepository(
       },
     };
   }
-  const bucket = env.NIVRA_BACKUP_S3_BUCKET,
-    accessKeyId = env.NIVRA_BACKUP_S3_ACCESS_KEY_ID,
-    secretAccessKey = env.NIVRA_BACKUP_S3_SECRET_ACCESS_KEY;
-  if (!bucket || !accessKeyId || !secretAccessKey)
-    throw new Error("S3 backups require a bucket and backup credentials.");
+  const shared = env.NIVRA_S3_BACKUP_ENABLED === "true";
   if (
-    env.NIVRA_BACKUP_S3_ENDPOINT &&
-    !/^https?:\/\//.test(env.NIVRA_BACKUP_S3_ENDPOINT)
+    shared &&
+    [
+      "ENDPOINT",
+      "REGION",
+      "BUCKET",
+      "ACCESS_KEY_ID",
+      "SECRET_ACCESS_KEY",
+      "FORCE_PATH_STYLE",
+    ].some((name) => env[`NIVRA_BACKUP_S3_${name}`])
   )
+    throw new Error(
+      "Remove legacy NIVRA_BACKUP_S3 connection settings before enabling shared S3 backups; preserve the original backup prefix.",
+    );
+  const connection = shared ? "NIVRA_S3_" : "NIVRA_BACKUP_S3_";
+  const bucket = env[`${connection}BUCKET`],
+    accessKeyId = env[`${connection}ACCESS_KEY_ID`],
+    secretAccessKey = env[`${connection}SECRET_ACCESS_KEY`];
+  const endpoint = env[`${connection}ENDPOINT`];
+  if (!bucket || !accessKeyId || !secretAccessKey)
+    throw new Error("S3 backups require a bucket and S3 credentials.");
+  if (endpoint && !/^https?:\/\//.test(endpoint))
     throw new Error("Backup S3 endpoint must be HTTP or HTTPS.");
   const prefix = (env.NIVRA_BACKUP_S3_PREFIX || "nivra-backups").replace(
     /^\/+|\/+$/g,
@@ -167,7 +192,7 @@ export function backupRepository(
   if (
     env.NIVRA_STORAGE_BACKEND === "s3" &&
     bucket === env.NIVRA_S3_BUCKET &&
-    (env.NIVRA_BACKUP_S3_ENDPOINT || "") === (env.NIVRA_S3_ENDPOINT || "")
+    (endpoint || "") === (env.NIVRA_S3_ENDPOINT || "")
   ) {
     const media = (env.NIVRA_S3_PREFIX || "nivra").replace(/^\/+|\/+$/g, "");
     if (
@@ -179,9 +204,9 @@ export function backupRepository(
       throw new Error("Backup and media prefixes must be separate.");
   }
   const client = new S3Client({
-    endpoint: env.NIVRA_BACKUP_S3_ENDPOINT || undefined,
-    region: env.NIVRA_BACKUP_S3_REGION || "us-east-1",
-    forcePathStyle: env.NIVRA_BACKUP_S3_FORCE_PATH_STYLE !== "false",
+    endpoint: endpoint || undefined,
+    region: env[`${connection}REGION`] || "us-east-1",
+    forcePathStyle: env[`${connection}FORCE_PATH_STYLE`] !== "false",
     credentials: { accessKeyId, secretAccessKey },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",

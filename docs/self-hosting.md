@@ -10,26 +10,25 @@ Complete setup before making a fresh installation available to other people: the
 
 The production Dockerfile uses separate dependency, build, and runtime stages. The final stage starts from Alpine and includes Node, its runtime libraries, Next.js standalone output, static assets, and migrations. npm, Yarn, TypeScript, compilers, and development source are excluded. SQLite is compiled or installed for the same platform as the runtime. Run development directly with `npm ci` and `npm run dev` for hot reload.
 
-| Variable             | Default                                 | Purpose                                                                                                |
-| -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `NIVRA_PORT`         | `3000`                                  | Host port published by Compose                                                                         |
-| `NIVRA_BIND_ADDRESS` | `127.0.0.1`                             | Host interface published by Compose                                                                    |
-| `NIVRA_PUBLIC_URL`   | Browser request origin                  | Canonical origin, e.g. `https://notes.example.com`, for reverse-proxy authentication and origin checks |
-| `NIVRA_DATA_DIR`     | `./data` locally; `/app/data` in Docker | Database, secret, and uploads                                                                          |
+| Variable           | Default                                 | Purpose                                                                                                |
+| ------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `NIVRA_PORT`       | `3000`                                  | Host port published by Compose                                                                         |
+| `NIVRA_PUBLIC_URL` | Browser request origin                  | Canonical origin, e.g. `https://notes.example.com`, for reverse-proxy authentication and origin checks |
+| `NIVRA_DATA_DIR`   | `./data` locally; `/app/data` in Docker | Database, secret, and uploads                                                                          |
 
-Set variables in the shell or copy `.env.example` to `.env`. Appearance belongs in UI settings. The attachment limit is configured with `NIVRA_UPLOAD_LIMIT_MIB` (default 25; integer 1–100). Storage configuration is environment-only. Authentication secrets are generated on first boot and preserved in the data directory.
+Set variables in the shell or copy the minimal `.env.example` to `.env`. Defaults provide local files, daily local backups retaining seven copies, a 25 MiB upload limit, and encryption. Only fill in S3 settings if using S3. Advanced overrides include `NIVRA_S3_REGION` (default `us-east-1`), `NIVRA_S3_FORCE_PATH_STYLE` (default `true`), `NIVRA_S3_PREFIX` (default `nivra/`), and `NIVRA_BACKUP_S3_PREFIX` (default `nivra-backups/`); preserve custom prefixes during upgrades. Appearance belongs in UI settings. The attachment limit is configured with `NIVRA_UPLOAD_LIMIT_MIB` (default 25; integer 1–100). Storage configuration is environment-only. Authentication secrets are generated on first boot and preserved in the data directory.
 
-For LAN access, publish to a suitable interface. For mobile installation and remote access, serve HTTPS through your reverse proxy, preserve the request host, and set `NIVRA_PUBLIC_URL` to the browser-visible origin. Keep the app at the domain root; subpath hosting is not supported. The app container runs as the Node user, UID 1000. A custom bind-mounted data directory must be writable by that user.
+Docker and direct host startup bind to `0.0.0.0` by default; no bind-address variable is needed. For mobile installation and remote access, serve HTTPS through your reverse proxy, preserve the request host, and set `NIVRA_PUBLIC_URL` to the browser-visible origin. Keep the app at the domain root; subpath hosting is not supported. The app container runs as the Node user, UID 1000. A custom bind-mounted data directory must be writable by that user.
 
 ```sh
-NIVRA_BIND_ADDRESS=0.0.0.0 NIVRA_PUBLIC_URL=https://notes.example.com docker compose up -d --build
+NIVRA_PUBLIC_URL=https://notes.example.com docker compose up -d --build
 docker compose ps
 docker compose logs --tail=100 nivra
 ```
 
 ## Development behind a domain
 
-Run the working checkout directly with `npm run dev -- --hostname 0.0.0.0 --port 3000`. Point the HTTPS proxy at that port, preserve the host and forward WebSocket upgrades for hot reload. Set `NIVRA_PUBLIC_URL` to the HTTPS origin and `NIVRA_DEV_ORIGINS` to its hostname. Keep the existing `NIVRA_DATA_DIR` and encryption configuration when changing runtime modes; stop the previous server before starting another worker on that database.
+Run the working checkout directly with `npm run dev`. Point the HTTPS proxy at that port, preserve the host and forward WebSocket upgrades for hot reload. Set `NIVRA_PUBLIC_URL` to the HTTPS origin and `NIVRA_DEV_ORIGINS` to its hostname. Keep the existing `NIVRA_DATA_DIR` and encryption configuration when changing runtime modes; stop the previous server before starting another worker on that database.
 
 Turbopack development uses full memory eviction with persistent disk caching. Webpack memory optimizations are enabled for the optional `--webpack` fallback. Warm `/` and `/api/nivra/health` before checking the public domain: first compilation includes the rich editor and can take time. Use a process manager with automatic restarts and a host-appropriate memory limit when keeping development running behind a domain. Development disables Nivra's installed service worker so cached production assets do not obscure source changes. Production builds and Docker verification still use `npm run build`.
 
@@ -43,16 +42,18 @@ Nivra creates encrypted recovery copies while you continue using the app. They i
 
 Settings → Import & export → Instance backups shows the destination, last completion, next scheduled run, recent copies and errors. Back up now starts a background copy. Verify checks a complete restoration in a disposable directory, including the database and every file. Credentials and scheduling stay in the environment:
 
-| Variable                      | Default                  | Purpose                                                                           |
-| ----------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| `NIVRA_BACKUP_BACKEND`        | `local`                  | `local`, `s3`, or `off`; encryption remains mandatory                             |
-| `NIVRA_BACKUP_DIR`            | `NIVRA_DATA_DIR/backups` | Local destination; use a separate disk for host-failure recovery                  |
-| `NIVRA_BACKUP_INTERVAL_HOURS` | `24`                     | Positive interval in hours, at most 8760; checked every minute while the app runs |
-| `NIVRA_BACKUP_KEEP`           | `7`                      | Number of completed copies retained, integer 1–365                                |
+| Variable                      | Default                  | Purpose                                                                                    |
+| ----------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `NIVRA_S3_BACKUP_ENABLED`     | `false`                  | `true` uses the same S3 connection and bucket as file storage; `false` keeps backups local |
+| `NIVRA_BACKUP_DIR`            | `NIVRA_DATA_DIR/backups` | Local destination; use a separate disk for host-failure recovery                           |
+| `NIVRA_BACKUP_INTERVAL_HOURS` | `24`                     | Positive interval in hours, at most 8760; checked every minute while the app runs          |
+| `NIVRA_BACKUP_KEEP`           | `7`                      | Number of completed copies retained, integer 1–365                                         |
 
 Backups start when due after owner setup. Missed schedules are checked on the next running minute. Only completed copies appear; interrupted copies cannot be restored as complete. Retention applies after successful creation and also cleans abandoned objects older than a day. Check errors if a destination is unavailable or full. Keep enough RAM for the largest database/file object, disk space for the temporary encrypted snapshot, and disk space for the full dataset when verifying/restoring.
 
-For an independent private S3-compatible backup destination, set `NIVRA_BACKUP_BACKEND=s3` and `NIVRA_BACKUP_S3_BUCKET`, `NIVRA_BACKUP_S3_ACCESS_KEY_ID`, `NIVRA_BACKUP_S3_SECRET_ACCESS_KEY`. Optional variables are `NIVRA_BACKUP_S3_ENDPOINT`, `NIVRA_BACKUP_S3_REGION` (default `us-east-1`), `NIVRA_BACKUP_S3_PREFIX` (default `nivra-backups/`) and `NIVRA_BACKUP_S3_FORCE_PATH_STYLE` (default `true`). MinIO, RustFS and AWS S3 use the ordinary object API. Create the bucket first; grant ListBucket on the prefix and GetObject, PutObject and DeleteObject on its objects. Use a dedicated prefix separate from media; overlapping configured media/backup prefixes are rejected. Do not point an external bucket lifecycle policy at retained backups unless you accept it independently expiring them.
+For S3 backups, set `NIVRA_S3_BACKUP_ENABLED=true` and fill in the same `NIVRA_S3_*` connection used for files. This also works when files stay local. Backups use `nivra-backups/`; files use `nivra/`. Retention only deletes validated backup objects in the backup prefix. Overlapping configured prefixes are rejected. Create the private bucket first and grant ListBucket, GetObject, PutObject and DeleteObject on the required prefixes. Avoid bucket lifecycle rules that expire retained backups independently.
+
+Existing installations using `NIVRA_BACKUP_BACKEND` and `NIVRA_BACKUP_S3_*` retain their original destination when the new flag is omitted. These legacy settings remain accepted and forwarded by Compose for upgrades, but are omitted from the example ENV. To switch to shared settings, first copy or retain the existing backup objects in the shared bucket, preserve their original prefix with `NIVRA_BACKUP_S3_PREFIX`, remove the old backup connection variables and `NIVRA_BACKUP_BACKEND`, then enable the flag. Conflicting settings stop backup operations rather than silently changing the destination. Changing a destination does not move existing backups. The advanced `NIVRA_BACKUP_BACKEND=off` remains available to disable backups entirely.
 
 Host CLI commands load `.env` when present and respect shell overrides:
 
@@ -63,7 +64,7 @@ npm run backup -- verify BACKUP_ID
 NIVRA_ENCRYPTION_KEY_FILE=/safe/original-encryption.key npm run backup -- restore BACKUP_ID /srv/nivra-restored
 ```
 
-Point `NIVRA_BACKUP_DIR` or `NIVRA_BACKUP_S3_*` at the original backup destination during disaster recovery. The key file contains 32 raw bytes, not a hex string. Use `NIVRA_ENCRYPTION_KEY` for an externally managed 64-character hex key. List/verify need the original key as well. Recovery requires a new or empty destination; populated directories and symlinks are rejected. Backups from hybrid storage restore **locally**, including remote files, so the original media service is not needed. Stop the old installation before switching to the restored directory, set `NIVRA_STORAGE_BACKEND=local`, preserve the original key configuration, and verify login, MFA/recovery, notes, tasks, bookmarks, files, shared links and search. Retain the old data until this succeeds.
+Point `NIVRA_BACKUP_DIR`, or the shared `NIVRA_S3_*` connection with `NIVRA_S3_BACKUP_ENABLED=true`, at the original backup destination during disaster recovery. The key file contains 32 raw bytes, not a hex string. Use `NIVRA_ENCRYPTION_KEY` for an externally managed 64-character hex key. List/verify need the original key as well. Recovery requires a new or empty destination; populated directories and symlinks are rejected. Backups from hybrid storage restore **locally**, including remote files, so the original media service is not needed. Stop the old installation before switching to the restored directory, set `NIVRA_STORAGE_BACKEND=local`, preserve the original key configuration, and verify login, MFA/recovery, notes, tasks, bookmarks, files, shared links and search. Retain the old data until this succeeds.
 
 The production image ships the same CLI as `backup-cli.cjs`:
 
@@ -106,13 +107,10 @@ SQLite, account state, and the authentication secret remain in the local data di
 ```dotenv
 NIVRA_STORAGE_BACKEND=s3
 NIVRA_S3_ENDPOINT=https://objects.example.com
-NIVRA_S3_REGION=us-east-1
 NIVRA_S3_BUCKET=nivra
 NIVRA_S3_ACCESS_KEY_ID=your-access-key
 NIVRA_S3_SECRET_ACCESS_KEY=your-secret-key
-NIVRA_S3_PREFIX=nivra/
-NIVRA_S3_FORCE_PATH_STYLE=true
-NIVRA_UPLOAD_LIMIT_MIB=25
+NIVRA_S3_BACKUP_ENABLED=true
 ```
 
 Use the S3 API endpoint, not the MinIO/RustFS console endpoint. Omit `NIVRA_S3_ENDPOINT` for AWS S3. Path-style addressing defaults to true for MinIO and RustFS; set it to false when your service requires virtual-host addressing. Give the account object read, write, and delete permissions within the chosen bucket and prefix. Nivra does not create buckets or make them public. Browsers read files through Nivra, so bucket CORS is unnecessary.

@@ -66,12 +66,7 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
     NIVRA_S3_ACCESS_KEY_ID: "fixture-media",
     NIVRA_S3_SECRET_ACCESS_KEY: "fixture-secret",
     NIVRA_S3_PREFIX: "media",
-    NIVRA_BACKUP_BACKEND: "s3",
-    NIVRA_BACKUP_S3_ENDPOINT: endpoint,
-    NIVRA_BACKUP_S3_BUCKET: "backups",
-    NIVRA_BACKUP_S3_ACCESS_KEY_ID: "fixture-backup",
-    NIVRA_BACKUP_S3_SECRET_ACCESS_KEY: "fixture-secret",
-    NIVRA_BACKUP_S3_PREFIX: "recovery",
+    NIVRA_S3_BACKUP_ENABLED: "true",
     NIVRA_BACKUP_KEEP: "1",
   });
   const { sqlite } = await import("../src/lib/server/db");
@@ -121,6 +116,12 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
     assert.equal(first.files, 1);
     assert.ok(listed >= 2);
     assert.equal((await backups.listBackups()).length, 1);
+    assert.ok(
+      [...objects.keys()].some((key) =>
+        key.startsWith("/files/nivra-backups/"),
+      ),
+    );
+    assert.ok(objects.has(`/files/media/${file}`));
     for (const value of objects.values())
       assert.match(
         value.subarray(0, 8).toString(),
@@ -151,12 +152,31 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
       () =>
         backupRepository({
           ...process.env,
-          NIVRA_BACKUP_S3_BUCKET: "files",
           NIVRA_BACKUP_S3_PREFIX: "media",
         }),
       /separate/,
     );
+    assert.ok(objects.has(`/files/media/${file}`));
     await assert.rejects(backupRepository().read("../escape"));
+    const legacy = backupRepository({
+      NIVRA_BACKUP_BACKEND: "s3",
+      NIVRA_BACKUP_S3_ENDPOINT: endpoint,
+      NIVRA_BACKUP_S3_BUCKET: "original-backups",
+      NIVRA_BACKUP_S3_ACCESS_KEY_ID: "fixture-backup",
+      NIVRA_BACKUP_S3_SECRET_ACCESS_KEY: "fixture-secret",
+      NIVRA_BACKUP_S3_PREFIX: "original-recovery",
+    });
+    const key = `${Date.now()}-${randomUUID()}/manifest`;
+    await legacy.write(key, Buffer.from("legacy destination fixture"));
+    assert.ok(objects.has(`/original-backups/original-recovery/${key}`));
+    assert.deepEqual(await legacy.list(), [key]);
+    assert.equal(
+      (await legacy.read(key)).toString(),
+      "legacy destination fixture",
+    );
+    await legacy.remove(key);
+    assert.deepEqual(await legacy.list(), []);
+    assert.ok(objects.has(`/files/media/${file}`));
   } finally {
     db.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
