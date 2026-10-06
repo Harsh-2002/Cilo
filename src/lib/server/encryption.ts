@@ -104,7 +104,7 @@ export function chunkedLayout(
   header: Uint8Array,
   storedSize: number,
 ): ChunkedLayout {
-  const bytes = Buffer.from(header);
+  const bytes = Buffer.from(header.subarray(0, chunkedHeaderLength));
   const size = bytes.length >= 12 ? bytes.readUInt32BE(8) : 0;
   const body = storedSize - chunkedHeaderLength;
   if (
@@ -166,9 +166,7 @@ export function sealChunked(
       chunkNonce(index, index === chunks - 1),
     );
     cipher.setAAD(aad);
-    const part = Buffer.from(
-      bytes.subarray(index * chunkSize, (index + 1) * chunkSize),
-    );
+    const part = bytes.subarray(index * chunkSize, (index + 1) * chunkSize);
     offset += cipher.update(part).copy(output, offset);
     cipher.final();
     offset += cipher.getAuthTag().copy(output, offset);
@@ -182,7 +180,7 @@ export function openChunk(
   index: number,
   stored: Uint8Array,
 ): Buffer {
-  const buffer = Buffer.from(stored);
+  const buffer = stored;
   if (buffer.length < tagLength)
     throw new Error("Stored data is not a valid encrypted Nivra object.");
   const decipher = createDecipheriv(
@@ -193,10 +191,11 @@ export function openChunk(
   decipher.setAAD(Buffer.from(context));
   decipher.setAuthTag(buffer.subarray(buffer.length - tagLength));
   try {
-    return Buffer.concat([
-      decipher.update(buffer.subarray(0, buffer.length - tagLength)),
-      decipher.final(),
-    ]);
+    const plain = decipher.update(
+      buffer.subarray(0, buffer.length - tagLength),
+    );
+    const tail = decipher.final();
+    return tail.length ? Buffer.concat([plain, tail]) : plain;
   } catch {
     throw new Error(
       "Stored data failed authentication. Check the encryption key and restore an intact backup.",
@@ -208,24 +207,22 @@ export function unsealChunked(
   master: Buffer,
   context: string,
 ): Buffer {
-  const buffer = Buffer.from(bytes);
+  const buffer = bytes;
   const layout = chunkedLayout(buffer, buffer.length);
   const step = layout.chunkSize + tagLength;
-  const parts: Buffer[] = [];
+  const output = Buffer.allocUnsafeSlow(layout.size);
   for (let index = 0; index < layout.chunks; index++)
-    parts.push(
-      openChunk(
-        layout,
-        master,
-        context,
-        index,
-        buffer.subarray(
-          chunkedHeaderLength + index * step,
-          chunkedHeaderLength + (index + 1) * step,
-        ),
+    openChunk(
+      layout,
+      master,
+      context,
+      index,
+      buffer.subarray(
+        chunkedHeaderLength + index * step,
+        chunkedHeaderLength + (index + 1) * step,
       ),
-    );
-  return Buffer.concat(parts);
+    ).copy(output, index * layout.chunkSize);
+  return output;
 }
 export function unseal(
   bytes: Uint8Array,
@@ -234,7 +231,7 @@ export function unseal(
 ): Buffer {
   if (!isSingleMessage(bytes) || bytes.length < 36)
     throw new Error("Stored data is not a valid encrypted Nivra object.");
-  const buffer = Buffer.from(bytes);
+  const buffer = bytes;
   const decipher = createDecipheriv(
     "aes-256-gcm",
     deriveKey(master, "files"),
@@ -243,10 +240,9 @@ export function unseal(
   decipher.setAAD(Buffer.from(context));
   decipher.setAuthTag(buffer.subarray(20, 36));
   try {
-    return Buffer.concat([
-      decipher.update(buffer.subarray(36)),
-      decipher.final(),
-    ]);
+    const plain = decipher.update(buffer.subarray(36));
+    const tail = decipher.final();
+    return tail.length ? Buffer.concat([plain, tail]) : plain;
   } catch {
     throw new Error(
       "Stored data failed authentication. Check the encryption key and restore an intact backup.",

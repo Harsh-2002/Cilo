@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import { z } from "zod";
 import { runtimeFs as fs } from "./runtime-fs";
 import { dataDir, databaseFile, sqlite } from "./db";
+import { encryptionEnabled, persistEncryptionMode } from "./encryption-mode";
 import {
   masterKey,
   deriveKey,
@@ -45,6 +46,7 @@ const manifestSchema = z
     id: z.string().regex(backupId),
     createdAt: z.number().int().positive(),
     storage: z.enum(["local", "s3"]),
+    encrypted: z.boolean().default(true),
     objects: z.array(object).min(2).max(1_000_000),
   })
   .strict();
@@ -84,11 +86,17 @@ const privatePath = (name: string) =>
   path.join(/* turbopackIgnore: true */ dataDir, name);
 const hash = (bytes: Uint8Array) =>
   createHash("sha256").update(bytes).digest("hex");
-function openSnapshot(file: string, key: Buffer, readonly = true) {
+function openSnapshot(
+  file: string,
+  key: Buffer,
+  readonly = true,
+  encrypted = true,
+) {
   const database = new Database(file, { readonly, fileMustExist: true });
   try {
     database.pragma("cipher='chacha20'");
-    database.pragma(`key='${deriveKey(key, "sqlite").toString("hex")}'`);
+    if (encrypted)
+      database.pragma(`key='${deriveKey(key, "sqlite").toString("hex")}'`);
     database.pragma("temp_store=MEMORY");
     if (
       database.pragma("integrity_check", { simple: true }) !== "ok" ||
@@ -258,7 +266,8 @@ export async function createBackup(): Promise<BackupInfo> {
     persistState({ ...state(), lastAttempt: Date.now(), error: null });
     sqlite().prepare("VACUUM INTO ?").run(snapshot);
     fs.chmodSync(snapshot, 0o600);
-    const database = openSnapshot(snapshot, key);
+    const encrypted = encryptionEnabled(dataDir);
+    const database = openSnapshot(snapshot, key, true, encrypted);
     let files: string[];
     try {
       files = referencedFiles(database);
@@ -272,6 +281,7 @@ export async function createBackup(): Promise<BackupInfo> {
       id,
       createdAt: Date.now(),
       storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
+      encrypted,
       objects: [],
     };
     async function write(name: string, bytes: Buffer) {
@@ -443,6 +453,7 @@ export async function restoreBackup(
       path.join(/* turbopackIgnore: true */ stage, "nivra.sqlite"),
       key,
       false,
+      data.encrypted,
     );
     let files: string[];
     try {
@@ -499,6 +510,7 @@ export async function restoreBackup(
       key,
       { mode: 0o600, flag: "wx", flush: true },
     );
+    persistEncryptionMode(stage, data.encrypted);
     const local = createStorage({ NIVRA_DATA_DIR: stage });
     for (const file of files) {
       await local.write(

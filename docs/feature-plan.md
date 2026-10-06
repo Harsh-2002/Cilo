@@ -1,6 +1,6 @@
 # Connected workspace implementation plan
 
-Scope approved by the owner: unified search, note history, internal links and backlinks, task dates and recurrence, daily notes and templates. Preserve the existing monochrome shadcn interface, single-owner authorization, mandatory encryption, SQLite, local/hybrid file storage and portable recovery.
+Scope approved by the owner: unified search, note history, internal links and backlinks, task dates and recurrence, daily notes and templates. Preserve the existing monochrome shadcn interface, single-owner authorization, default-on encryption with the later approved first-start environment opt-out, SQLite, local/hybrid file storage and portable recovery.
 
 ## Direction contract
 

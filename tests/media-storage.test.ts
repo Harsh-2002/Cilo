@@ -13,6 +13,7 @@ import path from "node:path";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { createStorage } from "../src/lib/server/storage";
 import { masterKey, seal } from "../src/lib/server/encryption";
+import { MessageChannel } from "node:worker_threads";
 
 const chunk = 65536;
 const stored = chunk + 16;
@@ -110,6 +111,24 @@ test("a different key cannot read chunked objects", async () => {
   }
 });
 
+test("empty chunked objects authenticate their final tag and object identity", async () => {
+  const { directory, store, object } = await fixture();
+  try {
+    const id = randomUUID();
+    await store.write(id, Buffer.alloc(0));
+    assert.equal((await store.read(id)).length, 0);
+    const bytes = await readFile(object(id));
+    const other = randomUUID();
+    await writeFile(object(other), bytes);
+    await assert.rejects(store.open(other), /authentication/);
+    bytes[bytes.length - 1] ^= 1;
+    await writeFile(object(id), bytes);
+    await assert.rejects(store.read(id), /authentication/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("legacy single-message objects stay readable and large ones convert in place", async () => {
   const { directory, store, object } = await fixture();
   try {
@@ -166,6 +185,53 @@ test("deleting a legacy object during conversion does not resurrect it", async (
     await store.delete(id);
     await new Promise((resolve) => setTimeout(resolve, 400));
     await assert.rejects(stat(object(id)), /ENOENT/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("read buffers transfer without detaching other readers or a pending legacy conversion", async () => {
+  const { directory, store, object } = await fixture();
+  const transfer = async (bytes: Buffer<ArrayBuffer>) => {
+    assert.equal(bytes.byteOffset, 0);
+    assert.equal(bytes.buffer.byteLength, bytes.length);
+    const { port1, port2 } = new MessageChannel();
+    try {
+      const received = new Promise<Uint8Array>((resolve) =>
+        port2.once("message", resolve),
+      );
+      port1.postMessage(bytes, [bytes.buffer]);
+      assert.equal(bytes.length, 0);
+      return Buffer.from(await received);
+    } finally {
+      port1.close();
+      port2.close();
+    }
+  };
+  try {
+    for (const length of [10, chunk * 2 + 7]) {
+      const id = randomUUID(),
+        original = randomBytes(length);
+      await store.write(id, original);
+      const file = await store.open(id);
+      const otherReader = await file.read(2, 7);
+      assert.deepEqual(await transfer(await store.read(id)), original);
+      assert.deepEqual(otherReader, original.subarray(2, 8));
+      assert.deepEqual(
+        await transfer(await file.read(2, 7)),
+        original.subarray(2, 8),
+      );
+      assert.deepEqual(await store.read(id), original);
+    }
+    const id = randomUUID(),
+      original = randomBytes(1024 * 1024 + 123);
+    await writeFile(
+      object(id),
+      seal(original, masterKey(directory), `object:${id}`),
+    );
+    assert.deepEqual(await transfer(await store.read(id)), original);
+    assert.ok(await until(async () => (await readFile(object(id)))[7] === 50));
+    assert.deepEqual(await store.read(id), original);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

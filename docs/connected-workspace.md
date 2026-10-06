@@ -1,6 +1,6 @@
 # Search, history and connected notes
 
-These features extend the existing notes, tasks and bookmarks workspace. SQLite remains local in both storage modes; mandatory encryption also covers the new records and their recovery backups.
+These features extend the existing notes, tasks and bookmarks workspace. SQLite remains local in both storage modes; the persisted default-on encryption mode also covers these records. Recovery backups remain encrypted in either mode; see [startup configuration](self-hosting.md#encryption-and-key-custody).
 
 ## Search everything
 

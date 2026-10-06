@@ -17,6 +17,7 @@ const {
 import path from "node:path";
 import * as schema from "./schema";
 import { deriveKey, masterKey } from "./encryption";
+import { encryptionEnabled } from "./encryption-mode";
 
 export const dataDir = path.resolve(
   /* turbopackIgnore: true */ environment().NIVRA_DATA_DIR || "./data",
@@ -33,6 +34,7 @@ const globalDb = globalThis as unknown as { nivraSqlite?: Database.Database };
 export function sqlite() {
   if (!globalDb.nivraSqlite) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    const encrypted = encryptionEnabled(dataDir);
     const file = databaseFile;
     const exists = existsSync(file) && statSync(file).size > 0;
     let plaintext = false;
@@ -46,10 +48,11 @@ export function sqlite() {
         closeSync(descriptor);
       }
     }
-    const key = deriveKey(
-      masterKey(dataDir, exists && !plaintext),
-      "sqlite",
-    ).toString("hex");
+    const key = encrypted
+      ? deriveKey(masterKey(dataDir, exists && !plaintext), "sqlite").toString(
+          "hex",
+        )
+      : undefined;
     const connection = new Database(file);
     try {
       connection.pragma("cipher = 'chacha20'");
@@ -57,7 +60,7 @@ export function sqlite() {
         connection.close();
         throw new Error("Nivra requires an encryption-enabled SQLite driver.");
       }
-      if (!plaintext) connection.pragma(`key = '${key}'`);
+      if (encrypted && !plaintext) connection.pragma(`key = '${key}'`);
       connection.prepare("SELECT count(*) FROM sqlite_master").get();
       connection.pragma("temp_store = MEMORY");
       connection.pragma("cache_size = -32768");
@@ -89,7 +92,7 @@ export function sqlite() {
           })
           .immediate();
       }
-      if (plaintext) {
+      if (plaintext && encrypted) {
         connection.pragma("wal_checkpoint(TRUNCATE)");
         connection.pragma("journal_mode = DELETE");
         connection.pragma(`rekey = '${key}'`);

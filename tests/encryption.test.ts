@@ -189,6 +189,13 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
     const unkeyed = new Database(file);
     assert.throws(() => unkeyed.prepare("SELECT * FROM notes").all());
     unkeyed.close();
+    process.env.NIVRA_ENCRYPTION_ENABLED = "false";
+    assert.throws(sqlite, /conflicts/);
+    delete process.env.NIVRA_ENCRYPTION_ENABLED;
+    const modeFile = path.join(directory, "encryption-mode.json");
+    await writeFile(modeFile, JSON.stringify({ version: 1, encrypted: false }));
+    assert.throws(sqlite);
+    await writeFile(modeFile, JSON.stringify({ version: 1, encrypted: true }));
     process.env.NIVRA_ENCRYPTION_KEY = "00".repeat(32);
     assert.throws(sqlite);
     delete process.env.NIVRA_ENCRYPTION_KEY;
@@ -206,6 +213,7 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
     );
   } finally {
     clear();
+    delete process.env.NIVRA_ENCRYPTION_ENABLED;
     delete process.env.NIVRA_ENCRYPTION_KEY;
     await rm(directory, { recursive: true, force: true });
   }

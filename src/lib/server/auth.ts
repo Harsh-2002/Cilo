@@ -4,7 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username, twoFactor } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
 import { runtimeFs } from "./runtime-fs";
-const { readFileSync, writeFileSync } = runtimeFs;
+const { existsSync, readFileSync, writeFileSync } = runtimeFs;
 import path from "node:path";
 import { db, dataDir } from "./db";
 import * as schema from "./schema";
@@ -21,7 +21,10 @@ import {
 export function authSecret() {
   db();
   const file = path.join(/* turbopackIgnore: true */ dataDir, "auth.secret");
-  const key = masterKey(dataDir);
+  const key = masterKey(
+    dataDir,
+    existsSync(file) && isEncrypted(readFileSync(file)),
+  );
   try {
     const bytes = readFileSync(file);
     if (isEncrypted(bytes))

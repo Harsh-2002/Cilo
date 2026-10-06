@@ -10,6 +10,7 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { dataDir, sqlite } from "./db";
+import { encryptionEnabled } from "./encryption-mode";
 import {
   chunkedHeaderLength,
   chunkedLayout,
@@ -31,7 +32,7 @@ export interface StorageAdapter {
 export interface StoredFile {
   size: number;
   // Both bounds are inclusive plaintext offsets; only the covering chunks are read and authenticated.
-  read(start: number, end: number): Promise<Buffer>;
+  read(start: number, end: number): Promise<Buffer<ArrayBuffer>>;
 }
 interface RawStorageAdapter extends StorageAdapter {
   replace(key: string, data: Uint8Array): Promise<void>;
@@ -39,9 +40,10 @@ interface RawStorageAdapter extends StorageAdapter {
     key: string,
     offset: number,
     length: number,
-  ): Promise<{ data: Buffer; size: number }>;
+  ): Promise<{ data: Buffer; size: number; whole?: Buffer }>;
 }
-interface EncryptedStorageAdapter extends StorageAdapter {
+interface FileStorageAdapter extends StorageAdapter {
+  read(key: string): Promise<Buffer<ArrayBuffer>>;
   open(key: string): Promise<StoredFile>;
   migrateLegacy(key: string): Promise<void>;
 }
@@ -177,6 +179,7 @@ function createRawStorage(
         return {
           data: data.subarray(offset, offset + length),
           size: data.length,
+          whole: data,
         };
       return { data, size: Number(total) };
     },
@@ -201,9 +204,55 @@ const upgrades = new Map<string, Promise<void>>();
 let upgradeQueue: Promise<void> = Promise.resolve();
 export function createStorage(
   env: Record<string, string | undefined> = environment(),
-): EncryptedStorageAdapter {
+): FileStorageAdapter {
   env = environment(env);
   const raw = createRawStorage(env);
+  if (!encryptionEnabled(path.resolve(env.NIVRA_DATA_DIR || dataDir), env)) {
+    async function open(id: string): Promise<StoredFile> {
+      const head = await raw
+        .readRange(id, 0, 1)
+        .catch(async (error: unknown) => {
+          const status = (error as { $metadata?: { httpStatusCode?: number } })
+            .$metadata?.httpStatusCode;
+          if (status !== 416) throw error;
+          const whole = await raw.read(id);
+          if (whole.length) throw error;
+          return { data: whole, size: 0, whole };
+        });
+      let whole = head.whole;
+      return {
+        size: head.size,
+        async read(start, end) {
+          const last = Math.min(end, head.size - 1);
+          if (start < 0 || start > last) return Buffer.alloc(0);
+          const output = Buffer.allocUnsafeSlow(last - start + 1);
+          for (let offset = start; offset <= last; offset += 1024 * 1024) {
+            const length = Math.min(1024 * 1024, last - offset + 1);
+            const stored = whole
+              ? { data: whole.subarray(offset, offset + length), whole }
+              : await raw.readRange(id, offset, length);
+            if (stored.whole) whole = stored.whole;
+            if (stored.data.length !== length)
+              throw new Error("Stored file is truncated.");
+            stored.data.copy(output, offset - start);
+          }
+          return output;
+        },
+      };
+    }
+    return {
+      write: (id, bytes) => raw.write(id, bytes),
+      delete: (id) => raw.delete(id),
+      open,
+      read: async (id) => {
+        const file = await open(id);
+        return file.size ? file.read(0, file.size - 1) : Buffer.alloc(0);
+      },
+      migrateLegacy: async (id) => {
+        await raw.readRange(id, 0, 1);
+      },
+    };
+  }
   const key = masterKey(
     path.resolve(env.NIVRA_DATA_DIR || dataDir),
     false,
@@ -235,6 +284,13 @@ export function createStorage(
     if (isChunked(head.data)) {
       const layout = chunkedLayout(head.data, head.size);
       const step = layout.chunkSize + 16;
+      let whole = head.whole;
+      if (!layout.size) {
+        const stored = whole
+          ? whole.subarray(chunkedHeaderLength)
+          : (await raw.readRange(id, chunkedHeaderLength, 16)).data;
+        openChunk(layout, key, context(id), 0, stored);
+      }
       return {
         size: layout.size,
         async read(start, end) {
@@ -242,29 +298,34 @@ export function createStorage(
           if (start < 0 || start > last) return Buffer.alloc(0);
           const first = Math.floor(start / layout.chunkSize);
           const final = Math.floor(last / layout.chunkSize);
-          const stored = await raw.readRange(
-            id,
-            chunkedHeaderLength + first * step,
-            (final - first + 1) * step,
-          );
-          const parts: Buffer[] = [];
-          for (let index = first; index <= final; index++)
-            parts.push(
-              openChunk(
+          const output = Buffer.allocUnsafeSlow(last - start + 1);
+          const batchSize = Math.max(1, Math.floor((1024 * 1024) / step));
+          for (let batch = first; batch <= final; batch += batchSize) {
+            const batchEnd = Math.min(final, batch + batchSize - 1);
+            const offset = chunkedHeaderLength + batch * step;
+            const length = (batchEnd - batch + 1) * step;
+            const stored = whole
+              ? { data: whole.subarray(offset, offset + length), whole }
+              : await raw.readRange(id, offset, length);
+            if (stored.whole) whole = stored.whole;
+            for (let index = batch; index <= batchEnd; index++) {
+              const plain = openChunk(
                 layout,
                 key,
                 context(id),
                 index,
                 stored.data.subarray(
-                  (index - first) * step,
-                  (index - first + 1) * step,
+                  (index - batch) * step,
+                  (index - batch + 1) * step,
                 ),
-              ),
-            );
-          return Buffer.concat(parts).subarray(
-            start - first * layout.chunkSize,
-            last - first * layout.chunkSize + 1,
-          );
+              );
+              const offset = index * layout.chunkSize;
+              const from = Math.max(start, offset);
+              const to = Math.min(last + 1, offset + plain.length);
+              plain.copy(output, from - start, from - offset, to - offset);
+            }
+          }
+          return output;
         },
       };
     }
@@ -272,8 +333,16 @@ export function createStorage(
     if (plain.length >= upgradeThreshold) void upgradeLegacy(id, plain);
     return {
       size: plain.length,
-      read: async (start, end) =>
-        plain.subarray(Math.max(0, start), Math.min(end, plain.length - 1) + 1),
+      read: async (start, end) => {
+        const range = plain.subarray(
+          Math.max(0, start),
+          Math.min(end, plain.length - 1) + 1,
+        );
+        // Legacy conversion retains its plaintext, so readers must own their buffers.
+        const output = Buffer.allocUnsafeSlow(range.length);
+        range.copy(output);
+        return output;
+      },
     };
   }
   return {
@@ -298,7 +367,7 @@ export function createStorage(
     },
   };
 }
-let adapter: EncryptedStorageAdapter | undefined;
+let adapter: FileStorageAdapter | undefined;
 const runtime = globalThis as unknown as {
   nivraFilePins?: Map<string, number>;
   nivraDeferredDeletes?: Set<string>;
@@ -325,7 +394,7 @@ export function pinStoredFiles(keys: string[]) {
       throw new Error("Some deferred file deletions could not be completed.");
   };
 }
-export const storage: EncryptedStorageAdapter = {
+export const storage: FileStorageAdapter = {
   write: (key, data) => (adapter ||= createStorage()).write(key, data),
   read: (key) => (adapter ||= createStorage()).read(key),
   open: (key) => (adapter ||= createStorage()).open(key),

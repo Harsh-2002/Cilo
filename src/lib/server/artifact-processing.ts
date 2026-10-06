@@ -24,6 +24,7 @@ export async function processArtifact({ job, commit }: JobContext) {
         ),
         {
           workerData: { bytes, name: row.name, mime: row.mime },
+          transferList: [bytes.buffer],
           execArgv: [],
           resourceLimits: { maxOldGenerationSizeMb: 512 },
         },

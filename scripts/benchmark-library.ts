@@ -8,6 +8,7 @@ async function main() {
     path.join(tmpdir(), "nivra-library-benchmark-"),
   );
   process.env.NIVRA_DATA_DIR = directory;
+  process.env.NIVRA_ENCRYPTION_ENABLED = "true";
   const { sqlite } = await import("../src/lib/server/db");
   const { listNotes, getNote } = await import("../src/lib/server/notes");
   const { listTasks, listTaskPage, taskCounts } =

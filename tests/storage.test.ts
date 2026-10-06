@@ -21,6 +21,8 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-s3-"));
   const objects = new Map<string, Buffer>();
   const requested: string[] = [];
+  let ignoreRange = false;
+  let gets = 0;
   const server = createServer(async (req, res) => {
     assert.match(
       req.headers.authorization || "",
@@ -40,9 +42,15 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
       objects.set(url.pathname, Buffer.concat(chunks));
       res.end();
     } else if (req.method === "GET") {
+      gets++;
       const value = objects.get(url.pathname);
       const range = /^bytes=(\d+)-(\d+)$/.exec(req.headers.range || "");
-      if (value && range) {
+      if (value && !value.length && range && !ignoreRange) {
+        res.writeHead(416, { "content-range": "bytes */0" });
+        res.end();
+        return;
+      }
+      if (value && range && !ignoreRange) {
         requested.push(`${range[1]}-${range[2]}`);
         const end = Math.min(Number(range[2]), value.length - 1);
         res.writeHead(206, {
@@ -108,6 +116,65 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
       long.subarray(65536 * 5),
     );
     assert.deepEqual(await store.read(media), long);
+    const large = randomUUID(),
+      largeBytes = randomBytes(3 * 1024 * 1024 + 19);
+    await store.write(large, largeBytes);
+    requested.length = 0;
+    assert.deepEqual(await store.read(large), largeBytes);
+    assert.ok(requested.length > 3);
+    assert.ok(
+      requested.every((range) => {
+        const [start, end] = range.split("-").map(Number);
+        return end - start + 1 <= 1024 * 1024;
+      }),
+      "encrypted reads must not download the entire large object at once",
+    );
+    const ranged = await store.open(large);
+    assert.deepEqual(
+      await ranged.read(900_000, 2_000_000),
+      largeBytes.subarray(900_000, 2_000_001),
+    );
+    ignoreRange = true;
+    gets = 0;
+    assert.deepEqual(await store.read(large), largeBytes);
+    assert.equal(
+      gets,
+      1,
+      "a server ignoring Range should only download the object once",
+    );
+    const damaged = Buffer.from(objects.get(`/notes/nivra/${large}`)!);
+    damaged[damaged.length - 1] ^= 1;
+    objects.set(`/notes/nivra/${large}`, damaged);
+    await assert.rejects(store.read(large), /authentication/);
+    ignoreRange = false;
+    const plain = createStorage({
+      NIVRA_DATA_DIR: path.join(directory, "plain"),
+      NIVRA_ENCRYPTION_ENABLED: "false",
+      NIVRA_STORAGE_BACKEND: "s3",
+      NIVRA_S3_ENDPOINT: `http://127.0.0.1:${port}`,
+      NIVRA_S3_BUCKET: "notes",
+      NIVRA_S3_ACCESS_KEY_ID: "test-access",
+      NIVRA_S3_SECRET_ACCESS_KEY: "test-secret",
+    });
+    const plainKey = randomUUID();
+    await plain.write(plainKey, largeBytes);
+    assert.deepEqual(objects.get(`/notes/nivra/${plainKey}`), largeBytes);
+    assert.deepEqual(await plain.read(plainKey), largeBytes);
+    assert.deepEqual(
+      await (await plain.open(plainKey)).read(900_000, 2_000_000),
+      largeBytes.subarray(900_000, 2_000_001),
+    );
+    ignoreRange = true;
+    gets = 0;
+    assert.deepEqual(await plain.read(plainKey), largeBytes);
+    assert.equal(gets, 1);
+    ignoreRange = false;
+    await plain.delete(plainKey);
+    const empty = randomUUID();
+    await plain.write(empty, Buffer.alloc(0));
+    assert.equal((await plain.open(empty)).size, 0);
+    assert.equal((await plain.read(empty)).length, 0);
+    await plain.delete(empty);
     await store.delete(key);
     await store.delete(key);
     await assert.rejects(store.read(key));

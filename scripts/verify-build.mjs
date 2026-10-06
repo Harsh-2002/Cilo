@@ -9,6 +9,7 @@ function inspect(directory) {
       /\.sqlite(?:-(?:wal|shm))?$/.test(entry.name) ||
       [
         "encryption.key",
+        "encryption-mode.json",
         "auth.secret",
         "nivra.sqlite",
         "nivra.sqlite-wal",
