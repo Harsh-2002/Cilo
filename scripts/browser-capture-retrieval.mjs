@@ -36,8 +36,8 @@ export default async function verifyCaptureRetrieval(
     };
   }
   const capture = () =>
-    page.getByRole("dialog", { name: "Quick capture", exact: true });
-  const input = () => capture().getByRole("textbox", { name: "Capture text" });
+    page.getByRole("dialog", { name: "Quick", exact: true });
+  const input = () => capture().getByRole("textbox", { name: "Quick text" });
   const search = () =>
     page.getByRole("dialog", { name: "Search Nivra", exact: true });
   const ready = async () => {
@@ -283,12 +283,10 @@ export default async function verifyCaptureRetrieval(
   }
   await page.setViewportSize({ width: 390, height: 900 });
   await page.getByRole("button", { name: "Note actions", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "Quick capture", exact: true })
-    .click();
+  await page.getByRole("menuitem", { name: "Quick", exact: true }).click();
   await input().waitFor();
   await page.waitForFunction(
-    () => document.activeElement?.getAttribute("aria-label") === "Capture text",
+    () => document.activeElement?.getAttribute("aria-label") === "Quick text",
   );
   await page.setViewportSize({ width: 390, height: 320 });
   await page.waitForFunction(() => {

@@ -272,7 +272,7 @@ for (const [engineName, engine] of Object.entries({
             1,
           );
           assert.equal(
-            await sidebar.getByRole("button", { name: /^Capture/ }).count(),
+            await sidebar.getByRole("button", { name: /^Quick/ }).count(),
             1,
           );
           if (width < 1024) await page.keyboard.press("Escape");

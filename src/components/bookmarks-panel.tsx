@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -459,16 +460,7 @@ export function BookmarksPanel({
             </div>
           )}
           {rows === undefined && !error ? (
-            <div
-              className="bookmark-grid bookmark-skeleton"
-              role="status"
-              aria-label="Loading bookmarks"
-              aria-busy="true"
-            >
-              {[0, 1, 2, 3, 4, 5].map((n) => (
-                <span key={n} />
-              ))}
-            </div>
+            <LoadingState kind="bookmarks" label="Loading bookmarks" />
           ) : visible.length ? (
             <ul
               className="bookmark-grid"

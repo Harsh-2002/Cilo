@@ -141,7 +141,7 @@ export function QuickCapture({
           if (busy) event.preventDefault();
         }}
       >
-        <DialogTitle>Quick capture</DialogTitle>
+        <DialogTitle>Quick</DialogTitle>
         <DialogDescription className="sr-only">
           Save a note, task or bookmark without leaving your current work.
         </DialogDescription>
@@ -176,7 +176,7 @@ export function QuickCapture({
           </div>
           <Textarea
             ref={input}
-            aria-label="Capture text"
+            aria-label="Quick text"
             placeholder={
               type === "task"
                 ? "What needs doing?"

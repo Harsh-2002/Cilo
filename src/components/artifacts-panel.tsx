@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -13,7 +14,6 @@ import {
   Layers,
   Loader2,
   MoreHorizontal,
-  ScanText,
   Search,
   Trash2,
   Upload,
@@ -25,7 +25,6 @@ import {
   fromClipboard,
   fromTransfer,
   makeThumbnail,
-  readableSize,
   type Dropped,
 } from "@/lib/artifacts-client";
 import { sectionCache } from "@/lib/section-cache";
@@ -47,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { SearchText } from "./search-text";
+import { ArtifactGallery } from "./artifact-gallery";
 import { ArtifactViewer, artifactLabel, copyText } from "./artifact-viewer";
 import { useConfirm } from "./confirm-provider";
 import { shortcutParts, useIsApple } from "@/lib/shortcuts";
@@ -560,31 +559,19 @@ export function ArtifactsPanel({
             </div>
           )}
           {rows === undefined && !error ? (
-            <div
-              className="artifact-grid artifact-skeleton"
-              role="status"
-              aria-label="Loading artifacts"
-              aria-busy="true"
-            >
-              {[0, 1, 2, 3, 4, 5].map((n) => (
-                <span key={n} />
-              ))}
-            </div>
+            <LoadingState kind="gallery" label="Loading artifacts" />
           ) : visible.length ? (
-            <ul
-              className="artifact-grid"
-              aria-label="Saved artifacts"
-              aria-busy={loading}
-            >
+            <ArtifactGallery loading={loading}>
               {visible.map((item) => {
                 const Icon = typeIcon(item);
+                const label = item.name || artifactLabel(item);
                 const source = item.thumbnail ? "thumbnail" : "file";
                 return (
                   <li key={item.id} className={`artifact-card is-${item.kind}`}>
                     <button
                       className="artifact-open"
                       onClick={() => setViewing(item.id)}
-                      aria-label={`Open ${artifactLabel(item)}`}
+                      aria-label={`Open ${label}`}
                     >
                       {(item.kind === "image" || item.thumbnail) && (
                         <span className="artifact-thumb">
@@ -593,71 +580,32 @@ export function ArtifactsPanel({
                             src={`/api/nivra/artifacts/${item.id}/${source}`}
                             alt=""
                             loading="lazy"
+                            width={item.width || undefined}
+                            height={item.height || undefined}
                           />
                         </span>
                       )}
-                      {item.kind === "file" && !item.thumbnail && (
-                        <span className="artifact-file">
-                          <Icon size={28} strokeWidth={1.4} />
-                          <small>{item.mime || "File"}</small>
-                        </span>
-                      )}
                       <span className="artifact-details">
-                        <strong className="artifact-card-title">
-                          {artifactLabel(item)}
+                        {item.kind !== "image" && !item.thumbnail && (
+                          <Icon
+                            size={20}
+                            strokeWidth={1.6}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <strong className="artifact-card-title" title={label}>
+                          {label}
                         </strong>
-                        {item.name && item.name !== artifactLabel(item) && (
-                          <span
-                            className="artifact-card-name"
-                            title={item.name}
-                          >
-                            {item.name}
-                          </span>
-                        )}
-                        {item.excerpt !== undefined ? (
-                          <span className="artifact-hit">
-                            <ScanText size={13} aria-hidden="true" />
-                            <SearchText
-                              text={item.excerpt}
-                              ranges={item.excerptMatches}
-                            />
-                          </span>
-                        ) : item.preview ? (
-                          <span className="artifact-snippet">
-                            {item.preview}
-                          </span>
-                        ) : null}
-                        {item.extraction === "pending" && (
-                          <span className="artifact-status" role="status">
-                            <Loader2 size={12} className="animate-spin" />
-                            Reading text…
-                          </span>
-                        )}
-                        {item.extraction === "failed" && (
-                          <span className="artifact-status">
-                            Text extraction failed. Open to retry.
-                          </span>
-                        )}
                       </span>
                     </button>
                     <div className="artifact-card-footer">
-                      <span>
-                        {item.kind === "text"
-                          ? "Text"
-                          : readableSize(item.size)}{" "}
-                        ·{" "}
-                        {new Date(item.createdAt).toLocaleDateString(
-                          undefined,
-                          { month: "short", day: "numeric" },
-                        )}
-                      </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="artifact-menu"
-                            aria-label={`Actions for ${artifactLabel(item)}`}
+                            aria-label={`Actions for ${label}`}
                           >
                             <MoreHorizontal size={16} />
                           </Button>
@@ -698,7 +646,7 @@ export function ArtifactsPanel({
                   </li>
                 );
               })}
-            </ul>
+            </ArtifactGallery>
           ) : (
             <div className="tasks-empty">
               {query ? (

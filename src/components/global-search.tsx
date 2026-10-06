@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import {
   useEffect,
@@ -14,7 +15,6 @@ import {
   Image as ImageIcon,
   Layers,
   ListTodo,
-  Loader2,
   Plus,
   SlidersHorizontal,
 } from "lucide-react";
@@ -189,91 +189,89 @@ export function GlobalSearch({
               setError("");
             }}
           />
+          {loading && !results.length ? (
+            <LoadingState kind="search" label="Loading search results" />
+          ) : loading ? (
+            <span className="sr-only" role="status">
+              Searching…
+            </span>
+          ) : null}
+          {error ? (
+            <p className="picker-message" role="alert">
+              {error} Change your search to retry.
+            </p>
+          ) : !loading && !results.length ? (
+            <p className="picker-message" role="status">
+              No matching items. Try another word or filter.
+            </p>
+          ) : null}
           <CommandList label="Search results" aria-busy={loading}>
-            {loading && (
-              <div className="search-progress" role="status">
-                <Loader2 size={14} className="animate-spin" />
-                <span className="sr-only">Searching…</span>
-              </div>
-            )}
-            {error ? (
-              <p className="picker-message" role="alert">
-                {error} Change your search to retry.
-              </p>
-            ) : (
+            {!error && !!results.length && (
               <CommandGroup
                 heading={query.trim() ? "Results" : "Recently edited"}
               >
-                {!results.length && loading ? (
-                  <div className="search-result-placeholder" />
-                ) : !results.length ? (
-                  <p className="picker-message">
-                    No matching items. Try another word or filter.
-                  </p>
-                ) : (
-                  results.map((result) => {
-                    const Icon =
-                      result.type === "note"
-                        ? FileText
-                        : result.type === "task"
-                          ? ListTodo
-                          : result.type === "artifact"
-                            ? result.artifactKind === "image"
-                              ? ImageIcon
-                              : Layers
-                            : Bookmark;
-                    return (
-                      <CommandItem
-                        disabled={busy || loading}
-                        key={`${result.type}-${result.id}`}
-                        value={`${result.type}-${result.id}`}
-                        onSelect={() =>
-                          void run(
-                            () => onSelect(result),
-                            result.type === "note"
-                              ? result.matchTerms?.length
-                                ? '[aria-label="Note content"]'
-                                : ".note-title"
-                              : result.type === "task"
-                                ? 'input[aria-label="Search tasks"]'
-                                : result.type === "artifact"
-                                  ? 'input[aria-label="Search artifacts"]'
-                                  : 'input[aria-label="Search bookmarks"]',
-                          )
-                        }
-                      >
-                        <Icon />
-                        <span className="search-result-copy">
-                          <strong>
-                            <SearchText
-                              text={result.title || "Untitled"}
-                              ranges={result.titleMatches}
-                            />
-                          </strong>
-                          <small>
-                            <SearchText
-                              text={result.excerpt}
-                              ranges={result.excerptMatches}
-                            />
-                          </small>
-                        </span>
-                        <span className="search-result-type">
-                          {result.type === "note"
-                            ? "Note"
+                {results.map((result) => {
+                  const Icon =
+                    result.type === "note"
+                      ? FileText
+                      : result.type === "task"
+                        ? ListTodo
+                        : result.type === "artifact"
+                          ? result.artifactKind === "image"
+                            ? ImageIcon
+                            : Layers
+                          : Bookmark;
+                  return (
+                    <CommandItem
+                      disabled={busy || loading}
+                      key={`${result.type}-${result.id}`}
+                      value={`${result.type}-${result.id}`}
+                      onSelect={() =>
+                        void run(
+                          () => onSelect(result),
+                          result.type === "note"
+                            ? result.matchTerms?.length
+                              ? '[aria-label="Note content"]'
+                              : ".note-title"
                             : result.type === "task"
-                              ? "Task"
+                              ? 'input[aria-label="Search tasks"]'
                               : result.type === "artifact"
-                                ? "Artifact"
-                                : "Bookmark"}
-                          {result.completed ? " · done" : ""}
-                        </span>
-                      </CommandItem>
-                    );
-                  })
-                )}
+                                ? 'input[aria-label="Search artifacts"]'
+                                : 'input[aria-label="Search bookmarks"]',
+                        )
+                      }
+                    >
+                      <Icon />
+                      <span className="search-result-copy">
+                        <strong>
+                          <SearchText
+                            text={result.title || "Untitled"}
+                            ranges={result.titleMatches}
+                          />
+                        </strong>
+                        <small>
+                          <SearchText
+                            text={result.excerpt}
+                            ranges={result.excerptMatches}
+                          />
+                        </small>
+                      </span>
+                      <span className="search-result-type">
+                        {result.type === "note"
+                          ? "Note"
+                          : result.type === "task"
+                            ? "Task"
+                            : result.type === "artifact"
+                              ? "Artifact"
+                              : "Bookmark"}
+                        {result.completed ? " · done" : ""}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             )}
-            <CommandSeparator />
+            <CommandSeparator aria-hidden="true" />
             <CommandGroup heading="Create">
               {(
                 [

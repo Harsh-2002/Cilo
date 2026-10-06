@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -167,25 +168,33 @@ export function OverviewPanel({
             />
             <div className="overview-intro">
               <div className="overview-clock">
-                <time dateTime={today || undefined} aria-label="Today's date">
-                  {now
-                    ? now.toLocaleDateString(undefined, {
+                {now ? (
+                  <>
+                    <time
+                      dateTime={today || undefined}
+                      aria-label="Today's date"
+                    >
+                      {now.toLocaleDateString(undefined, {
                         weekday: "long",
                         month: "long",
                         day: "numeric",
                         year: "numeric",
-                      })
-                    : "Loading date…"}
-                </time>
-                <time dateTime={now?.toISOString()} aria-label="Current time">
-                  {now
-                    ? now.toLocaleTimeString(undefined, {
+                      })}
+                    </time>
+                    <time
+                      dateTime={now?.toISOString()}
+                      aria-label="Current time"
+                    >
+                      {now.toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })
-                    : "—"}
-                </time>
-                <span>Local time</span>
+                      })}
+                    </time>
+                    <span>Local time</span>
+                  </>
+                ) : (
+                  <LoadingState kind="clock" label="Loading local time" />
+                )}
               </div>
             </div>
           </div>
@@ -225,29 +234,7 @@ export function OverviewPanel({
             </div>
           )}
           {!data && loading ? (
-            <div className="overview-grid" role="status">
-              <span className="sr-only">Loading your overview…</span>
-              {["overview-tasks", "overview-notes", "overview-bookmarks"].map(
-                (panel) => (
-                  <div
-                    key={panel}
-                    className={`overview-widget overview-skeleton ${panel}`}
-                    aria-hidden="true"
-                  >
-                    <div />
-                    {Array.from(
-                      { length: panel === "overview-tasks" ? 5 : 3 },
-                      (_, row) => row,
-                    ).map((row) => (
-                      <div key={row}>
-                        <span />
-                        <span />
-                      </div>
-                    ))}
-                  </div>
-                ),
-              )}
-            </div>
+            <LoadingState kind="overview" label="Loading your overview" />
           ) : (
             data && (
               <div className="overview-grid">

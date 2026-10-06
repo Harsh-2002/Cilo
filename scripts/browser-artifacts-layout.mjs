@@ -59,9 +59,12 @@ async function fit(page, label) {
       }
     }
     for (const e of document.querySelectorAll(".artifact-card")) {
-      const open = e.querySelector(".artifact-open").getBoundingClientRect();
+      const title = e
+        .querySelector(".artifact-card-title")
+        .getBoundingClientRect();
       const menu = e.querySelector(".artifact-menu").getBoundingClientRect();
-      if (menu.top < open.bottom - 1) problems.push("card menu overlap");
+      if (title.right > menu.left + 1)
+        problems.push("card filename/menu overlap");
     }
     const dialog = document.querySelector(".artifact-viewer");
     if (dialog) {
@@ -213,7 +216,7 @@ try {
               path: `${output}/${engineName}-${width}-${height}-${theme}-grid.png`,
             });
             await page
-              .getByRole("button", { name: `Open ${file.title}`, exact: true })
+              .getByRole("button", { name: `Open ${file.name}`, exact: true })
               .click();
             await page
               .getByRole("textbox", { name: "Title", exact: true })
@@ -276,7 +279,7 @@ try {
                 .waitFor({ state: "hidden" });
               await page
                 .getByRole("button", {
-                  name: `Open ${file.title}`,
+                  name: `Open ${file.name}`,
                   exact: true,
                 })
                 .click();

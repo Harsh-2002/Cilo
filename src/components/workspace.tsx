@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FileText,
@@ -23,7 +24,7 @@ import {
   LibraryBig,
   Layers,
   Trash,
-  Inbox,
+  Zap,
 } from "lucide-react";
 import { notify } from "@/lib/feedback";
 import { Mark } from "./auth-screen";
@@ -576,8 +577,8 @@ export function Workspace({
             capture.current?.open();
           }}
         >
-          <Inbox size={16} />
-          Capture
+          <Zap size={16} />
+          Quick
           <Shortcut chord={shortcuts.capture} className="nav-shortcut" />
         </button>
         <footer className="navigation-footer">
@@ -770,18 +771,10 @@ export function Workspace({
                   </Button>
                 </div>
               ) : shownNotes === undefined ? (
-                <div
-                  className="list-skeleton"
-                  role="status"
-                  aria-label="Loading notes"
-                >
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <div key={n}>
-                      <span />
-                      <span />
-                    </div>
-                  ))}
-                </div>
+                <LoadingState
+                  kind="notes"
+                  label={`Loading ${view === "journal" ? "journal entries" : view === "favorites" ? "favorites" : "notes"}`}
+                />
               ) : !rows.length ? (
                 <div className="list-empty">
                   <FileText size={25} />

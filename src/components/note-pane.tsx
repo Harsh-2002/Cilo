@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import {
   useCallback,
   useEffect,
@@ -26,7 +27,7 @@ import {
   AlignCenter,
   MoveHorizontal,
   CalendarDays,
-  Inbox,
+  Zap,
 } from "lucide-react";
 import { FeedbackOutlet } from "./inline-feedback";
 import { notify } from "@/lib/feedback";
@@ -52,13 +53,7 @@ import { PublishDialog } from "./publish-dialog";
 
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
-  loading: () => (
-    <div className="editor-skeleton" role="status" aria-label="Loading editor">
-      <span />
-      <span />
-      <span />
-    </div>
-  ),
+  loading: () => <LoadingState kind="editor" label="Loading editor" />,
 });
 type Props = {
   initial: Note;
@@ -539,8 +534,8 @@ export function NotePane({
                           capturePending.current = true;
                         }}
                       >
-                        <Inbox size={15} />
-                        Quick capture
+                        <Zap size={15} />
+                        Quick
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() =>

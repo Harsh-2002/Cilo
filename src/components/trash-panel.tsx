@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCcw, Search, Trash2 } from "lucide-react";
 import { notify } from "@/lib/feedback";
@@ -147,16 +148,7 @@ export function TrashPanel({ onNavigation }: { onNavigation: () => void }) {
           )}
           {items === null ? (
             !error && (
-              <div
-                className="task-skeleton"
-                role="status"
-                aria-label="Loading deleted items"
-                aria-busy="true"
-              >
-                {[0, 1, 2, 3, 4, 5].map((index) => (
-                  <span key={index} />
-                ))}
-              </div>
+              <LoadingState kind="trash" label="Loading deleted items" />
             )
           ) : items.length ? (
             <ul

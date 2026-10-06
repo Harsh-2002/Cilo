@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -409,16 +410,7 @@ export function TasksPanel({
             </div>
           )}
           {rows === undefined && !error ? (
-            <div
-              className="task-skeleton"
-              role="status"
-              aria-label="Loading tasks"
-              aria-busy="true"
-            >
-              {[0, 1, 2, 3, 4, 5].map((n) => (
-                <span key={n} />
-              ))}
-            </div>
+            <LoadingState kind="tasks" label="Loading tasks" />
           ) : visible.length ? (
             <ul
               className="task-list"

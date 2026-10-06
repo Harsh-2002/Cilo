@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "./loading-state";
 import { useEffect, useRef, useState } from "react";
 import { useCompletion } from "@/lib/completion-client";
 import { FeedbackOutlet } from "./inline-feedback";
@@ -261,16 +262,13 @@ export function ArtifactViewer({
         <div className="artifact-viewer-body">
           <FeedbackOutlet />
           {!item ? (
-            <div className="artifact-viewer-loading" role="status">
-              {error ? (
+            error ? (
+              <div className="artifact-viewer-loading">
                 <p role="alert">{error}</p>
-              ) : (
-                <Loader2
-                  className="animate-spin"
-                  aria-label="Loading artifact"
-                />
-              )}
-            </div>
+              </div>
+            ) : (
+              <LoadingState kind="viewer" label="Loading artifact" />
+            )
           ) : (
             <>
               {item.kind === "image" && (
