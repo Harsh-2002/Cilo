@@ -8,6 +8,7 @@ RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 COPY scripts ./scripts
 COPY src/lib/brand.mjs ./src/lib/brand.mjs
+COPY src/lib/pwa.mjs ./src/lib/pwa.mjs
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM base AS build
