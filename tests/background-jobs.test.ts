@@ -253,6 +253,27 @@ test("jobs fence stale leases, deduplicate, cancel deletion and stream only owne
       /event: resync/,
     );
     await nextReader.cancel();
+    for (const signal of ["SIGTERM", "SIGINT"] as const) {
+      const before = process.listenerCount(signal);
+      const readers = [0, 1].map(() =>
+        completionStream(
+          new Request(request.url),
+          owner,
+          session,
+        ).body!.getReader(),
+      );
+      for (const stream of readers) {
+        assert.match(
+          decoder.decode((await stream.read()).value),
+          /event: resync/,
+        );
+      }
+      assert.equal(process.listenerCount(signal), before + 1);
+      process.emit(signal, signal);
+      for (const stream of readers)
+        assert.equal((await stream.read()).done, true);
+      assert.equal(process.listenerCount(signal), before);
+    }
   } finally {
     await jobs.stopJobWorker();
     db.close();

@@ -9,7 +9,6 @@ import {
   FileText,
   ListTodo,
   Loader2,
-  Menu,
   Plus,
   Repeat2,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import { formatDate, localDate } from "@/lib/dates";
 import type { Overview } from "@/lib/types";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
+import { SectionHeading } from "./section-heading";
 import { Checkbox } from "./ui/checkbox";
 import { sectionCache } from "@/lib/section-cache";
 
@@ -158,16 +158,12 @@ export function OverviewPanel({
         role="region"
         aria-label="Your overview"
       >
-        <div className="overview-content">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="menu-toggle overview-navigation"
-            aria-label="Open navigation"
-            onClick={onNavigation}
-          >
-            <Menu size={18} />
-          </Button>
+        <div className="overview-content section-content">
+          <SectionHeading
+            title="Overview"
+            description="Your notes, tasks and saved links at a glance."
+            onNavigation={onNavigation}
+          />
           <div className="overview-intro">
             <div className="overview-clock">
               <time dateTime={today || undefined} aria-label="Today's date">

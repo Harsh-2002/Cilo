@@ -27,6 +27,12 @@ docker compose ps
 docker compose logs --tail=100 nivra
 ```
 
+## Development behind a domain
+
+Run the working checkout directly with `npm run dev -- --hostname 0.0.0.0 --port 3000`. Point the HTTPS proxy at that port, preserve the host and forward WebSocket upgrades for hot reload. Set `NIVRA_PUBLIC_URL` to the HTTPS origin and `NIVRA_DEV_ORIGINS` to its hostname. Keep the existing `NIVRA_DATA_DIR` and encryption configuration when changing runtime modes; stop the previous server before starting another worker on that database.
+
+Turbopack development uses full memory eviction with persistent disk caching. Webpack memory optimizations are enabled for the optional `--webpack` fallback. Warm `/` and `/api/nivra/health` before checking the public domain: first compilation includes the rich editor and can take time. Use a process manager with automatic restarts and a host-appropriate memory limit when keeping development running behind a domain. Development disables Nivra's installed service worker so cached production assets do not obscure source changes. Production builds and Docker verification still use `npm run build`.
+
 ## Upgrade
 
 Back up first, update the checkout, then run `docker compose up -d --build`. Ordered migrations run before requests are served. A migration or storage-permission failure prevents startup rather than running with a partial schema. Keep the data volume when recreating containers.

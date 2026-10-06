@@ -6,6 +6,6 @@ await build({
   platform: "node",
   target: "node24",
   format: "cjs",
-  external: ["tesseract.js", "unpdf", "better-sqlite3"],
+  external: ["tesseract.js", "unpdf", "better-sqlite3", "sharp"],
   logLevel: "warning",
 });

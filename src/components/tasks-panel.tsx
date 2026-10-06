@@ -1,14 +1,13 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCheck,
   ListTodo,
   Loader2,
-  Menu,
   MoreHorizontal,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   Trash2,
   CalendarDays,
@@ -29,6 +28,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Button } from "./ui/button";
+import { SectionHeading } from "./section-heading";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
 import {
@@ -161,6 +161,9 @@ export function TasksPanel({
     },
     [filter, query, view],
   );
+  useCompletion(undefined, () => {
+    if (!editing) void load();
+  });
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(
@@ -295,33 +298,13 @@ export function TasksPanel({
     .sort(compareTasks);
   return (
     <section className="tasks-panel" aria-label="Tasks">
-      <header className="tasks-header">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="menu-toggle"
-          aria-label="Open navigation"
-          onClick={onNavigation}
-        >
-          <Menu size={18} />
-        </Button>
-        <h1>Tasks</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Refresh tasks"
-          disabled={busy || loading || !!editing}
-          onClick={() => void load()}
-        >
-          <RefreshCw size={16} />
-        </Button>
-      </header>
       <div className="tasks-scroll">
-        <div className="tasks-content">
-          <div className="tasks-intro">
-            <h2>One thing at a time.</h2>
-            <p>A place for what you want to get done.</p>
-          </div>
+        <div className="tasks-content section-content">
+          <SectionHeading
+            title="Tasks"
+            description="A place for what you want to get done."
+            onNavigation={onNavigation}
+          />
           <form className="task-create" onSubmit={add}>
             <Input
               ref={input}

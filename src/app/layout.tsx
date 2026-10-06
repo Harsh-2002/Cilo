@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description:
     "Your notes, diagrams, and ideas. A minimal, self-hosted workspace.",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Nivra" },
-  icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  icons: { icon: "/icon.svg?v=4", apple: "/icons/apple-touch-icon.png?v=4" },
 };
 export const viewport: Viewport = {
   width: "device-width",

@@ -41,9 +41,40 @@ export async function recognize(bytes: Uint8Array, limit = timeoutMs) {
   clearTimeout(ocr.idle);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const worker = await engine();
     const result = await Promise.race([
-      worker.recognize(Buffer.from(bytes)),
+      (async () => {
+        const worker = await engine();
+        await worker.setParameters({ preserve_interword_spaces: "1" });
+        const sharp = (await import("sharp")).default;
+        const input = await sharp(Buffer.from(bytes), {
+          limitInputPixels: 60_000_000,
+        })
+          .autoOrient()
+          .resize({
+            width: 2400,
+            height: 2400,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .png()
+          .toBuffer();
+        let best = (await worker.recognize(input)).data;
+        if (best.confidence < 75) {
+          for (const angle of [270, 90, 180]) {
+            const rotated = await sharp(input, { limitInputPixels: 60_000_000 })
+              .rotate(angle)
+              .png()
+              .toBuffer();
+            const candidate = (await worker.recognize(rotated)).data;
+            if (candidate.text.trim() && candidate.confidence > best.confidence)
+              best = candidate;
+            if (best.confidence >= 75) break;
+          }
+        }
+        if (best.text.trim() && best.confidence < 45)
+          throw new Error("Text could not be read reliably.");
+        return best;
+      })(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error("Text recognition timed out.")),
@@ -51,9 +82,9 @@ export async function recognize(bytes: Uint8Array, limit = timeoutMs) {
         );
       }),
     ]);
-    return result.data.text
+    return result.text
       .replace(/\r\n?/g, "\n")
-      .replace(/[ \t]+/g, " ")
+      .replace(/[ \t]+$/gm, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim()
       .slice(0, maxTextLength);

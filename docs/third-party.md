@@ -7,6 +7,7 @@ Nivra's own source is MIT licensed. Dependencies retain their original notices a
 - Shiki core, JavaScript engine, precompiled languages and themes, Mermaid, and DOMPurify: MIT. The published reader reuses pinned versions already present in the editor dependency tree.
 - Geist: SIL Open Font License 1.1, distributed through `@fontsource-variable/geist`.
 - Tesseract.js and its WebAssembly core: Apache-2.0. Bundled English language data from `@tesseract.js-data/eng`: MIT. unpdf: MIT. OCR and PDF extraction run locally with pinned packages and retain their upstream notices.
+- Sharp: Apache-2.0. OCR uses it for EXIF orientation and complete quarter-turn images before recognition; packaged native binaries retain their own third-party notices. This explicitly pins the image library already present through Next.js.
 - shadcn/ui, Next.js, React, Drizzle, Better Auth, and Lucide retain their package licenses. The lockfile records the complete dependency set.
 
 See the LICENSE files in installed packages and upstream distributions for full terms. Review dependency advisories when updating; do not use `npm audit fix --force` to silently downgrade the editor or framework.

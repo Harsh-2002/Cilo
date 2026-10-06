@@ -6,7 +6,6 @@ import {
   ExternalLink,
   Globe,
   Loader2,
-  Menu,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -20,6 +19,7 @@ import { api, ApiError } from "@/lib/client";
 import type { Bookmark, Page } from "@/lib/types";
 import { sectionCache } from "@/lib/section-cache";
 import { Button } from "./ui/button";
+import { SectionHeading } from "./section-heading";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
@@ -354,33 +354,13 @@ export function BookmarksPanel({
   );
   return (
     <section className="tasks-panel bookmarks-panel" aria-label="Bookmarks">
-      <header className="tasks-header">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="menu-toggle"
-          aria-label="Open navigation"
-          onClick={onNavigation}
-        >
-          <Menu size={18} />
-        </Button>
-        <h1>Bookmarks</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Refresh bookmarks"
-          disabled={busy || loading || !!editing}
-          onClick={() => void load()}
-        >
-          <RefreshCw size={16} />
-        </Button>
-      </header>
       <div className="tasks-scroll">
-        <div className="bookmarks-content">
-          <div className="tasks-intro">
-            <h2>Worth coming back to.</h2>
-            <p>Keep useful links close, with a little context.</p>
-          </div>
+        <div className="bookmarks-content section-content">
+          <SectionHeading
+            title="Bookmarks"
+            description="Keep useful links close, with a little context."
+            onNavigation={onNavigation}
+          />
           <form className="bookmark-create" onSubmit={add}>
             <div className="bookmark-url">
               <Label htmlFor="bookmark-url">Link</Label>

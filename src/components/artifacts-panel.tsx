@@ -12,9 +12,7 @@ import {
   Image as ImageIcon,
   Layers,
   Loader2,
-  Menu,
   MoreHorizontal,
-  RefreshCw,
   ScanText,
   Search,
   Trash2,
@@ -33,6 +31,7 @@ import {
 import { sectionCache } from "@/lib/section-cache";
 import type { Artifact, ArtifactDetail, Page } from "@/lib/types";
 import { Button } from "./ui/button";
+import { SectionHeading } from "./section-heading";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import {
@@ -378,33 +377,13 @@ export function ArtifactsPanel({
         save(fromTransfer(e.dataTransfer));
       }}
     >
-      <header className="tasks-header">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="menu-toggle"
-          aria-label="Open navigation"
-          onClick={onNavigation}
-        >
-          <Menu size={18} />
-        </Button>
-        <h1>Artifacts</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Refresh artifacts"
-          disabled={loading}
-          onClick={() => void load()}
-        >
-          <RefreshCw size={16} />
-        </Button>
-      </header>
       <div className="tasks-scroll">
-        <div className="artifacts-content">
-          <div className="tasks-intro">
-            <h2>Save it for later.</h2>
-            <p>Screenshots, text and files, ready to find again.</p>
-          </div>
+        <div className="artifacts-content section-content">
+          <SectionHeading
+            title="Artifacts"
+            description="Screenshots, text and files, ready to find again."
+            onNavigation={onNavigation}
+          />
           <div
             className="artifact-drop"
             role="group"

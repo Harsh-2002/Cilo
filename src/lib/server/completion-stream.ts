@@ -1,4 +1,14 @@
 import { sqlite } from "./db";
+const state = globalThis as unknown as {
+  nivraCompletionStreams?: {
+    close: Set<() => void>;
+    shutdown?: () => void;
+  };
+};
+const active = (state.nivraCompletionStreams ||= { close: new Set() });
+const shutdown = (active.shutdown ||= () => {
+  for (const close of active.close) close();
+});
 export function completionStream(
   request: Request,
   owner: string,
@@ -13,6 +23,11 @@ export function completionStream(
     closed = true;
     clearInterval(timer);
     request.signal.removeEventListener("abort", abort);
+    active.close.delete(abort);
+    if (!active.close.size) {
+      process.removeListener("SIGTERM", shutdown);
+      process.removeListener("SIGINT", shutdown);
+    }
   };
   let abort = () => stop();
   const stream = new ReadableStream<Uint8Array>(
@@ -82,6 +97,11 @@ export function completionStream(
         };
         timer = setInterval(tick, 1000);
         request.signal.addEventListener("abort", abort, { once: true });
+        if (!active.close.size) {
+          process.once("SIGTERM", shutdown);
+          process.once("SIGINT", shutdown);
+        }
+        active.close.add(close);
         if (request.signal.aborted) close();
       },
       cancel() {

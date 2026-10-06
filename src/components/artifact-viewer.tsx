@@ -9,6 +9,7 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/client";
 import { readableSize } from "@/lib/artifacts-client";
@@ -121,7 +122,7 @@ export function ArtifactViewer({
       if (currentId.current !== next.id) return;
       setItem(next);
       setTitle(next.title);
-      setDraft(next.content);
+      if (changes.content !== undefined) setDraft(next.content);
     } catch (e) {
       if (currentId.current !== item.id) toast.error((e as Error).message);
       else setError((e as Error).message);
@@ -156,14 +157,20 @@ export function ArtifactViewer({
     }
   }
   async function retry() {
-    if (!item) return;
+    if (!item || busy || reading) return;
+    setBusy(true);
+    setError("");
     try {
       const next = await api<Artifact>(`artifacts/${item.id}/extract`, {
         method: "POST",
       });
-      setItem({ ...item, ...next });
+      if (currentId.current !== item.id) return;
+      setItem((current) => (current ? { ...current, ...next } : null));
+      onChange(next);
     } catch (e) {
-      setError((e as Error).message);
+      if (currentId.current === item.id) setError((e as Error).message);
+    } finally {
+      if (currentId.current === item.id) setBusy(false);
     }
   }
   async function close() {
@@ -188,87 +195,107 @@ export function ArtifactViewer({
   const noun = item?.kind === "image" ? "image" : "file";
   return (
     <Dialog open={!!id} onOpenChange={(open) => !open && void close()}>
-      <DialogContent className="artifact-viewer">
+      <DialogContent className="artifact-viewer" showCloseButton={false}>
         <DialogTitle className="sr-only">
           {item ? artifactLabel(item) : "Artifact"}
         </DialogTitle>
         <DialogDescription className="sr-only">
           View, rename, copy or delete this saved item.
         </DialogDescription>
-        {!item ? (
-          <div className="artifact-viewer-loading" role="status">
-            {error ? (
-              <p role="alert">{error}</p>
+        <header className="artifact-viewer-header">
+          <div className="artifact-viewer-heading">
+            {item ? (
+              <>
+                <Input
+                  className="artifact-title"
+                  aria-label="Title"
+                  placeholder={
+                    item.kind === "image" ? "Add a title (optional)" : "Title"
+                  }
+                  value={title}
+                  maxLength={300}
+                  disabled={busy}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() =>
+                    title.trim() !== item.title && void save({ title })
+                  }
+                  onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                />
+                <div className="artifact-meta">
+                  <span
+                    className="artifact-meta-name"
+                    title={item.name || undefined}
+                  >
+                    {item.kind === "text" ? "Text" : item.name}
+                  </span>
+                  {item.kind !== "text" && (
+                    <span>
+                      {readableSize(item.size)}
+                      {item.width ? ` · ${item.width}×${item.height}` : ""}
+                    </span>
+                  )}
+                  <time dateTime={new Date(item.createdAt).toISOString()}>
+                    {new Date(item.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </time>
+                </div>
+              </>
             ) : (
-              <Loader2 className="animate-spin" aria-label="Loading artifact" />
+              <span>Artifact</span>
             )}
           </div>
-        ) : (
-          <>
-            <div className="artifact-viewer-header">
-              <Input
-                className="artifact-title"
-                aria-label="Title"
-                placeholder={
-                  item.kind === "image" ? "Add a title (optional)" : "Title"
-                }
-                value={title}
-                maxLength={300}
-                disabled={busy}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() =>
-                  title.trim() !== item.title && void save({ title })
-                }
-                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-              />
-              <div className="artifact-meta">
-                <span
-                  className="artifact-meta-name"
-                  title={item.name || undefined}
-                >
-                  {item.kind === "text" ? "Text" : item.name}
-                </span>
-                {item.kind !== "text" && (
-                  <span>
-                    {readableSize(item.size)}
-                    {item.width ? ` · ${item.width}×${item.height}` : ""}
-                  </span>
-                )}
-                <time dateTime={new Date(item.createdAt).toISOString()}>
-                  {new Date(item.createdAt).toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </time>
-              </div>
-            </div>
-            {item.kind === "image" && (
-              <div className="artifact-viewer-image">
-                {/* Saved images are authenticated and encrypted at rest, so they cannot go through next/image. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/nivra/artifacts/${item.id}/file`}
-                  alt={artifactLabel(item)}
+          <Button
+            variant="ghost"
+            size="icon"
+            data-slot="dialog-close"
+            aria-label="Close"
+            onClick={() => void close()}
+          >
+            <X size={18} />
+          </Button>
+        </header>
+        <div className="artifact-viewer-body">
+          {!item ? (
+            <div className="artifact-viewer-loading" role="status">
+              {error ? (
+                <p role="alert">{error}</p>
+              ) : (
+                <Loader2
+                  className="animate-spin"
+                  aria-label="Loading artifact"
                 />
-              </div>
-            )}
-            {mediaKind && (
-              <MediaPlayer
-                key={item.id}
-                kind={mediaKind}
-                src={`/api/nivra/artifacts/${item.id}/file`}
-                name={item.name}
-              />
-            )}
-            {item.kind === "file" && !mediaKind && (
-              <div className="artifact-viewer-file">
-                <FileText size={28} strokeWidth={1.4} />
-                <span>{item.mime || "File"}</span>
-              </div>
-            )}
-            {item.kind === "text" ? (
-              <>
+              )}
+            </div>
+          ) : (
+            <>
+              {item.kind === "image" && (
+                <div className="artifact-viewer-image">
+                  {/* Saved images use authenticated encrypted storage. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/nivra/artifacts/${item.id}/file`}
+                    alt={artifactLabel(item)}
+                  />
+                </div>
+              )}
+              {mediaKind && (
+                <MediaPlayer
+                  key={item.id}
+                  kind={mediaKind}
+                  src={`/api/nivra/artifacts/${item.id}/file`}
+                  name={item.name}
+                />
+              )}
+              {item.kind === "file" && !mediaKind && (
+                <div className="artifact-viewer-file">
+                  <FileText size={28} strokeWidth={1.4} />
+                  <span>{item.mime || "File"}</span>
+                </div>
+              )}
+              {item.kind === "text" ? (
                 <Textarea
                   className="artifact-text-edit"
                   aria-label="Text"
@@ -277,115 +304,114 @@ export function ArtifactViewer({
                   maxLength={200000}
                   onChange={(e) => setDraft(e.target.value)}
                 />
-                <div className="artifact-actions">
-                  <Button
-                    disabled={
-                      busy ||
-                      draft.trim() === item.content.trim() ||
-                      !draft.trim()
-                    }
-                    onClick={() => void save({ content: draft })}
+              ) : (
+                (!mediaKind ||
+                  reading ||
+                  item.extraction === "failed" ||
+                  item.content) && (
+                  <section
+                    className="artifact-found"
+                    aria-label={`Text in this ${noun}`}
                   >
-                    Save changes
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => void copyText(item.content)}
-                  >
-                    <Copy size={15} />
-                    Copy text
-                  </Button>
-                </div>
-              </>
-            ) : !mediaKind ||
-              reading ||
-              item.extraction === "failed" ||
-              item.content ? (
-              <section
-                className="artifact-found"
-                aria-label={`Text in this ${noun}`}
-              >
-                <h3>Text in this {noun}</h3>
-                {reading ? (
-                  <p role="status">
-                    <Loader2 size={14} className="animate-spin" /> Reading text…
-                  </p>
-                ) : item.extraction === "failed" ? (
-                  <p role="status">
-                    Text could not be read from this {noun}.{" "}
-                    <button
-                      className="inline-action"
-                      onClick={() => void retry()}
-                    >
-                      <RefreshCw size={13} />
-                      Try again
-                    </button>
-                  </p>
-                ) : item.content ? (
-                  <pre
-                    className="artifact-text"
-                    tabIndex={0}
-                    aria-label="Extracted text"
-                  >
-                    {item.content}
-                  </pre>
-                ) : (
-                  <p>
-                    {item.kind === "image"
-                      ? "No text was found in this image."
-                      : "This file has no readable text."}
-                  </p>
-                )}
-                <div className="artifact-actions">
-                  {item.content && (
-                    <Button
-                      variant="outline"
-                      onClick={() => void copyText(item.content)}
-                    >
-                      <Copy size={15} />
-                      Copy text
-                    </Button>
-                  )}
-                  <Button variant="outline" asChild>
-                    <a
-                      href={`/api/nivra/artifacts/${item.id}/file`}
-                      download={item.name}
-                    >
-                      <Download size={15} />
-                      Download
-                    </a>
-                  </Button>
-                </div>
-              </section>
-            ) : (
-              <div className="artifact-actions">
-                <Button variant="outline" asChild>
-                  <a
-                    href={`/api/nivra/artifacts/${item.id}/file`}
-                    download={item.name}
-                  >
-                    <Download size={15} />
-                    Download
-                  </a>
-                </Button>
-              </div>
-            )}
-            {error && (
-              <p className="artifact-error" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="artifact-danger">
+                    <div className="artifact-found-heading">
+                      <h3>Text in this {noun}</h3>
+                      {!mediaKind && !reading && item.extraction !== "none" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void retry()}
+                        >
+                          <RefreshCw size={13} />
+                          {item.extraction === "failed"
+                            ? "Try again"
+                            : "Read again"}
+                        </Button>
+                      )}
+                    </div>
+                    {reading ? (
+                      <p role="status">
+                        <Loader2 size={14} className="animate-spin" /> Reading
+                        text…
+                      </p>
+                    ) : item.extraction === "failed" ? (
+                      <p role="status">
+                        {item.kind === "image"
+                          ? "Text could not be read reliably. Try a clearer, upright image or read it again."
+                          : "Text could not be read from this file. Try reading it again."}
+                      </p>
+                    ) : item.content ? (
+                      <pre
+                        className="artifact-text"
+                        tabIndex={0}
+                        aria-label="Extracted text"
+                      >
+                        {item.content}
+                      </pre>
+                    ) : (
+                      <p>
+                        {item.kind === "image"
+                          ? "No text was found in this image."
+                          : "This file has no readable text."}
+                      </p>
+                    )}
+                  </section>
+                )
+              )}
+              {error && (
+                <p className="artifact-error" role="alert">
+                  {error}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        {item && (
+          <footer className="artifact-actions artifact-viewer-footer">
+            {item.kind === "text" && (
               <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => void remove()}
+                aria-label="Save changes"
+                disabled={
+                  busy || draft.trim() === item.content.trim() || !draft.trim()
+                }
+                onClick={() => void save({ content: draft })}
               >
-                <Trash2 size={15} />
-                Delete
+                <span className="artifact-save-label">Save changes</span>
+                <span className="artifact-save-short" aria-hidden="true">
+                  Save
+                </span>
               </Button>
-            </div>
-          </>
+            )}
+            {(item.kind === "text" || item.content) && (
+              <Button
+                variant="outline"
+                onClick={() => void copyText(item.content)}
+              >
+                <Copy size={15} />
+                Copy text
+              </Button>
+            )}
+            {item.kind !== "text" && (
+              <Button variant="outline" asChild>
+                <a
+                  href={`/api/nivra/artifacts/${item.id}/file`}
+                  download={item.name}
+                >
+                  <Download size={15} />
+                  Download
+                </a>
+              </Button>
+            )}
+            <Button
+              className="artifact-delete"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
+              <Trash2 size={15} />
+              Delete
+            </Button>
+          </footer>
         )}
       </DialogContent>
     </Dialog>

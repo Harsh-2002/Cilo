@@ -1,4 +1,4 @@
-const CACHE = "nivra-static-v1";
+const CACHE = "nivra-static-v4";
 const LIMIT = 120;
 // Every build adds new hashed assets, so evict the oldest build files to keep the cache bounded.
 async function trim(cache) {
@@ -31,7 +31,9 @@ self.addEventListener("activate", (event) => {
           keys
             .filter(
               (key) =>
-                (key.startsWith(String.fromCharCode(99, 105, 108, 111) + "-static-") ||
+                (key.startsWith(
+                  String.fromCharCode(99, 105, 108, 111) + "-static-",
+                ) ||
                   key.startsWith("nivra-static-")) &&
                 key !== CACHE,
             )

@@ -12,7 +12,6 @@ import {
   Check,
   Copy,
   Download,
-  FileText,
   Loader2,
   MoreHorizontal,
   Paperclip,
@@ -319,187 +318,6 @@ export function NotePane({
   const [editorKey, setEditorKey] = useState(0);
   return (
     <section className="note-pane" data-note-id={note.id}>
-      <header className="note-topbar">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mobile-back"
-            aria-label="Back to notes"
-            onClick={onBack}
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <span className="breadcrumb">
-            <FileText size={14} />
-            Notes<span>/</span>
-            <span>{note.title || "Untitled"}</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className={`save-status ${state}`} role="status">
-            {state === "saving" ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : state === "saved" ? (
-              <Check size={12} />
-            ) : state === "error" || state === "conflict" ? (
-              <AlertCircle size={12} />
-            ) : null}
-            {state === "saved"
-              ? "Saved"
-              : state === "saving"
-                ? "Saving"
-                : "Unsaved"}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Share and publish note"
-            title="Share and publish"
-            disabled={!!note.trashedAt}
-            onClick={() => void action(async () => setSharing(true))}
-          >
-            <Share2 size={17} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={
-              note.favorite ? "Remove from favorites" : "Add to favorites"
-            }
-            onClick={() => change({ favorite: !note.favorite })}
-            disabled={!!note.trashedAt}
-          >
-            <Star size={17} fill={note.favorite ? "currentColor" : "none"} />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Note actions">
-                <MoreHorizontal size={19} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              onCloseAutoFocus={(event) => {
-                if (capturePending.current) {
-                  event.preventDefault();
-                  capturePending.current = false;
-                  onCapture();
-                }
-              }}
-            >
-              <DropdownMenuLabel>Page width</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={note.editorWidth}
-                onValueChange={(value) =>
-                  change({
-                    editorWidth: value === "wide" ? "wide" : "standard",
-                  })
-                }
-              >
-                <DropdownMenuRadioItem value="standard">
-                  <AlignCenter size={15} />
-                  Standard
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="wide">
-                  <MoveHorizontal size={15} />
-                  Wide
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => void action(async () => setHistory(true))}
-              >
-                <History size={15} />
-                Version history
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={!!note.trashedAt}
-                onSelect={() => void action(async () => setSharing(true))}
-              >
-                <Share2 size={15} />
-                Share & publish
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() =>
-                  void action(async () => {
-                    const result = await api<Note>(
-                      `notes/${note.id}/duplicate`,
-                      { method: "POST" },
-                    );
-                    onSaved(result);
-                    onOpen(result);
-                  })
-                }
-              >
-                <Copy size={15} />
-                Duplicate note
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => uploadRef.current?.click()}
-                disabled={!!note.trashedAt}
-              >
-                <Paperclip size={15} />
-                Attach a file
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  capturePending.current = true;
-                }}
-              >
-                <Inbox size={15} />
-                Quick capture
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() =>
-                  void action(async () => {
-                    if (!tools.current)
-                      throw new Error("The editor is still loading.");
-                    await downloadRequest(
-                      `export/markdown/${note.id}`,
-                      `${note.title || "Untitled"}.zip`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          markdown: tools.current.markdown(),
-                        }),
-                      },
-                    );
-                  })
-                }
-              >
-                <Download size={15} />
-                Export Markdown package
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => void toggleTrash()}>
-                {note.trashedAt ? (
-                  <>
-                    <RotateCcw size={15} />
-                    Restore note
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={15} />
-                    Move to trash
-                  </>
-                )}
-              </DropdownMenuItem>
-              {note.trashedAt && (
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => void permanentDelete()}
-                >
-                  <Trash2 size={15} />
-                  Delete permanently
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
       {sharing && (
         <PublishDialog
           note={note}
@@ -580,6 +398,185 @@ export function NotePane({
       )}
       <div className="note-scroll">
         <div className="writing-surface" data-width={note.editorWidth}>
+          <header className="note-tools">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mobile-back"
+                aria-label="Back to notes"
+                onClick={onBack}
+              >
+                <ArrowLeft size={18} />
+              </Button>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className={`save-status ${state}`} role="status">
+                {state === "saving" ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : state === "saved" ? (
+                  <Check size={12} />
+                ) : state === "error" || state === "conflict" ? (
+                  <AlertCircle size={12} />
+                ) : null}
+                {state === "saved"
+                  ? "Saved"
+                  : state === "saving"
+                    ? "Saving"
+                    : "Unsaved"}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Share and publish note"
+                title="Share and publish"
+                disabled={!!note.trashedAt}
+                onClick={() => void action(async () => setSharing(true))}
+              >
+                <Share2 size={17} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={
+                  note.favorite ? "Remove from favorites" : "Add to favorites"
+                }
+                onClick={() => change({ favorite: !note.favorite })}
+                disabled={!!note.trashedAt}
+              >
+                <Star
+                  size={17}
+                  fill={note.favorite ? "currentColor" : "none"}
+                />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Note actions">
+                    <MoreHorizontal size={19} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  onCloseAutoFocus={(event) => {
+                    if (capturePending.current) {
+                      event.preventDefault();
+                      capturePending.current = false;
+                      onCapture();
+                    }
+                  }}
+                >
+                  <DropdownMenuLabel>Page width</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={note.editorWidth}
+                    onValueChange={(value) =>
+                      change({
+                        editorWidth: value === "wide" ? "wide" : "standard",
+                      })
+                    }
+                  >
+                    <DropdownMenuRadioItem value="standard">
+                      <AlignCenter size={15} />
+                      Standard
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="wide">
+                      <MoveHorizontal size={15} />
+                      Wide
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => void action(async () => setHistory(true))}
+                  >
+                    <History size={15} />
+                    Version history
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={!!note.trashedAt}
+                    onSelect={() => void action(async () => setSharing(true))}
+                  >
+                    <Share2 size={15} />
+                    Share & publish
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      void action(async () => {
+                        const result = await api<Note>(
+                          `notes/${note.id}/duplicate`,
+                          { method: "POST" },
+                        );
+                        onSaved(result);
+                        onOpen(result);
+                      })
+                    }
+                  >
+                    <Copy size={15} />
+                    Duplicate note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => uploadRef.current?.click()}
+                    disabled={!!note.trashedAt}
+                  >
+                    <Paperclip size={15} />
+                    Attach a file
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      capturePending.current = true;
+                    }}
+                  >
+                    <Inbox size={15} />
+                    Quick capture
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      void action(async () => {
+                        if (!tools.current)
+                          throw new Error("The editor is still loading.");
+                        await downloadRequest(
+                          `export/markdown/${note.id}`,
+                          `${note.title || "Untitled"}.zip`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              markdown: tools.current.markdown(),
+                            }),
+                          },
+                        );
+                      })
+                    }
+                  >
+                    <Download size={15} />
+                    Export Markdown package
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => void toggleTrash()}>
+                    {note.trashedAt ? (
+                      <>
+                        <RotateCcw size={15} />
+                        Restore note
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={15} />
+                        Move to trash
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  {note.trashedAt && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => void permanentDelete()}
+                    >
+                      <Trash2 size={15} />
+                      Delete permanently
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
           <div className="note-date">
             {note.dailyDate ? (
               <span className="note-kind">

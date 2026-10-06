@@ -95,7 +95,7 @@ test("service worker only caches public static assets and falls back offline for
   });
   await installed;
   assert.deepEqual(
-    [...worker.store.get("nivra-static-v1")!.keys()].map(
+    [...worker.store.get("nivra-static-v4")!.keys()].map(
       (url) => new URL(url).pathname,
     ),
     [
@@ -123,7 +123,7 @@ test("service worker only caches public static assets and falls back offline for
   });
   assert.equal(await shared!.text(), "/offline.html");
   assert.ok(
-    ![...worker.store.get("nivra-static-v1")!.keys()].some((url) =>
+    ![...worker.store.get("nivra-static-v4")!.keys()].some((url) =>
       /\/(api|share)\//.test(url),
     ),
   );
@@ -137,7 +137,7 @@ test("online navigations are never stored and static files are cached once with 
   });
   assert.equal(await page!.text(), "network");
   assert.ok(
-    ![...(worker.store.get("nivra-static-v1") ?? new Map()).keys()].includes(
+    ![...(worker.store.get("nivra-static-v4") ?? new Map()).keys()].includes(
       "https://nivra.test/",
     ),
   );
@@ -145,7 +145,7 @@ test("online navigations are never stored and static files are cached once with 
     await worker.dispatch(
       `https://nivra.test/_next/static/chunks/${String(i).padStart(3, "0")}.js`,
     );
-  const kept = [...worker.store.get("nivra-static-v1")!.keys()].map(
+  const kept = [...worker.store.get("nivra-static-v4")!.keys()].map(
     (url) => new URL(url).pathname,
   );
   assert.ok(kept.length <= 124, `kept ${kept.length}`);

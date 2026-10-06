@@ -690,19 +690,6 @@ export function Workspace({
           <section className="notes-list">
             <header className="list-header">
               <div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="menu-toggle"
-                  aria-label="Open navigation"
-                  onClick={() =>
-                    window.innerWidth < 1024
-                      ? setDrawer(true)
-                      : setSidebar(true)
-                  }
-                >
-                  <Menu size={18} />
-                </Button>
                 <h1>{title}</h1>
                 <span
                   className={`note-count ${shownNotes ? "" : "is-pending"}`}
@@ -746,6 +733,17 @@ export function Workspace({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="menu-toggle"
+                aria-label="Open navigation"
+                onClick={() =>
+                  window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+                }
+              >
+                <Menu size={18} />
+              </Button>
             </header>
             <div className="search-field">
               <Search size={15} />

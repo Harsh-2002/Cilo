@@ -2,6 +2,10 @@ import { historicalNamespace } from "./src/lib/compatibility";
 import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  experimental: {
+    webpackMemoryOptimizations: true,
+    turbopackMemoryEviction: "full",
+  },
   allowedDevOrigins: (environment().NIVRA_DEV_ORIGINS || "")
     .split(",")
     .map((host) => host.trim())
@@ -16,7 +20,7 @@ const config: NextConfig = {
   },
   output: "standalone",
   agentRules: false,
-  serverExternalPackages: ["better-sqlite3", "tesseract.js", "unpdf"],
+  serverExternalPackages: ["better-sqlite3", "tesseract.js", "unpdf", "sharp"],
   outputFileTracingIncludes: {
     "/*": [
       "./migrations/**/*",
@@ -26,6 +30,8 @@ const config: NextConfig = {
       "./node_modules/unpdf/**/*",
       "./node_modules/tesseract.js/**/*",
       "./node_modules/tesseract.js-core/**/*",
+      "./node_modules/sharp/**/*",
+      "./node_modules/@img/**/*",
       "./node_modules/@tesseract.js-data/eng/4.0.0_best_int/**/*",
       "./node_modules/{bmp-js,idb-keyval,is-url,node-fetch,regenerator-runtime,wasm-feature-detect,zlibjs}/**/*",
     ],

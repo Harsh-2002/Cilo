@@ -1,5 +1,5 @@
 "use client";
-import { brandPath } from "@/lib/brand";
+import { brandPath, brandFramePath } from "@/lib/brand";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -25,7 +25,8 @@ export function Mark({ small = false }: { small?: boolean }) {
   return (
     <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true">
       <svg viewBox="0 0 40 40" fill="currentColor">
-        <path d={brandPath} />
+        <path d={brandFramePath} />
+        <path d={brandPath} fill="var(--background)" />
       </svg>
     </span>
   );
