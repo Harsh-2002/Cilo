@@ -43,7 +43,7 @@ Keyboard-operable controls, visible focus, readable contrast, reduced-motion sup
 
 ## Artifacts
 
-A private shelf for pasted text, screenshots, documents and media. Upload, paste or drop without mandatory folders or tags. Supported images use local English OCR; supported documents use bounded text extraction. Originals, thumbnails and extracted text remain encrypted locally or in configured compatible storage. Unsupported formats remain downloadable and searchable by name; media is not transcribed.
+A private shelf for pasted text, screenshots, documents and media. Upload, paste or drop without mandatory folders or tags. Uploaded files use durable background jobs for local English OCR and bounded document extraction. Bookmark previews also load in the background; completion updates refresh the workspace through an authenticated SSE stream. Originals, thumbnails and extracted text remain encrypted locally or in configured compatible storage. Unsupported formats remain downloadable and searchable by name; media is not transcribed.
 
 ## Next iteration
 

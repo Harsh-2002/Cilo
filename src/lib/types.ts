@@ -57,7 +57,7 @@ export type Bookmark = {
   siteName: string;
   collection: string;
   favorite: boolean;
-  metadataStatus: "ready" | "unavailable";
+  metadataStatus: "pending" | "ready" | "unavailable";
   thumbnail: string | null;
   icon: string | null;
   revision: number;

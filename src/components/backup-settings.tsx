@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/client";
@@ -15,6 +16,7 @@ export function BackupSettings({
   const [verifying, setVerifying] = useState("");
   const [verified, setVerified] = useState("");
   const [reload, setReload] = useState(0);
+  useCompletion("backup", () => setReload((n) => n + 1));
   useEffect(() => {
     let active = true;
     const controller = new AbortController();

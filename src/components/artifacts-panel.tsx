@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ClipboardPaste,
@@ -130,9 +131,11 @@ export function ArtifactsPanel({
   const fileInput = useRef<HTMLInputElement>(null);
   const view = `${kind}\n${query}`;
   const currentView = useRef(view);
+  const loadVersion = useRef(0);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      const version = ++loadVersion.current;
       currentView.current = view;
       setLoading(true);
       try {
@@ -140,20 +143,25 @@ export function ArtifactsPanel({
           api<Page<Artifact>>(`artifacts?${params(query, kind)}`, { signal }),
           api<Summary>(`artifacts?${params("", "all", true)}`, { signal }),
         ]);
-        if (signal?.aborted) return;
+        if (signal?.aborted || version !== loadVersion.current) return;
         setItems(first.items);
         setNext(first.next);
         setListKind(kind);
         setSummary(counts);
         setError("");
       } catch (e) {
-        if (!signal?.aborted) setError((e as Error).message);
+        if (!signal?.aborted && version === loadVersion.current)
+          setError((e as Error).message);
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!signal?.aborted && version === loadVersion.current)
+          setLoading(false);
       }
     },
     [kind, query, view],
   );
+  useCompletion("artifact", () => {
+    void load();
+  });
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(
@@ -286,28 +294,6 @@ export function ArtifactsPanel({
     window.addEventListener("beforeunload", leaving);
     return () => window.removeEventListener("beforeunload", leaving);
   }, [composer, jobs]);
-  // Images are read in the background; follow the ones still being read.
-  const reading = items
-    .filter((item) => item.extraction === "pending")
-    .map((item) => item.id)
-    .join(",");
-  useEffect(() => {
-    if (!reading) return;
-    const timer = setInterval(() => {
-      for (const id of reading.split(","))
-        void api<ArtifactDetail>(`artifacts/${id}`)
-          .then((detail) => {
-            if (detail.extraction !== "pending")
-              setItems((list) =>
-                list.map((item) =>
-                  item.id === id ? withoutContent(detail) : item,
-                ),
-              );
-          })
-          .catch(() => {});
-    }, 2500);
-    return () => clearInterval(timer);
-  }, [reading]);
   async function remove(item: Artifact) {
     if (
       !(await confirm({

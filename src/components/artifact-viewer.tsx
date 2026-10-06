@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useCompletion } from "@/lib/completion-client";
 import { toast } from "sonner";
 import {
   Copy,
@@ -87,25 +88,26 @@ export function ArtifactViewer({
       clearTimeout(timer);
     };
   }, [id]);
-  // Text is read in the background, so keep asking until it is ready.
   const reading = item?.extraction === "pending";
-  useEffect(() => {
-    if (!id || !reading) return;
-    let active = true;
-    const timer = setInterval(() => {
-      void api<ArtifactDetail>(`artifacts/${id}`)
-        .then((detail) => {
-          if (!active || currentId.current !== id) return;
-          setItem(detail);
-          if (detail.extraction !== "pending") onChange(detail);
-        })
-        .catch(() => {});
-    }, 2000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [id, reading, onChange]);
+  useCompletion("artifact", (event) => {
+    if (!id || (event.target && event.target !== id)) return;
+    void api<ArtifactDetail>(`artifacts/${id}`)
+      .then((detail) => {
+        if (currentId.current !== id) return;
+        setItem((current) =>
+          current
+            ? {
+                ...current,
+                extraction: detail.extraction,
+                updatedAt: detail.updatedAt,
+                ...(current.kind !== "text" ? { content: detail.content } : {}),
+              }
+            : detail,
+        );
+        onChange(detail);
+      })
+      .catch(() => {});
+  });
   async function save(changes: { title?: string; content?: string }) {
     if (!item || busy) return;
     setBusy(true);

@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import {
   useEffect,
   useImperativeHandle,
@@ -78,6 +79,10 @@ export function GlobalSearch({
     setOpen(false);
   };
   const [query, setQuery] = useState("");
+  const [completionVersion, setCompletionVersion] = useState(0);
+  useCompletion(undefined, () => {
+    if (open) setCompletionVersion((version) => version + 1);
+  });
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -113,7 +118,7 @@ export function GlobalSearch({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, query]);
+  }, [open, query, completionVersion]);
   const run = async (action: () => Promise<boolean>, focus: string) => {
     if (busy) return;
     setBusy(true);

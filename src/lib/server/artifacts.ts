@@ -7,8 +7,8 @@ import { ftsQuery } from "./validation";
 import { decodeMatches } from "../search-context";
 import { fileResponse, mediaMime } from "./file-response";
 import { decodeCursor, encodeCursor } from "./pagination";
-import { extractText, imageInfo, isPdf, maxTextLength } from "./extract";
-import { enqueueOcr } from "./ocr";
+import { imageInfo, isPdf, maxTextLength } from "./extract";
+import { enqueueJob, startJobWorker } from "./jobs";
 import type { Artifact, ArtifactDetail, Page } from "../types";
 
 type Row = {
@@ -105,10 +105,9 @@ export async function createFileArtifact(
     media ||
     (pdf ? "application/pdf" : file.mime.slice(0, 120)) ||
     "application/octet-stream";
-  const text =
-    image || media || pdf ? null : extractText(name, mime, file.bytes);
-  const read = !!image || (pdf && file.bytes.length <= 40 * 1024 * 1024);
+  const read = !media && (!pdf || file.bytes.length <= 40 * 1024 * 1024);
   const keys: string[] = [];
+  const id = randomUUID();
   try {
     const key = randomUUID();
     await storage.write(key, file.bytes);
@@ -126,35 +125,39 @@ export async function createFileArtifact(
         keys.push(thumbKey);
       }
     }
-    const id = randomUUID();
     const now = Date.now();
     sqlite()
-      .prepare(
-        "INSERT INTO artifacts(id,owner_id,kind,title,content,name,mime,size,width,height,storage_key,thumb_key,extraction,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      )
-      .run(
-        id,
-        owner,
-        kind,
-        image ? "" : baseName(name),
-        text ?? "",
-        name,
-        mime,
-        file.bytes.length,
-        image?.width ?? 0,
-        image?.height ?? 0,
-        key,
-        thumbKey,
-        read ? "pending" : text ? "done" : "none",
-        now,
-        now,
-      );
-    if (read) enqueueOcr(id);
-    return expose(need(owner, id));
+      .transaction(() => {
+        sqlite()
+          .prepare(
+            "INSERT INTO artifacts(id,owner_id,kind,title,content,name,mime,size,width,height,storage_key,thumb_key,extraction,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          )
+          .run(
+            id,
+            owner,
+            kind,
+            image ? "" : baseName(name),
+            "",
+            name,
+            mime,
+            file.bytes.length,
+            image?.width ?? 0,
+            image?.height ?? 0,
+            key,
+            thumbKey,
+            read ? "pending" : "none",
+            now,
+            now,
+          );
+        if (read) enqueueJob(owner, "artifact", id);
+      })
+      .immediate();
   } catch (error) {
     await Promise.allSettled(keys.map((key) => storage.delete(key)));
     throw error;
   }
+  startJobWorker();
+  return expose(need(owner, id));
 }
 export type ArtifactQuery = { query?: string; kind?: Artifact["kind"] };
 export function listArtifactPage(
@@ -306,14 +309,20 @@ export async function deleteArtifact(
 }
 export function retryExtraction(owner: string, id: string): Artifact {
   const row = need(owner, id);
-  if (row.kind !== "image" && row.mime !== "application/pdf")
-    throw new HttpError(400, "Only images and PDFs are read for text.");
+  if (row.kind === "text" || /^(audio|video)\//.test(row.mime))
+    throw new HttpError(400, "This artifact does not need text extraction.");
   sqlite()
-    .prepare(
-      "UPDATE artifacts SET extraction='pending',updated_at=? WHERE id=? AND owner_id=? AND extraction!='pending'",
-    )
-    .run(Date.now(), id, owner);
-  enqueueOcr(id);
+    .transaction(() => {
+      need(owner, id);
+      sqlite()
+        .prepare(
+          "UPDATE artifacts SET extraction='pending',updated_at=? WHERE id=? AND owner_id=? AND extraction!='pending'",
+        )
+        .run(Date.now(), id, owner);
+      enqueueJob(owner, "artifact", id);
+    })
+    .immediate();
+  startJobWorker();
   return expose(need(owner, id));
 }
 export async function artifactFile(

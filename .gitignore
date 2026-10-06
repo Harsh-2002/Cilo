@@ -50,3 +50,5 @@ next-env.d.ts
 /playwright-report/
 /public/excalidraw/
 !.env.example
+
+/generated/

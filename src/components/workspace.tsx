@@ -67,6 +67,7 @@ import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
 import { OverviewPanel, prefetchOverview } from "./overview-panel";
 import { TasksPanel, prefetchTasks } from "./tasks-panel";
 import { ArtifactsPanel, prefetchArtifacts } from "./artifacts-panel";
+import { useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
 import { Shortcut, ShortcutKeys } from "./shortcut";
@@ -80,6 +81,7 @@ export function Workspace({
   initialSettings: Settings;
   onSignOut: () => void;
 }) {
+  useCompletionStream(onSignOut);
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [active, setActive] = useState<Note | null>(null);

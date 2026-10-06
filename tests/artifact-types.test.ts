@@ -406,7 +406,11 @@ test("every kind of file is stored safely, identified from its bytes, and search
       });
       saved.set(entry.name, { item, bytes });
       assert.equal(item.kind, entry.kind, entry.name);
-      assert.equal(item.extraction, entry.extraction, entry.name);
+      assert.equal(
+        item.extraction,
+        /^(audio|video)\//.test(item.mime) ? "none" : "pending",
+        entry.name,
+      );
       if (entry.mime)
         assert.match(item.mime, new RegExp(`^${entry.mime}$`), entry.name);
       assert.equal(item.size, bytes.length, entry.name);

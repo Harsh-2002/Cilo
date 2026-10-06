@@ -942,13 +942,16 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           (await (await call("bookmarks?q=concurency")).json()).items.length,
           1,
         );
+        const refreshing = await call(`bookmarks/${item.id}/refresh`, "POST", {
+          revision: updated.revision,
+        });
+        assert.equal(refreshing.status, 200);
+        const queued = await refreshing.json();
+        assert.equal(queued.metadataStatus, "pending");
+        await (await import("../src/lib/server/jobs")).jobsIdle();
         assert.equal(
-          (
-            await call(`bookmarks/${item.id}/refresh`, "POST", {
-              revision: updated.revision,
-            })
-          ).status,
-          422,
+          (await (await call("bookmarks")).json()).items[0].metadataStatus,
+          "unavailable",
         );
         assert.equal(
           (
@@ -979,7 +982,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         assert.equal(
           (
             await call(`bookmarks/${item.id}`, "DELETE", {
-              revision: updated.revision,
+              revision: queued.revision,
             })
           ).status,
           200,
@@ -1080,6 +1083,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
             n: number;
           }
         ).n;
+        await (await import("../src/lib/server/jobs")).stopJobWorker();
         sqlite().close();
         delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
         assert.equal(
@@ -1101,6 +1105,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
       },
     );
   } finally {
+    await (await import("../src/lib/server/jobs")).stopJobWorker();
     sqlite().close();
     delete (globalThis as unknown as { nivraSqlite?: unknown }).nivraSqlite;
     await rm(directory, { recursive: true, force: true });

@@ -301,3 +301,15 @@ The clean 26-case responsive command completed with exit 0, including a visible 
 Application commit `477a440` was pushed directly to main. The checkout is now `/home/dev/Nivra`, and its private local configuration uses the current namespace and data path. The new standalone build runs directly on the host at port 3000. Health, historical URL compatibility, registered-owner state, anonymous artifact denial and the Nivra manifest were checked through localhost, the host IP and the domain. Encrypted integrity, owner count, existing row counts and secret continuity were checked across replacement. An encrypted backup was verified before replacement, the new runtime verified that older-format backup, and a new backup was created and verified afterward. Existing keys and data were preserved. Original private chat/handoff records are preserved outside the checkout in `/home/dev/nivra-history`.
 
 The shipping CI run for the application commit is [37373071064](https://github.com/Harsh-2002/Nivra/actions/runs/37373071064). It was queued at the time of these local checks; no new CI or Docker pass is claimed here.
+
+## Durable background processing — 2026-10-06
+
+Verified locally on Node.js 24.21.0 with disposable data:
+
+- Type checking, lint, formatting and branding verification passed.
+- Full suite: 99 tests passed. New coverage includes migration of pending extraction, duplicate claims, expired leases and token fencing, edit/delete races, orphan preview cleanup, SSE authorization/revocation/resync, and recovery in a fresh process followed by worker extraction and FTS updates. Existing encryption, tamper/wrong-key, account recovery, bundle and backup tests passed.
+- Production build passed; the standalone output includes `generated/processing-worker.cjs`, local OCR/PDF dependencies and no private instance data.
+- Browser MCP against the disposable production server verified bookmark acknowledgement and pending-to-unavailable completion, file acknowledgement before extraction, automatic shelf updates, unified search retrieval, open OCR viewer completion and preservation of an unfinished title. Viewer bounds and page overflow checks passed at 1440/390/320 px in light/dark themes. Immediate uncached SSE resync and named heartbeat delivery passed over direct HTTP. A simulated stream that opened without delivering events triggered fallback reconciliation.
+- The Impeccable mechanical detector reported no findings for changed components. Captures use synthetic fixtures and remain ignored local artifacts.
+
+This verifies the source and standalone build. The existing owner runtime was preserved. Delivery through the owner-managed reverse proxy, physical-device behavior and a deployment replacement are not certified by this local review. See [background processing](background-processing.md) for leases, reconnect reconciliation and proxy requirements.

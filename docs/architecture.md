@@ -121,3 +121,5 @@ Migration 0014 adds owner-scoped artifacts and FTS5 indexes. SQLite stores title
 ## Rename compatibility
 
 Configuration and application URLs use `NIVRA_*` and `/api/nivra/`. A small compatibility boundary retains historical wire identifiers as protocol values, accepts previous host configuration aliases and saved URLs, detects an existing database filename and reads older backup/bundle manifests. Current exports identify Nivra. Cryptographic signature bytes and derivation inputs remain fixed so no existing key or object is rewritten during a product rename. Fresh S3 prefixes and Compose volume labels use Nivra; existing deployments must preserve their configured object prefixes and bind the original volume explicitly.
+
+Background artifact extraction and bookmark previews use [durable SQLite jobs and authenticated SSE completion updates](background-processing.md).

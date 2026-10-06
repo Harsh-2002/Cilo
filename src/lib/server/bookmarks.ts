@@ -1,3 +1,9 @@
+import {
+  enqueueJob,
+  startJobWorker,
+  maxAttempts,
+  type JobContext,
+} from "./jobs";
 import { randomUUID } from "node:crypto";
 import { db, sqlite } from "./db";
 import { bookmarks } from "./schema";
@@ -24,7 +30,9 @@ type Row = {
   site_name: string;
   collection: string;
   favorite: number | boolean;
-  metadata_status: "ready" | "unavailable";
+  metadata_status: Bookmark["metadataStatus"];
+  title_edited: number;
+  description_edited: number;
   thumbnail_key: string | null;
   thumbnail_mime: string | null;
   icon_key: string | null;
@@ -44,6 +52,8 @@ const fields = {
   collection: bookmarks.collection,
   favorite: bookmarks.favorite,
   metadata_status: bookmarks.metadataStatus,
+  title_edited: bookmarks.titleEdited,
+  description_edited: bookmarks.descriptionEdited,
   thumbnail_key: bookmarks.thumbnailKey,
   thumbnail_mime: bookmarks.thumbnailMime,
   icon_key: bookmarks.iconKey,
@@ -273,39 +283,43 @@ export async function createBookmark(
       409,
       "This link is already saved. Search your bookmarks to find it.",
     );
-  const info = await metadata(url);
+  const info = {
+    title: new URL(url).hostname,
+    description: "",
+    siteName: new URL(url).hostname,
+    metadataStatus: "pending" as const,
+  };
   const id = randomUUID();
   const now = Date.now();
   try {
-    db()
-      .insert(bookmarks)
-      .values({
-        id,
-        ownerId: owner,
-        url,
-        title: info.title,
-        description: info.description,
-        siteName: info.siteName,
-        collection: input.collection,
-        metadataStatus: info.metadataStatus,
-        thumbnailKey: info.thumbnail?.key || null,
-        thumbnailMime: info.thumbnail?.mime || null,
-        iconKey: info.icon?.key || null,
-        iconMime: info.icon?.mime || null,
-        createdAt: now,
-        updatedAt: now,
+    sqlite()
+      .transaction(() => {
+        db()
+          .insert(bookmarks)
+          .values({
+            id,
+            ownerId: owner,
+            url,
+            title: info.title,
+            description: info.description,
+            siteName: info.siteName,
+            collection: input.collection,
+            metadataStatus: info.metadataStatus,
+            titleEdited: 0,
+            descriptionEdited: 0,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        enqueueJob(owner, "bookmark", id);
       })
-      .run();
+      .immediate();
   } catch (error) {
-    await Promise.all(
-      [info.thumbnail, info.icon]
-        .filter((a) => a !== null)
-        .map((a) => storage.delete(a.key)),
-    );
     if (existing(owner, url))
       throw new HttpError(409, "This link is already saved.");
     throw error;
   }
+  startJobWorker();
   return expose(need(owner, id));
 }
 export function updateBookmark(
@@ -325,7 +339,13 @@ export function updateBookmark(
   const { revision, ...changes } = input;
   const result = db()
     .update(bookmarks)
-    .set({ ...changes, revision: revision + 1, updatedAt: Date.now() })
+    .set({
+      ...changes,
+      ...(input.title !== undefined ? { titleEdited: 1 } : {}),
+      ...(input.description !== undefined ? { descriptionEdited: 1 } : {}),
+      revision: revision + 1,
+      updatedAt: Date.now(),
+    })
     .where(
       and(
         eq(bookmarks.id, id),
@@ -349,51 +369,78 @@ export async function refreshBookmark(
   const before = need(owner, id);
   if (before.revision !== revision)
     throw new HttpError(409, "Refresh bookmarks before trying again.");
-  const info = await metadata(before.url);
-  if (info.metadataStatus === "unavailable")
-    throw new HttpError(
-      422,
-      "This site did not provide a preview. Your saved link is unchanged; try again later or edit the details.",
-    );
-  const result = db()
-    .update(bookmarks)
-    .set({
-      title: info.title,
-      description: info.description,
-      siteName: info.siteName,
-      metadataStatus: "ready",
-      thumbnailKey: info.thumbnail?.key || null,
-      thumbnailMime: info.thumbnail?.mime || null,
-      iconKey: info.icon?.key || null,
-      iconMime: info.icon?.mime || null,
-      revision: revision + 1,
-      updatedAt: Date.now(),
+  sqlite()
+    .transaction(() => {
+      const changed = sqlite()
+        .prepare(
+          "UPDATE bookmarks SET metadata_status='pending',revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?",
+        )
+        .run(Date.now(), id, owner, revision).changes;
+      if (!changed)
+        throw new HttpError(409, "Refresh bookmarks before trying again.");
+      enqueueJob(owner, "bookmark", id);
     })
-    .where(
-      and(
-        eq(bookmarks.id, id),
-        eq(bookmarks.ownerId, owner),
-        eq(bookmarks.revision, revision),
-      ),
-    )
-    .run();
-  if (!result.changes) {
-    await Promise.all(
-      [info.thumbnail, info.icon]
-        .filter((a) => a !== null)
-        .map((a) => storage.delete(a.key)),
-    );
-    throw new HttpError(
-      409,
-      "This bookmark changed while fetching its preview. Refresh and try again.",
+    .immediate();
+  startJobWorker();
+  return expose(need(owner, id));
+}
+export async function processBookmark(
+  { job, commit }: JobContext,
+  readMetadata = metadata,
+) {
+  const before = need(job.owner_id, job.target_id);
+  const info = await readMetadata(before.url);
+  if (info.metadataStatus === "unavailable" && job.attempts < maxAttempts)
+    throw new Error("Preview unavailable.");
+  let replaced: (string | null)[] = [];
+  let used = false;
+  try {
+    commit(() => {
+      const current = need(job.owner_id, job.target_id);
+      if (current.metadata_status !== "pending") return "cancelled";
+      if (info.metadataStatus === "unavailable") {
+        sqlite()
+          .prepare(
+            "UPDATE bookmarks SET metadata_status='unavailable',updated_at=? WHERE id=? AND owner_id=?",
+          )
+          .run(Date.now(), job.target_id, job.owner_id);
+        return "unavailable";
+      }
+      db()
+        .update(bookmarks)
+        .set({
+          title: current.title_edited ? current.title : info.title,
+          description: current.description_edited
+            ? current.description
+            : info.description,
+          siteName: info.siteName,
+          metadataStatus: "ready",
+          thumbnailKey: info.thumbnail?.key ?? null,
+          thumbnailMime: info.thumbnail?.mime ?? null,
+          iconKey: info.icon?.key ?? null,
+          iconMime: info.icon?.mime ?? null,
+          revision: current.revision + 1,
+          updatedAt: Date.now(),
+        })
+        .where(
+          and(
+            eq(bookmarks.id, job.target_id),
+            eq(bookmarks.ownerId, job.owner_id),
+          ),
+        )
+        .run();
+      replaced = [current.thumbnail_key, current.icon_key];
+      used = true;
+      return "ready";
+    });
+  } finally {
+    const cleanup = used ? replaced : [info.thumbnail?.key, info.icon?.key];
+    await Promise.allSettled(
+      cleanup
+        .filter((key): key is string => !!key)
+        .map((key) => storage.delete(key)),
     );
   }
-  await Promise.all(
-    [before.thumbnail_key, before.icon_key]
-      .filter((k) => k !== null)
-      .map((k) => storage.delete(k)),
-  );
-  return expose(need(owner, id));
 }
 export async function deleteBookmark(
   owner: string,
@@ -460,6 +507,8 @@ export async function exportBookmarkBundle(owner: string) {
       collection: row.collection,
       favorite: !!row.favorite,
       metadataStatus: row.metadata_status,
+      titleEdited: !!row.title_edited,
+      descriptionEdited: !!row.description_edited,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       noteId: row.note_id,

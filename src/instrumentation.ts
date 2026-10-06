@@ -8,5 +8,7 @@ export async function register() {
     authSecret();
     const { startBackupScheduler } = await import("./lib/server/backups");
     startBackupScheduler();
+    const { startJobWorker } = await import("./lib/server/jobs");
+    startJobWorker();
   }
 }

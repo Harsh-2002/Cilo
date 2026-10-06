@@ -635,6 +635,7 @@ test("connected workspace retains private search, recovery, journal and schedule
       },
     );
   } finally {
+    await (await import("../src/lib/server/jobs")).stopJobWorker();
     sqlite().close();
     await rm(directory, { recursive: true, force: true });
   }

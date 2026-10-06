@@ -77,6 +77,7 @@ test("bookmarks preserve fallback links, organization, FTS and revisions", async
   process.env.NIVRA_DATA_DIR = directory;
   const { sqlite } = await import("../src/lib/server/db");
   const bookmarks = await import("../src/lib/server/bookmarks");
+  const { jobsIdle, stopJobWorker } = await import("../src/lib/server/jobs");
   const db = sqlite(),
     owner = randomUUID();
   try {
@@ -94,7 +95,12 @@ test("bookmarks preserve fallback links, organization, FTS and revisions", async
       url: "http://127.0.0.1/private",
       collection: "Reading",
     });
-    assert.equal(b.metadataStatus, "unavailable");
+    assert.equal(b.metadataStatus, "pending");
+    await jobsIdle();
+    assert.equal(
+      bookmarks.listBookmarks(owner)[0].metadataStatus,
+      "unavailable",
+    );
     assert.equal(b.url, "http://127.0.0.1/private");
     await assert.rejects(
       bookmarks.createBookmark(owner, { url: b.url, collection: "" }),
@@ -127,14 +133,22 @@ test("bookmarks preserve fallback links, organization, FTS and revisions", async
         }),
       /not found/,
     );
-    await assert.rejects(
-      bookmarks.refreshBookmark(owner, b.id, updated.revision),
-      /did not provide/,
+    const refreshing = await bookmarks.refreshBookmark(
+      owner,
+      b.id,
+      updated.revision,
+    );
+    assert.equal(refreshing.metadataStatus, "pending");
+    await jobsIdle();
+    assert.equal(
+      bookmarks.listBookmarks(owner)[0].metadataStatus,
+      "unavailable",
     );
     assert.equal(bookmarks.listBookmarks(owner)[0].title, updated.title);
-    await bookmarks.deleteBookmark(owner, b.id, updated.revision);
+    await bookmarks.deleteBookmark(owner, b.id, refreshing.revision);
     assert.equal(bookmarks.listBookmarks(owner, "handbook").length, 0);
   } finally {
+    await stopJobWorker();
     db.close();
     await rm(directory, { recursive: true, force: true });
   }

@@ -207,6 +207,8 @@ export const bookmarks = sqliteTable("bookmarks", {
   siteName: text("site_name").notNull().default(""),
   collection: text("collection").notNull().default(""),
   favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
+  titleEdited: integer("title_edited").notNull().default(0),
+  descriptionEdited: integer("description_edited").notNull().default(0),
   metadataStatus: text("metadata_status").notNull().default("unavailable"),
   thumbnailKey: text("thumbnail_key"),
   thumbnailMime: text("thumbnail_mime"),
@@ -246,3 +248,31 @@ export const noteLinks = sqliteTable(
     index("note_links_target_idx").on(t.targetId),
   ],
 );
+
+export const backgroundJobs = sqliteTable("background_jobs", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"artifact" | "bookmark">().notNull(),
+  targetId: text("target_id").notNull(),
+  state: text("state")
+    .$type<"queued" | "running" | "done" | "failed">()
+    .notNull()
+    .default("queued"),
+  attempts: integer("attempts").notNull().default(0),
+  availableAt: integer("available_at").notNull(),
+  leaseUntil: integer("lease_until"),
+  leaseToken: text("lease_token"),
+  createdAt: integer("created_at").notNull(),
+});
+export const completionEvents = sqliteTable("completion_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"artifact" | "bookmark" | "backup">().notNull(),
+  targetId: text("target_id").notNull(),
+  status: text("status").notNull(),
+  createdAt: integer("created_at").notNull(),
+});

@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     ".impeccable/**",
     "out/**",
     "build/**",
+    "generated/**",
     "next-env.d.ts",
   ]),
 ]);

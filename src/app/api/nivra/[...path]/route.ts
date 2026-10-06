@@ -61,7 +61,8 @@ import {
   retryExtraction,
   updateArtifact,
 } from "@/lib/server/artifacts";
-import { resumeOcr } from "@/lib/server/ocr";
+import { startJobWorker, enqueueJob } from "@/lib/server/jobs";
+import { completionStream } from "@/lib/server/completion-stream";
 import {
   createTask,
   deleteTask,
@@ -288,6 +289,10 @@ async function handle(
     });
     if (!session || !owner || session.user.id !== owner.id)
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "events" && method === "GET" && !id) {
+      startJobWorker();
+      return completionStream(request, owner.id, session.session.id);
+    }
     if (area === "overview" && method === "GET" && !id) {
       const today = calendarDate.parse(url.searchParams.get("date"));
       return response(workspaceOverview(owner.id, today));
@@ -416,7 +421,6 @@ async function handle(
       }
     }
     if (area === "artifacts") {
-      resumeOcr();
       if (method === "GET" && !id) {
         const params = url.searchParams;
         if (params.get("summary") === "1")
@@ -982,7 +986,9 @@ async function handle(
                 siteName: z.string().max(100),
                 collection: z.string().trim().max(80),
                 favorite: z.boolean(),
-                metadataStatus: z.enum(["ready", "unavailable"]),
+                metadataStatus: z.enum(["pending", "ready", "unavailable"]),
+                titleEdited: z.boolean().default(true),
+                descriptionEdited: z.boolean().default(true),
                 createdAt: z.number().int().nonnegative(),
                 updatedAt: z.number().int().nonnegative(),
                 noteId: z.string().uuid().nullable().default(null),
@@ -1245,13 +1251,14 @@ async function handle(
                   v.revision,
                   v.createdAt,
                 );
-            for (const { item, thumbnail, icon } of importedBookmarks)
+            for (const { item, thumbnail, icon } of importedBookmarks) {
+              const bookmarkId = randomUUID();
               database
                 .prepare(
-                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id,title_edited,description_edited) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 )
                 .run(
-                  randomUUID(),
+                  bookmarkId,
                   owner.id,
                   item.url,
                   item.title,
@@ -1267,7 +1274,12 @@ async function handle(
                   item.createdAt,
                   item.updatedAt,
                   item.noteId ? noteIds.get(item.noteId) : null,
+                  +item.titleEdited,
+                  +item.descriptionEdited,
                 );
+              if (item.metadataStatus === "pending")
+                enqueueJob(owner.id, "bookmark", bookmarkId);
+            }
             for (const [index, task] of manifest.tasks.entries()) {
               const assigned = task.id
                 ? taskIds.get(task.id)

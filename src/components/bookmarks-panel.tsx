@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bookmark as BookmarkIcon,
@@ -174,8 +175,10 @@ export function BookmarksPanel({
   }, [busy, url, newCollection, editing]);
   const view = `${query}\n${favorites}\n${collection}`;
   const currentView = useRef(view);
+  const loadVersion = useRef(0);
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      const version = ++loadVersion.current;
       currentView.current = view;
       setLoading(true);
       try {
@@ -189,7 +192,7 @@ export function BookmarksPanel({
             { signal },
           ),
         ]);
-        if (signal?.aborted) return;
+        if (signal?.aborted || version !== loadVersion.current) return;
         setBookmarks(first.items);
         setNext(first.next);
         setListScope(scopeOf(favorites, collection));
@@ -197,13 +200,18 @@ export function BookmarksPanel({
         setCollections(counts.collections);
         setError("");
       } catch (e) {
-        if (!signal?.aborted) setError((e as Error).message);
+        if (!signal?.aborted && version === loadVersion.current)
+          setError((e as Error).message);
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!signal?.aborted && version === loadVersion.current)
+          setLoading(false);
       }
     },
     [query, favorites, collection, view],
   );
+  useCompletion("bookmark", () => {
+    void load();
+  });
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(
@@ -299,9 +307,11 @@ export function BookmarksPanel({
       setFavorites(false);
       input.current?.focus();
       setNotice(
-        saved.metadataStatus === "ready"
-          ? "Bookmark saved."
-          : "Link saved. This site’s preview could not be fetched; you can edit its details or retry from the card menu.",
+        saved.metadataStatus === "pending"
+          ? "Link saved. Fetching its preview in the background."
+          : saved.metadataStatus === "ready"
+            ? "Bookmark saved."
+            : "Link saved. This site’s preview could not be fetched; you can edit its details or retry from the card menu.",
       );
     });
   }
@@ -608,6 +618,14 @@ export function BookmarksPanel({
                           </div>
                           <h3>{item.title}</h3>
                           {item.description && <p>{item.description}</p>}
+                          {item.metadataStatus === "pending" && (
+                            <p role="status">Fetching preview…</p>
+                          )}
+                          {item.metadataStatus === "unavailable" && (
+                            <p>
+                              Preview unavailable. Retry from the card menu.
+                            </p>
+                          )}
                         </div>
                       </a>
                       <footer className="bookmark-card-footer">
@@ -644,6 +662,7 @@ export function BookmarksPanel({
                               Edit details
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              disabled={item.metadataStatus === "pending"}
                               onSelect={() =>
                                 void mutate(async () => {
                                   const refreshed = await api<Bookmark>(

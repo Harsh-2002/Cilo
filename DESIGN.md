@@ -338,3 +338,7 @@ The public reader presents the publication date, “Shared note” label, title,
 - **Don't** add decorative gradients or a visible construction grid to the app chrome.
 - **Don't** let application chrome compete with the note's content.
 - **Don't** put the Nivra name or mark on the public reader; keep its metadata to “Shared note” and the publication date.
+
+### Background completion states
+
+Saved bookmarks show “Fetching preview…” while metadata is pending and retain a retry hint when unavailable. Artifacts show “Reading text…” until extraction completes. Completion events refresh saved cards, viewers and search while preserving drafts and revision conflicts. Keep these states in existing card/detail layouts with neutral text and shared controls.

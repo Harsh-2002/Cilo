@@ -1,3 +1,4 @@
+import { completionEvent } from "./jobs";
 import { historicalBackupFormat } from "../compatibility";
 import { environment } from "./environment";
 import path from "node:path";
@@ -339,6 +340,9 @@ export function startBackup(): Promise<BackupInfo> {
   void job
     .finally(() => {
       delete runtime.nivraBackupJob;
+      const owner = sqlite().prepare("SELECT id FROM user LIMIT 1").get() as
+        { id: string } | undefined;
+      if (owner) completionEvent(owner.id, "backup", "", "finished");
     })
     .catch(() => undefined);
   return job;

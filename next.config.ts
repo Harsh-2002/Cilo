@@ -20,6 +20,7 @@ const config: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [
       "./migrations/**/*",
+      "./generated/processing-worker.cjs",
       "./node_modules/better-sqlite3/build/Release/better_sqlite3.node",
       // The OCR engine starts worker threads from its own files and reads local language data.
       "./node_modules/unpdf/**/*",

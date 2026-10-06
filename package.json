@@ -10,12 +10,13 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "postinstall": "node scripts/copy-assets.mjs",
-    "prebuild": "node scripts/copy-assets.mjs",
-    "predev": "node scripts/copy-assets.mjs",
+    "prebuild": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs",
+    "predev": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs",
     "format": "prettier --write src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
     "format:check": "prettier --check src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
     "backup": "tsx scripts/backup-cli.ts",
-    "verify:branding": "node scripts/verify-branding.mjs"
+    "verify:branding": "node scripts/verify-branding.mjs",
+    "pretest": "node scripts/build-processing-worker.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

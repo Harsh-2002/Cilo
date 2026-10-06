@@ -160,7 +160,7 @@ test("artifacts store anything, read text out of it, and make all of it searchab
     );
 
     await t.test(
-      "text files and Office documents are read when saved",
+      "text files and Office documents are read after acknowledgement",
       async () => {
         const notes = await upload(
           "meeting-notes.md",
@@ -168,7 +168,8 @@ test("artifacts store anything, read text out of it, and make all of it searchab
           "text/markdown",
         );
         assert.equal(notes.kind, "file");
-        assert.equal(notes.extraction, "done");
+        assert.equal(notes.extraction, "pending");
+        await ocrIdle();
         assert.equal(notes.title, "meeting-notes");
         const docx = zipSync({
           "[Content_Types].xml": strToU8("<Types/>"),
@@ -181,7 +182,8 @@ test("artifacts store anything, read text out of it, and make all of it searchab
           docx,
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         );
-        assert.equal(contract.extraction, "done");
+        assert.equal(contract.extraction, "pending");
+        await ocrIdle();
         const detail = await value<ArtifactDetail>(`artifacts/${contract.id}`);
         assert.equal(
           detail.content,
@@ -196,7 +198,12 @@ test("artifacts store anything, read text out of it, and make all of it searchab
           new Uint8Array([0, 1, 2, 3, 0, 255]),
           "application/octet-stream",
         );
-        assert.equal(binary.extraction, "none");
+        assert.equal(binary.extraction, "pending");
+        await ocrIdle();
+        assert.equal(
+          (await value<ArtifactDetail>(`artifacts/${binary.id}`)).extraction,
+          "none",
+        );
         const served = await call(`artifacts/${binary.id}/file`);
         assert.equal(
           served.headers.get("content-disposition")?.startsWith("attachment"),

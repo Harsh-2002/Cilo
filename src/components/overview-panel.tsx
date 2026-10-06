@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -73,6 +74,9 @@ export function OverviewPanel({
       if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
+  useCompletion(undefined, () => {
+    void refresh();
+  });
   useEffect(() => {
     const captured = () => void refresh();
     window.addEventListener("nivra:captured", captured);
