@@ -29,14 +29,6 @@ const freshSnapshot = () => {
   );
   return cached?.date === localDate() ? cached.data : null;
 };
-export async function prefetchOverview() {
-  if (freshSnapshot()) return;
-  const date = localDate();
-  sectionCache.set(snapshotKey, {
-    date,
-    data: await api<Overview>(`overview?date=${date}`),
-  });
-}
 export function OverviewPanel({
   onNavigation,
   onOpenNote,
@@ -85,35 +77,32 @@ export function OverviewPanel({
   }, [refresh]);
   useEffect(() => {
     let clock: ReturnType<typeof setTimeout>;
-    let polling: ReturnType<typeof setInterval> | undefined;
+    let date = localDate();
     const tick = () => {
       setNow(new Date());
+      const current = localDate();
+      if (current !== date) {
+        date = current;
+        void refresh();
+      }
       clock = setTimeout(tick, 60000 - (Date.now() % 60000));
     };
     const resume = () => {
       clearTimeout(clock);
-      clearInterval(polling);
       if (document.visibilityState === "hidden") {
         request.current?.abort();
         return;
       }
       tick();
       void refresh();
-      polling = setInterval(() => void refresh(), 30000);
-    };
-    const focus = () => {
-      if (document.visibilityState === "visible") void refresh();
     };
     const start = setTimeout(resume, 0);
     document.addEventListener("visibilitychange", resume);
-    window.addEventListener("focus", focus);
     return () => {
       clearTimeout(start);
       clearTimeout(clock);
-      clearInterval(polling);
       request.current?.abort();
       document.removeEventListener("visibilitychange", resume);
-      window.removeEventListener("focus", focus);
     };
   }, [refresh]);
   async function complete(task: Overview["tasks"][number]) {

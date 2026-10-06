@@ -130,6 +130,14 @@ test("artifacts store anything, read text out of it, and make all of it searchab
         );
         assert.match(found.items[0].excerpt || "", /photographs/);
         assert.ok(found.items[0].excerptMatches?.length);
+        const cards = await value<Page<Artifact>>(
+          "artifacts?q=photographs&context=0",
+        );
+        assert.deepEqual(
+          cards.items.map((item) => item.id),
+          found.items.map((item) => item.id),
+        );
+        assert.equal(cards.items[0].excerpt, undefined);
         assert.equal(
           (await value<Page<Artifact>>("artifacts?q=photgraphs")).items.length,
           1,

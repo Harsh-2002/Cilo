@@ -101,7 +101,7 @@ type Job = { id: string; label: string; source: Dropped; error?: string };
 const listKey = (kind: Kind) => `artifacts:list:${kind}`;
 const params = (query: string, kind: Kind, summary = false) =>
   new URLSearchParams({
-    ...(summary ? { summary: "1" } : { limit: "60" }),
+    ...(summary ? { summary: "1" } : { limit: "60", context: "0" }),
     ...(query.trim() ? { q: query.trim() } : {}),
     ...(kind !== "all" && !summary ? { kind } : {}),
   });
@@ -118,15 +118,6 @@ const withoutContent = (detail: ArtifactDetail | Artifact): Artifact => {
   delete copy.content;
   return copy as Artifact;
 };
-export async function prefetchArtifacts() {
-  if (sectionCache.get(listKey("all"))) return;
-  const [first, summary] = await Promise.all([
-    api<Page<Artifact>>(`artifacts?${params("", "all")}`),
-    api<Summary>(`artifacts?${params("", "all", true)}`),
-  ]);
-  sectionCache.set(listKey("all"), { items: first.items, next: first.next });
-  sectionCache.set("artifacts:summary", summary);
-}
 const typeIcon = (item: Artifact) =>
   item.kind === "image"
     ? ImageIcon

@@ -455,6 +455,7 @@ async function handle(
         return response(
           listArtifactPage(owner.id, {
             query: params.get("q") || "",
+            context: params.get("context") !== "0",
             kind: z
               .enum(["text", "image", "file"])
               .optional()

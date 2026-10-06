@@ -163,7 +163,11 @@ export async function createFileArtifact(
 export type ArtifactQuery = { query?: string; kind?: Artifact["kind"] };
 export function listArtifactPage(
   owner: string,
-  options: ArtifactQuery & { limit: number; after?: string | null },
+  options: ArtifactQuery & {
+    limit: number;
+    after?: string | null;
+    context?: boolean;
+  },
 ): Page<Artifact> {
   const term = (options.query || "").trim().slice(0, 300);
   const cursor = decodeCursor(options.after ?? null, ["number", "string"]);
@@ -204,7 +208,7 @@ export function listArtifactPage(
     }
   }
   const items = rows.slice(0, options.limit);
-  if (term && used && items.length) {
+  if (options.context !== false && term && used && items.length) {
     const start = `[[${randomUUID()}]]`;
     const end = `[[/${randomUUID()}]]`;
     const statement = database().prepare(

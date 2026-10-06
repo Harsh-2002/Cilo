@@ -65,20 +65,6 @@ type BookmarkList = {
 const scopeOf = (favorites: boolean, collection: string) =>
   `${favorites}|${collection}`;
 const listKey = (scope: string) => `bookmarks:list:${scope}`;
-export async function prefetchBookmarks() {
-  const key = listKey(scopeOf(false, "all"));
-  if (sectionCache.get(key)) return;
-  const [first, counts] = await Promise.all([
-    api<Page<Bookmark>>(`bookmarks?${bookmarkParams("", false, "all")}`),
-    api<BookmarkSummary>(`bookmarks?${bookmarkParams("", false, "all", true)}`),
-  ]);
-  sectionCache.set(key, {
-    items: first.items,
-    next: first.next,
-    total: counts.total,
-  });
-  sectionCache.set("bookmarks:collections", counts.collections);
-}
 const bookmarkParams = (
   query: string,
   favorites: boolean,

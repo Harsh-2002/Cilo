@@ -2,6 +2,8 @@
 
 Audit date: 6 October 2026. The owner requested testing on the running dev instance and later expanded the dataset to 5,000 entries of each type. Existing owner items were preserved, so total instance counts can exceed the fixture counts.
 
+The follow-up [single-user performance audit](single-user-performance-audit.md) separates idle browsing from this bulk workload and records subsequent on-demand loading and artifact search improvements.
+
 ## Dataset and method
 
 The fixture set contains 5,000 notes, 5,000 journal entries, 5,000 tasks, 5,000 bookmark links and 5,000 artifacts: 25,000 test objects. Titles start with **Scale test**. Journal dates start in 2080 to avoid the owner's existing days. Notes and journals contain varied text lengths, including longer documents; tasks include linked notes, due dates and completed items. Artifacts contain 4,500 text items, 250 PDFs and 250 PNG images.

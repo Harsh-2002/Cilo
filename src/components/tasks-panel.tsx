@@ -45,15 +45,6 @@ import type { CapturedItem } from "./quick-capture";
 type TaskCounts = { open: number; completed: number };
 type TaskList = { items: Task[]; next: string | null };
 const listKey = (filter: string) => `tasks:list:${filter}`;
-export async function prefetchTasks() {
-  if (sectionCache.get(listKey("open"))) return;
-  const [first, counts] = await Promise.all([
-    api<Page<Task>>(`tasks?${taskParams("open", "")}`),
-    api<TaskCounts>("tasks?summary=1"),
-  ]);
-  sectionCache.set(listKey("open"), { items: first.items, next: first.next });
-  sectionCache.set("tasks:counts", counts);
-}
 const taskParams = (filter: string, query: string) =>
   new URLSearchParams({
     filter,

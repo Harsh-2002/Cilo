@@ -64,12 +64,12 @@ import { useConfirm } from "./confirm-provider";
 import { TagColorPicker } from "./tag-color-picker";
 import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
-import { BookmarksPanel, prefetchBookmarks } from "./bookmarks-panel";
-import { OverviewPanel, prefetchOverview } from "./overview-panel";
+import { BookmarksPanel } from "./bookmarks-panel";
+import { OverviewPanel } from "./overview-panel";
 import { FeedbackOutlet } from "./inline-feedback";
 import { TrashPanel } from "./trash-panel";
-import { TasksPanel, prefetchTasks } from "./tasks-panel";
-import { ArtifactsPanel, prefetchArtifacts } from "./artifacts-panel";
+import { TasksPanel } from "./tasks-panel";
+import { ArtifactsPanel } from "./artifacts-panel";
 import { useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
@@ -178,7 +178,9 @@ export function Workspace({
         ...(tag ? { tag } : {}),
       });
       const [list, allTags] = await Promise.all([
-        api<NoteSummary[]>(`notes?${params}`),
+        ["all", "favorites", "journal"].includes(view)
+          ? api<NoteSummary[]>(`notes?${params}`)
+          : Promise.resolve([]),
         api<Tag[]>("tags"),
       ]);
       if (seq === loadSequence.current) {
@@ -235,40 +237,18 @@ export function Workspace({
     return () => clearTimeout(timer);
   }, [load]);
   useEffect(() => {
-    if (listScope !== `${view}|${tag}` || search || loading) return;
+    if (
+      !["all", "favorites", "journal"].includes(view) ||
+      listScope !== `${view}|${tag}` ||
+      search ||
+      loading
+    )
+      return;
     // A list that no longer matches the last server copy was edited locally, so other cached sections are stale.
     if (notes !== loadedNotes.current) sectionCache.clear("notes:", "overview");
     sectionCache.set(`notes:${listScope}|${sort}`, { notes, hasMore });
   }, [notes, hasMore, listScope, view, tag, search, sort, loading]);
   useEffect(() => () => sectionCache.clear(), []);
-  useEffect(() => {
-    const warm = () =>
-      void Promise.allSettled([
-        prefetchOverview(),
-        prefetchTasks(),
-        prefetchBookmarks(),
-        prefetchArtifacts(),
-        ...["all", "favorites", "journal", "trash"].map(async (name) => {
-          const key = `notes:${name}||updated`;
-          if (sectionCache.get(key)) return;
-          const list = await api<NoteSummary[]>(
-            `notes?${new URLSearchParams({ view: name, sort: "updated", q: "", limit: "61", preview: "1" })}`,
-          );
-          if (!sectionCache.get(key))
-            sectionCache.set(key, {
-              notes: list.slice(0, 60),
-              hasMore: list.length > 60,
-            });
-        }),
-      ]);
-    const idle = window.requestIdleCallback
-      ? window.requestIdleCallback(warm, { timeout: 3000 })
-      : window.setTimeout(warm, 1200);
-    return () => {
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-      else clearTimeout(idle);
-    };
-  }, []);
   const onSaved = useCallback((note: Note) => {
     setNotes((previous) =>
       previous.map((n) => (n.id === note.id ? { ...n, ...note } : n)),
