@@ -52,3 +52,5 @@ Favorites is a browsing-only card collection of starred notes, journal entries a
 ## Next iteration
 
 Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Task reminders, offline editing, and collaboration remain deferred.
+
+Passkeys are an optional login method alongside passwords and account recovery. They require PIN or biometric verification, support discoverable FIDO2 hardware and password-manager credentials, and have account settings for enrollment, rename and removal. Verified passkeys satisfy login when TOTP is enabled; password login still requires TOTP. Account recovery preserves registered passkeys, while revoking sessions and clearing TOTP.

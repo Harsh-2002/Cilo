@@ -24,13 +24,14 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { MfaSettings } from "./mfa-settings";
+import { PasskeySettings } from "./passkey-settings";
 import { RecoveryCard } from "./auth-screen";
 import { api, authRequest, downloadRequest } from "@/lib/client";
 import { importFiles, type ImportResult } from "@/lib/import-files";
 import type { Owner, Settings } from "@/lib/types";
 
 type Section = "appearance" | "account" | "data";
-type AccountView = "profile" | "password" | "recovery" | "mfa";
+type AccountView = "profile" | "password" | "recovery" | "mfa" | "passkeys";
 export function SettingsPanel({
   open,
   onClose,
@@ -340,6 +341,19 @@ export function SettingsPanel({
                     <div className="settings-security">
                       <button
                         disabled={busy || mfaGuard}
+                        onClick={() => setAccountView("passkeys")}
+                      >
+                        <span>
+                          <strong>Passkeys</strong>
+                          <small>
+                            Sign in with a device, security key or password
+                            manager.
+                          </small>
+                        </span>
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        disabled={busy || mfaGuard}
                         onClick={() => setAccountView("password")}
                       >
                         <span>
@@ -356,7 +370,7 @@ export function SettingsPanel({
                           <strong>Two-factor authentication</strong>
                           <small>
                             {mfaEnabled
-                              ? "Enabled · authenticator required at sign-in."
+                              ? "Enabled · authenticator required for password sign-in."
                               : "Optional extra protection with an authenticator."}
                           </small>
                         </span>
@@ -410,6 +424,12 @@ export function SettingsPanel({
                       </div>
                     </div>
                   </>
+                )}
+                {accountView === "passkeys" && (
+                  <PasskeySettings
+                    onGuardChange={setMfaGuard}
+                    onSignOut={() => run(onSignOut)}
+                  />
                 )}
                 {accountView === "password" && (
                   <>

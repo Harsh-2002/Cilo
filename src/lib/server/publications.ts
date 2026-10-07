@@ -5,6 +5,10 @@ import { storage } from "./storage";
 import { HttpError } from "./http";
 import { plainText } from "./validation";
 import type { Document, Note, Publication } from "../types";
+import {
+  renderPublicationHtml,
+  publicationRendererVersion,
+} from "./publication-html";
 
 type PublicRow = Publication & { document: string; excerpt: string };
 export function publicationFor(noteId: string): Publication | null {
@@ -109,6 +113,11 @@ export async function publishNote(note: Note, revision: number) {
     };
     const document = clean(note.document) as Document;
     const now = Date.now();
+    const excerpt = plainText(document.blocks).slice(0, 200);
+    const html = await renderPublicationHtml(
+      { title: note.title, document, publishedAt: now },
+      excerpt,
+    );
     sqlite()
       .transaction(() => {
         const current = sqlite()
@@ -126,10 +135,15 @@ export async function publishNote(note: Note, revision: number) {
             note.id,
             note.title,
             JSON.stringify(document),
-            plainText(document.blocks).slice(0, 200),
+            excerpt,
             revision,
             now,
           );
+        sqlite()
+          .prepare(
+            "INSERT INTO publication_pages(token,html,renderer_version) VALUES(?,?,?) ON CONFLICT(token) DO UPDATE SET html=excluded.html,renderer_version=excluded.renderer_version",
+          )
+          .run(token, html, publicationRendererVersion());
         sqlite()
           .prepare("DELETE FROM publication_files WHERE token=?")
           .run(token);

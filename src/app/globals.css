@@ -5104,3 +5104,65 @@ button:disabled {
   width: 64px;
   height: 64px;
 }
+
+.auth-passkeys {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.auth-passkeys > button {
+  min-height: 44px;
+}
+.auth-passkeys > p {
+  text-align: center;
+}
+.passkey-settings {
+  display: grid;
+  gap: 18px;
+}
+.passkey-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.passkey-list > li {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.passkey-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.passkey-heading > div {
+  min-width: 0;
+}
+.passkey-heading strong {
+  overflow-wrap: anywhere;
+}
+.passkey-heading svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.passkey-heading p {
+  margin-top: 4px;
+}
+.passkey-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.passkey-actions > button {
+  min-height: 44px;
+}
+.passkey-edit {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.passkey-reauth {
+  display: grid;
+  gap: 12px;
+}

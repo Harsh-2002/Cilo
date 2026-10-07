@@ -117,6 +117,19 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
       Date.now(),
     );
   const originalSecret = authSecret();
+  const passkeyId = randomUUID();
+  database
+    .prepare(
+      "INSERT INTO passkey(id,name,public_key,user_id,credential_id,counter,device_type,backed_up,created_at) VALUES(?,?,?,?,?,0,'singleDevice',0,?)",
+    )
+    .run(
+      passkeyId,
+      "Recovery key",
+      "Fixture public key",
+      owner,
+      "fixture-credential",
+      Date.now(),
+    );
   let first: Awaited<ReturnType<typeof backups.createBackup>>;
   try {
     await t.test(
@@ -173,6 +186,15 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         restored.pragma("cipher='chacha20'");
         restored.pragma(`key='${deriveKey(key, "sqlite").toString("hex")}'`);
         try {
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT credential_id FROM passkey WHERE id=?")
+                .get(passkeyId) as { credential_id: string }
+            ).credential_id,
+            "fixture-credential",
+          );
+
           assert.equal(
             (
               restored.prepare("SELECT password FROM account").get() as {

@@ -2,6 +2,11 @@
 import { brandPath, brandFramePath, brandTagline } from "@/lib/brand";
 import { useState } from "react";
 import {
+  passkeyAuth,
+  usePasskeySupported,
+  passkeyCancelled,
+} from "@/lib/passkey-client";
+import {
   ArrowRight,
   ArrowLeft,
   Check,
@@ -12,6 +17,7 @@ import {
   Moon,
   Sun,
   Monitor,
+  KeyRound,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Checkbox } from "./ui/checkbox";
@@ -106,9 +112,12 @@ export function AuthScreen({
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const passkeysSupported = usePasskeySupported();
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const { theme, setTheme } = useTheme();
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError("");
     if ((setup || recovering) && password !== confirm) {
       setError("Your passwords don’t match.");
@@ -319,9 +328,56 @@ export function AuthScreen({
               {setup
                 ? "Your notes, ideas, and everything in between. Let’s make this space yours."
                 : recovering
-                  ? "Use your saved recovery code to set a new password."
+                  ? "Use your saved recovery code to set a new password. Registered passkeys stay valid; remove unwanted keys in Settings after signing in."
                   : "Pick up where your thoughts left off."}
             </p>
+            {!setup && !recovering && (
+              <div className="auth-passkeys">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={!passkeysSupported || busy}
+                  onClick={() => {
+                    setBusy(true);
+                    setPasskeyBusy(true);
+                    setError("");
+                    void passkeyAuth.signIn
+                      .passkey()
+                      .then((result) => {
+                        if (result.error) {
+                          if (!passkeyCancelled(result.error))
+                            setError(
+                              result.error.message ||
+                                "Passkey sign-in failed. Try again or use your password.",
+                            );
+                        } else onReady();
+                      })
+                      .catch(() =>
+                        setError(
+                          "Passkey sign-in failed. Try again or use your password.",
+                        ),
+                      )
+                      .finally(() => {
+                        setBusy(false);
+                        setPasskeyBusy(false);
+                      });
+                  }}
+                >
+                  {passkeyBusy ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <KeyRound size={16} />
+                  )}{" "}
+                  Sign in with a passkey
+                </Button>
+                <p className="field-hint">
+                  {passkeysSupported
+                    ? "Or sign in with your password below."
+                    : "Passkeys need a supported browser and HTTPS or localhost."}
+                </p>
+              </div>
+            )}
             <form onSubmit={submit} className="auth-form">
               {setup && (
                 <div className="field">

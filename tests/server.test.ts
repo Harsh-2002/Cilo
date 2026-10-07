@@ -700,6 +700,31 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           })
         ).json();
         assert.match(published.token, /^[a-f0-9]{48}$/);
+        const { cachedPublicationHtml, preparePublicationPages } =
+          await import("../src/lib/server/publication-html");
+        const share = await import("../src/app/share/[token]/route");
+        const shared = () =>
+          share.GET(
+            new Request("http://localhost:3000/share/" + published.token),
+            { params: Promise.resolve({ token: published.token }) },
+          );
+        const html = cachedPublicationHtml(published.token)!;
+        assert.match(html, /<title>Shared reading<\/title>/);
+        assert.match(html, /Published content/);
+        assert.doesNotMatch(
+          html,
+          new RegExp(note.id + "|/api/nivra/files/|contenteditable"),
+        );
+        assert.equal((await shared()).status, 200);
+        assert.match(
+          (await shared()).headers.get("cache-control")!,
+          /no-store/,
+        );
+        sqlite()
+          .prepare("DELETE FROM publication_pages WHERE token=?")
+          .run(published.token);
+        await preparePublicationPages();
+        assert.equal(cachedPublicationHtml(published.token), html);
         const publicData = await (
           await call(`published/${published.token}`, "GET", undefined, false)
         ).json();
@@ -760,6 +785,10 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           })
         ).json();
         assert.equal(updated.token, published.token);
+        assert.match(
+          cachedPublicationHtml(published.token)!,
+          /<title>Private edits<\/title>/,
+        );
         assert.equal(
           (
             await (
@@ -775,6 +804,8 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         );
         assert.equal((await call(route, "GET", undefined, false)).status, 404);
         await call(`notes/${note.id}/publication`, "DELETE");
+        assert.equal(cachedPublicationHtml(published.token), null);
+        assert.equal((await shared()).status, 404);
         assert.equal(
           (await call(`published/${published.token}`, "GET", undefined, false))
             .status,

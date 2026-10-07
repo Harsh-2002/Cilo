@@ -6,6 +6,9 @@ export async function register() {
     await migrateStoredFiles();
     const { authSecret } = await import("./lib/server/auth");
     authSecret();
+    const { preparePublicationPages } =
+      await import("./lib/server/publication-html");
+    await preparePublicationPages();
     const { startBackupScheduler } = await import("./lib/server/backups");
     startBackupScheduler();
     const { startJobWorker } = await import("./lib/server/jobs");

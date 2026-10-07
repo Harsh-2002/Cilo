@@ -10,16 +10,17 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "postinstall": "node scripts/copy-assets.mjs",
-    "prebuild": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs",
-    "predev": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs",
+    "prebuild": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs && node scripts/build-public-reader.mjs",
+    "predev": "node scripts/copy-assets.mjs && node scripts/build-processing-worker.mjs && node scripts/build-public-reader.mjs",
     "format": "prettier --write src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
     "format:check": "prettier --check src tests scripts docs *.md *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
     "backup": "tsx scripts/backup-cli.ts",
     "verify:branding": "node scripts/verify-branding.mjs",
-    "pretest": "node scripts/build-processing-worker.mjs"
+    "pretest": "node scripts/build-processing-worker.mjs && node scripts/build-public-reader.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
+    "@better-auth/passkey": "1.7.7",
     "@blocknote/code-block": "0.55.0",
     "@blocknote/core": "0.55.0",
     "@blocknote/diagram-block": "0.55.0",
@@ -67,6 +68,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
     "playwright": "1.63.0",
+    "postcss": "8.5.28",
     "prettier": "3.9.9",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",

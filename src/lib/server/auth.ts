@@ -1,7 +1,8 @@
 import { environment } from "./environment";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { username, twoFactor } from "better-auth/plugins";
+import { username } from "better-auth/plugins/username";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { randomBytes } from "node:crypto";
 import { runtimeFs } from "./runtime-fs";
 const { existsSync, readFileSync, writeFileSync } = runtimeFs;
@@ -9,6 +10,12 @@ import path from "node:path";
 import { db, dataDir } from "./db";
 import * as schema from "./schema";
 import { requestOrigin } from "./http";
+import {
+  passkeyPlugin,
+  passkeyGuard,
+  passkeyFreshSeconds,
+  passkeyOptions,
+} from "./passkeys";
 import {
   isEncrypted,
   masterKey,
@@ -71,9 +78,14 @@ export function auth(request?: Request) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
-    plugins: [username(), twoFactor({ issuer: "Nivra" })],
+    plugins: [username(), twoFactor({ issuer: "Nivra" }), passkeyPlugin()],
+    hooks: { before: passkeyGuard, after: passkeyOptions },
     trustedOrigins: [origin],
     rateLimit: { enabled: true, window: 60, max: 30 },
-    session: { expiresIn: 60 * 60 * 24 * 14 },
+    session: {
+      expiresIn: 60 * 60 * 24 * 14,
+      freshAge: passkeyFreshSeconds,
+      passkeyOptions,
+    },
   });
 }

@@ -26,6 +26,7 @@ const config: NextConfig = {
     "/*": [
       "./migrations/**/*",
       "./generated/processing-worker.cjs",
+      "./generated/publication-renderer.cjs",
       "./node_modules/better-sqlite3/build/Release/better_sqlite3.node",
       // The OCR engine starts worker threads from its own files and reads local language data.
       "./node_modules/unpdf/**/*",
@@ -57,7 +58,8 @@ const config: NextConfig = {
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'none'; script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' https: http:; media-src 'self' https: http:; font-src 'self'; connect-src 'self'${process.env.NODE_ENV === "development" ? " ws: wss:" : ""}; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'`,
+            value:
+              "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http:; media-src 'self' https: http:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
           },
         ],
       },

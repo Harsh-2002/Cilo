@@ -125,15 +125,17 @@ Choose Share & publish from a note, inspect Reader preview, then publish. The pu
 
 ## Optional authenticator MFA
 
+Settings → Account → Passkeys lets you add, rename and remove passkeys. Use HTTPS (or localhost) and a discoverable FIDO2 security key, supported device or password manager. PIN or biometric verification is required. Management requires a sign-in within the last five minutes; sign in again when prompted. Passkeys are optional and password login remains available. Verified passkey login does not require an additional TOTP challenge. Keep the canonical `NIVRA_PUBLIC_URL` stable: passkeys are bound to its hostname.
+
 Settings → Account → Two-factor authentication starts TOTP enrollment. Confirm your current password, scan the QR code (or enter the setup key manually), and verify the six-digit code. MFA activates only after verification. Download and acknowledge the single-use backup codes before leaving setup. Other sessions are revoked when MFA is enabled or disabled.
 
-After activation, password sign-in creates a short-lived challenge; private notes remain inaccessible until a valid authenticator or backup code is supplied. Invalid attempts are rate-limited. Disabling MFA requires the current password. The original Nivra account recovery code resets the password, clears MFA enrollment and pending challenges, revokes sessions, and issues a replacement recovery code. Re-enroll MFA after recovery. Keep the authentication secret in backups: it encrypts the TOTP enrollment data.
+After activation, password sign-in creates a short-lived challenge; private notes remain inaccessible until a valid authenticator or backup code is supplied. Invalid attempts are rate-limited. Disabling MFA requires the current password. The original Nivra account recovery code resets the password, clears MFA enrollment and pending challenges, revokes sessions, and issues a replacement recovery code. Re-enroll MFA after recovery. Registered passkeys stay valid; remove unwanted keys from Settings → Account → Passkeys. Keep the authentication secret in backups: it encrypts the TOTP enrollment data.
 
 ## Tasks
 
 Open Tasks from the navigation to add, edit, complete, reopen, search, or delete tasks. Open and Completed views show separate counts. Changes persist in SQLite; revision checks prevent another tab from silently overwriting a task. Lossless bundles include task titles, completion state, and timestamps; importing adds copies. Older bundles without tasks remain compatible. Full data-directory backups include tasks automatically.
 
-Shared notes show their content, a Shared note label, and the publication date without Nivra branding. Existing `/p/<token>` links redirect to `/share/<token>`.
+Publishing prepares a complete HTML snapshot before returning its link. Share requests read that snapshot directly, with no rendering job or editor startup on the visitor path. Existing snapshots are prepared during startup when necessary. Shared notes show their content, a Shared note label, and the publication date without Nivra branding. Existing `/p/<token>` links redirect to `/share/<token>`.
 
 ## Encryption and key custody
 
