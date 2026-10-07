@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Copy, Loader2, Plus, Unplug } from "lucide-react";
+import { Check, ChevronDown, Copy, Loader2, Plus, Unplug } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -19,7 +19,7 @@ type Connections = {
   }[];
   connections: { clientId: string; name: string | null }[];
 };
-export function AiConnections({
+export function McpConnections({
   onGuardChange,
   onSignOut,
 }: {
@@ -34,7 +34,8 @@ export function AiConnections({
   const [error, setError] = useState("");
   const [reauth, setReauth] = useState(false);
   const [secret, setSecret] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState("");
+  const [keyForm, setKeyForm] = useState(false);
   const [clientForm, setClientForm] = useState(false);
   const [clientName, setClientName] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
@@ -73,7 +74,7 @@ export function AiConnections({
         setSecret(
           `Client ID: ${result.client_id}${result.client_secret ? `\nClient secret: ${result.client_secret}` : "\nPublic client · PKCE required"}`,
         );
-      setCopied(false);
+      setCopied("");
       await load();
       return true;
     } catch (e) {
@@ -87,25 +88,18 @@ export function AiConnections({
   async function copy(value: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
+      setCopied(value);
     } catch {
       setError("Copy is unavailable. Select and copy the value below.");
     }
   }
   if (!data)
-    return (
-      <p role={error ? "alert" : "status"}>
-        {error || "Loading AI connections…"}
-      </p>
-    );
+    return <p role={error ? "alert" : "status"}>{error || "Loading MCP…"}</p>;
   return (
     <div className="ai-connections">
       <div className="settings-section-heading">
-        <h2>Connect your AI agents</h2>
-        <p>
-          Use OAuth with a hosted client, or an API key with a local agent. Both
-          work with the same content you see here.
-        </p>
+        <h2>MCP</h2>
+        <p>Connect a client to your workspace.</p>
       </div>
       <div className="field">
         <Label htmlFor="mcp-endpoint">MCP endpoint</Label>
@@ -117,14 +111,14 @@ export function AiConnections({
             aria-label="Copy MCP endpoint"
             onClick={() => void copy(data.endpoint)}
           >
-            <Copy size={16} />
+            {copied === data.endpoint ? (
+              <Check size={16} />
+            ) : (
+              <Copy size={16} />
+            )}
           </Button>
         </div>
       </div>
-      <p className="field-hint">
-        Choose OAuth in ChatGPT or Claude and enter this endpoint. A hosted
-        client needs to reach your server over HTTPS.
-      </p>
       {secret && (
         <section className="ai-secret" aria-label="New credential">
           <h3>Save this credential</h3>
@@ -137,81 +131,113 @@ export function AiConnections({
               onClick={() => void copy(secret)}
             >
               <Copy size={14} />
-              Copy credential
+              {copied === secret ? "Copied" : "Copy credential"}
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setSecret("")}>
-              I’ve saved it
+              Done
             </Button>
           </div>
         </section>
       )}
-      <form
-        className="ai-key-form"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (
-            await run({
-              action: "create-key",
-              name,
-              access: full ? "full" : "read",
-              ...(expires ? { expiresIn: Number(expires) * 86400 } : {}),
-            })
-          )
-            setName("");
-        }}
-      >
-        <h3>Create an API key</h3>
-        <div className="field">
-          <Label htmlFor="agent-key-name">Name</Label>
-          <Input
-            id="agent-key-name"
-            placeholder="e.g. Local assistant"
-            value={name}
-            maxLength={80}
-            required
-            onChange={(e) => setName(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-        <div className="field">
-          <Label htmlFor="agent-key-expiry">
-            Expires after <span className="field-hint">(optional, days)</span>
-          </Label>
-          <Input
-            id="agent-key-expiry"
-            type="number"
-            min={1}
-            max={365}
-            inputMode="numeric"
-            value={expires}
-            onChange={(e) => setExpires(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-        <label className="check-row">
-          <Checkbox
-            checked={full}
-            onCheckedChange={(v) => setFull(v === true)}
-            disabled={busy}
-          />
-          Allow changes to content
-        </label>
-        <p className="field-hint">
-          {full
-            ? "Full access includes creating, editing, publishing and permanently deleting content. Account and server settings stay private."
-            : "Read-only access lets the agent search and read your content."}
-        </p>
-        <Button type="submit" disabled={busy || !name.trim() || !!secret}>
-          {busy ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Plus size={15} />
-          )}
-          Create key
-        </Button>
-      </form>
       <section>
-        <h3>API keys</h3>
+        <div className="mcp-section-title">
+          <h3>API keys</h3>
+          {!keyForm && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || !!secret}
+              onClick={() => {
+                setKeyForm(true);
+                setFull(false);
+                setExpires("");
+              }}
+            >
+              <Plus size={14} />
+              New key
+            </Button>
+          )}
+        </div>
+        {keyForm && (
+          <form
+            className="ai-key-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (
+                await run({
+                  action: "create-key",
+                  name,
+                  access: full ? "full" : "read",
+                  ...(expires ? { expiresIn: Number(expires) * 86400 } : {}),
+                })
+              ) {
+                setName("");
+                setKeyForm(false);
+              }
+            }}
+          >
+            <div className="field">
+              <Label htmlFor="agent-key-name">Name</Label>
+              <Input
+                id="agent-key-name"
+                autoFocus
+                placeholder="e.g. My client"
+                value={name}
+                maxLength={80}
+                required
+                onChange={(e) => setName(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <div className="field">
+              <Label htmlFor="agent-key-expiry">
+                Expires after{" "}
+                <span className="field-hint">(optional, days)</span>
+              </Label>
+              <Input
+                id="agent-key-expiry"
+                type="number"
+                min={1}
+                max={365}
+                inputMode="numeric"
+                value={expires}
+                onChange={(e) => setExpires(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <label className="check-row">
+              <Checkbox
+                checked={full}
+                onCheckedChange={(v) => setFull(v === true)}
+                disabled={busy}
+              />
+              Allow changes to content
+            </label>
+            <p className="field-hint">
+              {full
+                ? "Can edit, publish, and permanently delete content."
+                : "Read-only access by default."}
+            </p>
+            <div className="ai-actions">
+              <Button type="submit" disabled={busy || !name.trim() || !!secret}>
+                {busy ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Plus size={15} />
+                )}
+                Create key
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setKeyForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
         {!data.keys.length ? (
           <p className="field-hint">No API keys yet.</p>
         ) : (
@@ -254,18 +280,16 @@ export function AiConnections({
         )}
       </section>
       <section>
-        <h3>OAuth connections</h3>
+        <h3>Connected clients</h3>
         {!data.connections.length ? (
-          <p className="field-hint">
-            Clients appear here after connecting with OAuth.
-          </p>
+          <p className="field-hint">No connected clients.</p>
         ) : (
           <ul className="ai-connection-list">
             {data.connections.map((client) => (
               <li key={client.clientId}>
                 <div>
-                  <strong>{client.name || "AI client"}</strong>
-                  <small>{client.clientId}</small>
+                  <strong>{client.name || "Client"}</strong>
+                  <small>OAuth</small>
                 </div>
                 <Button
                   size="sm"
@@ -297,22 +321,32 @@ export function AiConnections({
         <Button
           variant="ghost"
           size="sm"
+          aria-expanded={clientForm}
+          aria-controls="mcp-client-form"
           onClick={() => setClientForm(!clientForm)}
           disabled={busy}
         >
-          Configure a client manually
+          Manual client registration
+          <ChevronDown size={14} />
         </Button>
         {clientForm && (
           <form
+            id="mcp-client-form"
             className="ai-client-form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              void run({
-                action: "create-client",
-                name: clientName,
-                redirectUri,
-                public: publicClient,
-              });
+              if (
+                await run({
+                  action: "create-client",
+                  name: clientName,
+                  redirectUri,
+                  public: publicClient,
+                })
+              ) {
+                setClientForm(false);
+                setClientName("");
+                setRedirectUri("");
+              }
             }}
           >
             <div className="field">
@@ -349,8 +383,8 @@ export function AiConnections({
           </form>
         )}
       </section>
-      {copied && (
-        <p role="status" className="field-hint">
+      {!!copied && (
+        <p role="status" className="sr-only">
           Copied.
         </p>
       )}

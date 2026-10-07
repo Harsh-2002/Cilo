@@ -1,5 +1,5 @@
 "use client";
-import { AiConnections } from "./ai-connections";
+import { McpConnections } from "./mcp-connections";
 import { ResponsiveSurface } from "./responsive-surface";
 import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
@@ -170,7 +170,7 @@ export function SettingsPanel({
               [
                 { id: "account", label: "Account" },
                 { id: "data", label: "Import & export" },
-                { id: "agents", label: "AI connections" },
+                { id: "agents", label: "MCP" },
               ] as const
             ).map((item, index, items) => (
               <button
@@ -528,7 +528,7 @@ export function SettingsPanel({
               </>
             )}
             {tab === "agents" && (
-              <AiConnections
+              <McpConnections
                 onGuardChange={setMfaGuard}
                 onSignOut={onSignOut}
               />

@@ -1,7 +1,7 @@
 import { sqlite } from "./db";
 const cached = new WeakMap<
   ReturnType<typeof sqlite>,
-  { version: string; queries: Map<string, string> }
+  Map<string, { version: number; result: string }>
 >();
 export function editDistance(a: string, b: string, max: number) {
   if (Math.abs(a.length - b.length) > max) return max + 1;
@@ -36,17 +36,18 @@ export function fuzzyQuery(
     ?.slice(0, 8);
   if (!words?.length || words.some((word) => word.length > 64)) return "";
   const database = sqlite();
-  const changes = database.prepare("SELECT total_changes() AS n").get() as {
-    n: number;
-  };
-  const version = `${changes.n}:${database.pragma("data_version", { simple: true })}`;
+  const { generation: version } = database
+    .prepare("SELECT generation FROM search_versions WHERE vocabulary=?")
+    .get(vocabulary) as { generation: number };
   let cache = cached.get(database);
-  if (!cache || cache.version !== version) {
-    cache = { version, queries: new Map() };
+  if (!cache) {
+    cache = new Map();
     cached.set(database, cache);
   }
   const key = `${vocabulary}:${words.join(" ")}`;
-  if (cache.queries.has(key)) return cache.queries.get(key)!;
+  const cacheable = !database.inTransaction;
+  const existing = cache.get(key);
+  if (cacheable && existing?.version === version) return existing.result;
   let changed = false;
   const groups = words.map((word) => {
     const max = word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0;
@@ -67,8 +68,9 @@ export function fuzzyQuery(
       : `"${word}"*`;
   });
   const result = changed ? groups.join(" AND ") : "";
-  if (cache.queries.size >= 128)
-    cache.queries.delete(cache.queries.keys().next().value!);
-  cache.queries.set(key, result);
+  if (cacheable) {
+    if (cache.size >= 128) cache.delete(cache.keys().next().value!);
+    cache.set(key, { version, result });
+  }
   return result;
 }

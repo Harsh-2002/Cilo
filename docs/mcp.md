@@ -1,6 +1,6 @@
-# AI connections
+# MCP
 
-Nivra exposes an authenticated MCP endpoint at `/mcp`. Open **Settings → AI connections** to copy its URL, create a bearer API key, inspect OAuth clients, or revoke access. The owner must have signed in recently to manage credentials. API keys are shown once and stored as hashes; put them in the `Authorization: Bearer …` header, never in a URL.
+Nivra exposes an authenticated MCP endpoint at `/mcp`. Open **Settings → MCP** to copy its URL, create a bearer API key, inspect OAuth clients, or revoke access. Choose **New key** to open the key form; keys default to read-only access. Manual OAuth registration is collapsed until needed. The owner must have signed in recently to manage credentials. API keys are shown once and stored as hashes; put them in the `Authorization: Bearer …` header, never in a URL.
 
 Read-only connections receive `nivra:read`. Full access adds `nivra:write`, including publication and permanent deletion of already-trashed items. Account credentials, recovery, server configuration and full-instance backups remain browser/operator operations. Browser cookies do not authenticate MCP, and agent tokens do not authenticate private browser APIs.
 

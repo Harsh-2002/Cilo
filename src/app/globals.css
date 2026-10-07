@@ -5348,3 +5348,42 @@ button:disabled {
     flex-shrink: 0;
   }
 }
+
+.mcp-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.mcp-section-title h3 {
+  margin: 0;
+}
+.ai-key-form {
+  margin-bottom: 16px;
+}
+.ai-connections > section > button {
+  padding-left: 0;
+}
+.ai-connections .settings-section-heading {
+  margin-bottom: 0;
+}
+.ai-copy-row [data-slot="input"],
+.ai-copy-row button {
+  height: 40px;
+  min-height: 40px;
+}
+.ai-copy-row button {
+  width: 40px;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .ai-copy-row [data-slot="input"],
+  .ai-copy-row button {
+    height: 44px;
+    min-height: 44px;
+  }
+  .ai-copy-row button {
+    width: 44px;
+  }
+}

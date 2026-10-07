@@ -127,3 +127,7 @@ Use Node.js 24. Run `npm run typecheck`, `npm run lint`, `npm run format:check`,
 `node --import tsx scripts/benchmark-encryption.ts run /absolute/new/private-directory` compares both storage modes using disposable generated data without changing the live installation. `scripts/benchmark-library.ts` and `scripts/benchmark-media.ts` likewise create isolated synthetic benchmarks. Keep raw databases, keys, sessions, host measurements and screenshots outside Git.
 
 Public sharing now prepares HTML at publish time and serves it through an indexed SQLite lookup. In a development-server restart check, the first successful request took 5.44 seconds and the next took 0.13 seconds, compared with an earlier 61-second first request dominated by Next.js compilation. The reader runtime is prebuilt before startup. These timings are a sharing-path check, not a new CPU, memory or whole-instance benchmark.
+
+## MCP search cache
+
+API-key verification updates usage metadata on each request. Fuzzy search previously invalidated its vocabulary cache after any SQLite write, including these authentication updates. Ordered migration 0026 adds per-collection generations maintained by content triggers, so unrelated authentication and job writes preserve the bounded cache. Searches inside a transaction bypass caching to prevent rolled-back content from leaking into later cached results. Behavior checks cover unrelated session writes, content edits, deletion, and rollback followed by another edit.

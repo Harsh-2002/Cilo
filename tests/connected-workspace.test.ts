@@ -183,6 +183,56 @@ test("connected workspace retains private search, recovery, journal and schedule
           ).map((result) => result.id),
           [item.id],
         );
+        const database = sqlite();
+        const prepare = database.prepare;
+        let vocabularyReads = 0;
+        database.prepare = ((sql: string) => {
+          if (sql.includes("_fts_vocab")) vocabularyReads++;
+          return prepare.call(database, sql);
+        }) as typeof database.prepare;
+        try {
+          database.prepare("UPDATE session SET user_agent=user_agent").run();
+          assert.deepEqual(
+            (
+              await value<SearchResult[]>(
+                "search?q=type%3Atask%20cachemilestne",
+              )
+            ).map((result) => result.id),
+            [item.id],
+          );
+          assert.equal(
+            vocabularyReads,
+            0,
+            "Authentication writes must preserve the fuzzy cache",
+          );
+        } finally {
+          database.prepare = prepare;
+        }
+        const { fuzzyQuery } = await import("../src/lib/server/search");
+        assert.throws(
+          database.transaction(() => {
+            database
+              .prepare("UPDATE tasks SET title=? WHERE id=?")
+              .run("Interimmilestone", item.id);
+            assert.match(
+              fuzzyQuery("interimmilestne", "tasks"),
+              /interimmilestone/,
+            );
+            throw new Error("Rollback cache fixture");
+          }),
+          /Rollback cache fixture/,
+        );
+        database
+          .prepare("UPDATE tasks SET title=? WHERE id=?")
+          .run("Freshmilestone", item.id);
+        assert.equal(
+          fuzzyQuery("interimmilestne", "tasks"),
+          "",
+          "Rolled-back versions must not seed the cache",
+        );
+        database
+          .prepare("UPDATE tasks SET title=? WHERE id=?")
+          .run(item.title, item.id);
         assert.equal(
           (
             await call(`tasks/${item.id}`, "DELETE", {

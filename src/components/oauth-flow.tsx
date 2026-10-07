@@ -148,7 +148,7 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
               </p>
             )}
             <p className="field-hint">
-              You can disconnect this client in Settings → AI connections.
+              You can disconnect this client in Settings → MCP.
             </p>
             <div className="ai-actions">
               <Button
