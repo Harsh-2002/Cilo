@@ -1,6 +1,14 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { historicalNamespace } from "./src/lib/compatibility";
 import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
+const offlineStyle = readFileSync("public/offline.html", "utf8").match(
+  /<style>([\s\S]*?)<\/style>/,
+)![1];
+const offlineStyleHash = createHash("sha256")
+  .update(offlineStyle)
+  .digest("base64");
 const config: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
@@ -61,6 +69,7 @@ const config: NextConfig = {
           { key: "Referrer-Policy", value: "same-origin" },
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
           {
             key: "Permissions-Policy",
             value:
@@ -78,10 +87,14 @@ const config: NextConfig = {
         headers: [
           { key: "Cache-Control", value: "private, no-store, max-age=0" },
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+      {
+        source: "/offline.html",
+        headers: [
           {
             key: "Content-Security-Policy",
-            value:
-              "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http:; media-src 'self' https: http:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+            value: `default-src 'none'; script-src 'none'; style-src 'sha256-${offlineStyleHash}'; style-src-attr 'none'; img-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'`,
           },
         ],
       },

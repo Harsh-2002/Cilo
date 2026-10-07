@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { HttpError } from "./http";
 import { plainText } from "./validation";
 import type { Document, Note, Publication } from "../types";
+import { publicationMedia } from "../media-url";
 import {
   renderPublicationHtml,
   publicationRendererVersion,
@@ -28,7 +29,10 @@ export function publishedNote(token: string) {
     )
     .get(token) as (PublicRow & { title: string }) | undefined;
   return row
-    ? { ...row, document: JSON.parse(row.document) as Document }
+    ? {
+        ...row,
+        document: publicationMedia(JSON.parse(row.document) as Document, token),
+      }
     : null;
 }
 export async function revokePublication(noteId: string) {
@@ -111,12 +115,13 @@ export async function publishNote(note: Note, revision: number) {
       }
       return value;
     };
-    const document = clean(note.document) as Document;
+    const document = publicationMedia(clean(note.document) as Document, token);
     const now = Date.now();
     const excerpt = plainText(document.blocks).slice(0, 200);
     const html = await renderPublicationHtml(
       { title: note.title, document, publishedAt: now },
       excerpt,
+      token,
     );
     sqlite()
       .transaction(() => {

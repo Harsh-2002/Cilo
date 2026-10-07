@@ -72,6 +72,7 @@ export async function fetchPublic(
   limit: number,
   signal: AbortSignal,
   redirects = 0,
+  accept = "text/html,image/*",
 ): Promise<RemotePage> {
   const url = new URL(bookmarkUrl(urlValue));
   if (url.port && url.port !== "80" && url.port !== "443")
@@ -98,7 +99,7 @@ export async function fetchPublic(
         signal,
         headers: {
           "User-Agent": "Nivra-LinkPreview/1.0",
-          Accept: "text/html,image/*",
+          Accept: accept,
           "Accept-Encoding": "identity",
         },
         lookup: (_hostname, options, callback) =>
@@ -124,7 +125,10 @@ export async function fetchPublic(
             reject(new Error("Invalid redirect."));
             return;
           }
-          fetchPublic(next, limit, signal, redirects + 1).then(resolve, reject);
+          fetchPublic(next, limit, signal, redirects + 1, accept).then(
+            resolve,
+            reject,
+          );
           return;
         }
         if (

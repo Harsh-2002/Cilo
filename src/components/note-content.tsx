@@ -1,25 +1,12 @@
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { MediaPlayer } from "./media-player";
 import { ReaderCode, ReaderDiagram } from "./reader-artifacts";
 import { readerText, readerUrl } from "@/lib/reader";
+import { mediaUrl } from "@/lib/media-url";
+import { readerStyle } from "@/lib/reader-styles";
 
 type Block = Record<string, unknown>;
-const colors: Record<string, string> = {
-  gray: "#737373",
-  red: "#c43c3c",
-  orange: "#b85c10",
-  yellow: "#947100",
-  green: "#258044",
-  blue: "#326bc5",
-  purple: "#8558bf",
-  pink: "#b84688",
-};
-function color(value: unknown) {
-  return typeof value === "string"
-    ? colors[value] || (/^#[0-9a-f]{3,8}$/i.test(value) ? value : undefined)
-    : undefined;
-}
 function inline(value: unknown): ReactNode {
   if (typeof value === "string") return value;
   if (!Array.isArray(value)) return null;
@@ -49,28 +36,11 @@ function inline(value: unknown): ReactNode {
     if (styles.underline) content = <u>{content}</u>;
     if (styles.strike) content = <s>{content}</s>;
     return (
-      <span
-        key={index}
-        style={{
-          color: color(styles.textColor),
-          backgroundColor: color(styles.backgroundColor),
-        }}
-      >
+      <span key={index} className={readerStyle(styles).name}>
         {content}
       </span>
     );
   });
-}
-function propsStyle(props: Block): CSSProperties {
-  return {
-    textAlign: ["left", "center", "right", "justify"].includes(
-      String(props.textAlignment),
-    )
-      ? (props.textAlignment as CSSProperties["textAlign"])
-      : undefined,
-    color: color(props.textColor),
-    backgroundColor: color(props.backgroundColor),
-  };
 }
 function renderBlock(block: Block, key: number): ReactNode {
   const props = (block.props || {}) as Block;
@@ -81,12 +51,12 @@ function renderBlock(block: Block, key: number): ReactNode {
         <NoteContent blocks={block.children as Block[]} />
       </div>
     ) : null;
-  const style = propsStyle(props);
+  const className = readerStyle(props).name;
   switch (block.type) {
     case "heading": {
       const Heading = props.level === 3 ? "h3" : "h2";
       return (
-        <section key={key} style={style}>
+        <section key={key} className={className}>
           <Heading>{content}</Heading>
           {children}
         </section>
@@ -94,7 +64,7 @@ function renderBlock(block: Block, key: number): ReactNode {
     }
     case "quote":
       return (
-        <blockquote key={key} style={style}>
+        <blockquote key={key} className={className}>
           {content}
           {children}
         </blockquote>
@@ -121,7 +91,8 @@ function renderBlock(block: Block, key: number): ReactNode {
         </Fragment>
       );
     case "canvas": {
-      const src = readerUrl(props.preview, true);
+      const value = readerUrl(props.preview, true);
+      const src = value && mediaUrl(value);
       return (
         <figure key={key}>
           {src ? (
@@ -143,7 +114,8 @@ function renderBlock(block: Block, key: number): ReactNode {
     case "video":
     case "audio":
     case "file": {
-      const src = readerUrl(props.url, true);
+      const value = readerUrl(props.url, true);
+      const src = value && (block.type === "file" ? value : mediaUrl(value));
       const name = typeof props.name === "string" ? props.name : "Attachment";
       const caption = typeof props.caption === "string" ? props.caption : "";
       if (!src) return <p key={key}>{name}</p>;
@@ -230,7 +202,7 @@ function renderBlock(block: Block, key: number): ReactNode {
       );
     default:
       return (
-        <div key={key} style={style}>
+        <div key={key} className={className}>
           <p>{content || <br />}</p>
           {children}
         </div>

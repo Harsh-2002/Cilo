@@ -3,8 +3,18 @@ import { ConfirmProvider } from "./confirm-provider";
 import { ThemeProvider } from "next-themes";
 import { InlineFeedback } from "./inline-feedback";
 import { useEffect } from "react";
+import { setNonce } from "get-nonce";
+import { CspNonce, documentNonce } from "@/lib/csp";
 // The server layout initializes theme; client remounts need no executable script.
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  nonce,
+}: {
+  children: React.ReactNode;
+  nonce?: string;
+}) {
+  const currentNonce = documentNonce(nonce);
+  if (typeof window !== "undefined" && currentNonce) setNonce(currentNonce);
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV === "production")
@@ -24,15 +34,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
         .catch(() => {});
   }, []);
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      storageKey="nivra-theme"
-      scriptProps={{ type: "text/plain" }}
-    >
-      <InlineFeedback />
-      <ConfirmProvider>{children}</ConfirmProvider>
-    </ThemeProvider>
+    <CspNonce.Provider value={currentNonce}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        storageKey="nivra-theme"
+        scriptProps={{ type: "text/plain" }}
+      >
+        <InlineFeedback />
+        <ConfirmProvider>{children}</ConfirmProvider>
+      </ThemeProvider>
+    </CspNonce.Provider>
   );
 }

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { sqlite } from "./db";
 import type { Document } from "../types";
+import { publicationMedia } from "../media-url";
 
 type Snapshot = { title: string; document: Document; publishedAt: number };
 const renderer = path.join(
@@ -27,7 +28,13 @@ const escape = (value: string) =>
 export async function renderPublicationHtml(
   snapshot: Snapshot,
   excerpt: string,
+  token?: string,
 ) {
+  if (token)
+    snapshot = {
+      ...snapshot,
+      document: publicationMedia(snapshot.document, token),
+    };
   const markup = await new Promise<string>((resolve, reject) => {
     const worker = new Worker(renderer, {
       workerData: snapshot,
@@ -55,7 +62,7 @@ export async function renderPublicationHtml(
   const title = escape(snapshot.title || "Untitled");
   const description = escape(excerpt);
   const data = JSON.stringify(snapshot).replace(/</g, "\\u003c");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title><meta name="description" content="${description}"><meta name="robots" content="noindex,nofollow"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><link rel="icon" href="/icon.svg?v=5"><link rel="stylesheet" href="/reader/reader.css"><script type="module" src="/reader/main.js"></script></head><body><div id="publication-root">${markup}</div><script id="publication-data" type="application/json">${data}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title><meta name="description" content="${description}"><meta name="robots" content="noindex,nofollow"><meta name="nivra-nonce" content="__NIVRA_CSP_NONCE__"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><link rel="icon" href="/icon.svg?v=5"><link rel="stylesheet" href="/reader/reader.css"><script type="module" nonce="__NIVRA_CSP_NONCE__" src="/reader/main.js"></script></head><body><div id="publication-root">${markup}</div><script id="publication-data" type="application/json">${data}</script></body></html>`;
 }
 export function cachedPublicationHtml(token: string) {
   if (!/^[a-f0-9]{48}$/.test(token)) return null;
@@ -93,6 +100,7 @@ export async function preparePublicationPages() {
         publishedAt: row.publishedAt,
       },
       row.excerpt,
+      row.token,
     );
     d.prepare(
       "INSERT INTO publication_pages(token,html,renderer_version) SELECT token,?,? FROM publications WHERE token=? AND revision=? AND published_at=? ON CONFLICT(token) DO UPDATE SET html=excluded.html,renderer_version=excluded.renderer_version",

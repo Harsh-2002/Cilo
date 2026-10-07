@@ -50,6 +50,8 @@ import { auth } from "@/lib/server/auth";
 import { sqlite } from "@/lib/server/db";
 import { storage, migrateStoredFiles } from "@/lib/server/storage";
 import { uploadLimit } from "@/lib/server/config";
+import { remoteMedia } from "@/lib/server/remote-media";
+import { hasPublishedMedia } from "@/lib/media-url";
 import {
   publicationFor,
   publishedNote,
@@ -194,6 +196,12 @@ async function handle(
       const published = publishedNote(id);
       if (!published)
         throw new HttpError(404, "This shared note is no longer available.");
+      if (action === "media") {
+        const source = url.searchParams.get("url") || "";
+        if (!hasPublishedMedia(published.document, source))
+          throw new HttpError(404, "This media is not shared by this note.");
+        return await remoteMedia(request, source);
+      }
       if (action === "files" && path[3]) {
         const file = database
           .prepare("SELECT * FROM publication_files WHERE token=? AND id=?")
@@ -359,6 +367,8 @@ async function handle(
     });
     if (!session || !owner || session.user.id !== owner.id)
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "media" && method === "GET" && !id)
+      return await remoteMedia(request, url.searchParams.get("url") || "");
     if (area === "account-password" && method === "POST" && !id) {
       if (
         Date.now() - new Date(session.session.createdAt).getTime() >=

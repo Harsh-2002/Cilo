@@ -1412,8 +1412,21 @@ button:disabled {
   font-size: 11px;
 }
 .publication-link {
+  --publication-control-height: 40px;
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+.publication-link > input,
+.publication-link > button,
+.publication-link > a {
+  height: var(--publication-control-height);
+  min-height: var(--publication-control-height);
+}
+.publication-link > button,
+.publication-link > a {
+  width: var(--publication-control-height);
+  min-width: var(--publication-control-height);
 }
 .publication-link input {
   min-width: 0;
@@ -1718,9 +1731,11 @@ button:disabled {
   .publication-link > a {
     min-height: 44px;
   }
-  .publication-link > button,
-  .publication-link > a {
-    min-width: 44px;
+  .publication-link {
+    --publication-control-height: 44px;
+  }
+  .publication-link input {
+    font-size: 16px;
   }
   .note-reading {
     padding: 24px 22px 36px;

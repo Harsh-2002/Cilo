@@ -1,4 +1,4 @@
-const CACHE = "nivra-static-v4";
+const CACHE = "nivra-static-v5";
 const LIMIT = 120;
 // Every build adds new hashed assets, so evict the oldest build files to keep the cache bounded.
 async function trim(cache) {

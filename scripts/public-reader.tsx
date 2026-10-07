@@ -17,5 +17,8 @@ if (root && data?.textContent) {
     );
   } catch {}
   const props = JSON.parse(data.textContent) as PublicationDocumentProps;
+  props.nonce = document.querySelector<HTMLMetaElement>(
+    'meta[name="nivra-nonce"]',
+  )?.content;
   hydrateRoot(root, <PublicationDocument {...props} />);
 }

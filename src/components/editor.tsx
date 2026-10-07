@@ -16,10 +16,7 @@ import {
 import { filterSuggestionItems } from "@blocknote/core/extensions";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { syntaxHighlighter } from "@blocknote/code-block";
-import {
-  createReactDiagramBlockSpec,
-  locales as diagramLocales,
-} from "@blocknote/diagram-block";
+import { locales as diagramLocales } from "@blocknote/diagram-block";
 import * as locales from "@blocknote/core/locales";
 import { PencilLine, Download, Loader2, FileText } from "lucide-react";
 import { Button } from "./ui/button";
@@ -29,6 +26,9 @@ import { audioBlockSpec, videoBlockSpec } from "./media-blocks";
 import { download } from "@/lib/client";
 import { api } from "@/lib/client";
 import { notify } from "@/lib/feedback";
+import { mediaUrl } from "@/lib/media-url";
+import { diagramBlockSpec } from "./diagram-block";
+import { useCspNonce } from "@/lib/csp";
 import type { Document, NoteSummary } from "@/lib/types";
 import { findSearchBlock } from "@/lib/search-context";
 import "@blocknote/shadcn/style.css";
@@ -86,7 +86,7 @@ function CanvasPreview({
         aria-label="Edit drawing"
       >
         {preview ? (
-          <img src={preview} alt="Drawing preview" />
+          <img src={mediaUrl(preview)} alt="Drawing preview" />
         ) : (
           <span>
             <PencilLine size={28} />A blank canvas for your ideas
@@ -160,7 +160,7 @@ export const editorSchema = BlockNoteSchema.create().extend({
   blockSpecs: {
     codeBlock: codeBlockSpec,
     checkListItem: checklistBlockSpec,
-    diagram: createReactDiagramBlockSpec(),
+    diagram: diagramBlockSpec,
     canvas: canvasSpec(),
     audio: audioBlockSpec,
     video: videoBlockSpec,
@@ -201,6 +201,7 @@ export default function Editor({
   focusTerms?: string[];
 }) {
   const { resolvedTheme } = useTheme();
+  const nonce = useCspNonce();
   const editor = useCreateBlockNote({
     schema: editorSchema,
     domAttributes: {
@@ -212,6 +213,8 @@ export default function Editor({
     },
     initialContent: document.blocks as Blocks,
     extensions: [syntaxHighlighter],
+    _tiptapOptions: { injectNonce: nonce },
+    resolveFileUrl: async (url) => mediaUrl(url),
     dictionary: {
       ...locales.en,
       placeholders: { ...locales.en.placeholders, default: "Start writing…" },

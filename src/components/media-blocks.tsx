@@ -16,6 +16,7 @@ import {
 } from "@blocknote/react";
 import { FileAudio, FileVideo } from "lucide-react";
 import { MediaPlayer } from "./media-player";
+import { mediaUrl } from "@/lib/media-url";
 function Preview({
   src,
   kind,
@@ -26,8 +27,9 @@ function Preview({
   name: string;
 }) {
   const resolved = useResolveUrl(src);
-  const url =
-    resolved.loadingState === "loading" ? src : resolved.downloadUrl || src;
+  const url = mediaUrl(
+    resolved.loadingState === "loading" ? src : resolved.downloadUrl || src,
+  );
   return <MediaPlayer key={url} src={url} kind={kind} name={name} />;
 }
 export const audioBlockSpec = createReactBlockSpec(createAudioBlockConfig, {

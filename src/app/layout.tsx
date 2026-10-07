@@ -37,6 +37,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="nivra-nonce" content={nonce} />
         <script
           id="nivra-theme-bootstrap"
           nonce={nonce}
@@ -44,7 +45,7 @@ export default async function RootLayout({
         />
       </head>
       <body>
-        <Providers>
+        <Providers nonce={nonce}>
           <div className="bn-scroll-container">{children}</div>
         </Providers>
       </body>

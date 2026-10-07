@@ -1,8 +1,17 @@
 "use client";
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { MermaidConfig } from "mermaid";
 import { useTheme } from "next-themes";
 import type { highlightReaderCode } from "@/lib/reader-highlighter";
+import { useCspNonce } from "@/lib/csp";
+import { diagramSvg } from "@/lib/diagram-svg";
 type ReaderTokens = Awaited<ReturnType<typeof highlightReaderCode>>;
 
 export function ReaderCode({
@@ -63,6 +72,8 @@ export function ReaderCode({
 }
 
 export function ReaderDiagram({ source }: { source: string }) {
+  const nonce = useCspNonce();
+  const preview = useRef<HTMLElement>(null);
   const id = useId().replaceAll(":", "");
   const { resolvedTheme } = useTheme();
   const [rendered, setRendered] = useState<{
@@ -74,6 +85,14 @@ export function ReaderDiagram({ source }: { source: string }) {
     rendered?.source === source && rendered.theme === resolvedTheme
       ? rendered.svg
       : "";
+  useLayoutEffect(() => {
+    for (const node of preview.current?.querySelectorAll<SVGElement>(
+      "[data-nivra-style]",
+    ) || []) {
+      node.style.cssText = node.getAttribute("data-nivra-style") || "";
+      node.removeAttribute("data-nivra-style");
+    }
+  }, [svg]);
   useEffect(() => {
     let active = true;
     if (source.trim() && source.length <= 20000)
@@ -98,15 +117,21 @@ export function ReaderDiagram({ source }: { source: string }) {
             FORBID_TAGS: ["foreignObject", "script", "a", "image", "use"],
             FORBID_ATTR: ["href", "xlink:href"],
           });
-          if (active) setRendered({ source, theme: resolvedTheme, svg: safe });
+          if (active)
+            setRendered({
+              source,
+              theme: resolvedTheme,
+              svg: diagramSvg(safe, nonce),
+            });
         })
         .catch(() => {});
     return () => {
       active = false;
     };
-  }, [source, id, resolvedTheme]);
+  }, [source, id, resolvedTheme, nonce]);
   return svg ? (
     <figure
+      ref={preview}
       className="reader-diagram"
       aria-label="Diagram"
       dangerouslySetInnerHTML={{ __html: svg }}
