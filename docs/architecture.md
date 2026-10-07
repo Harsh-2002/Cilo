@@ -114,7 +114,7 @@ Editor and reader audio/video blocks share a client player with styled play/paus
 
 ## Paged tasks and bookmarks
 
-`GET /api/nivra/tasks` and `GET /api/nivra/bookmarks` return `{ items, next }` pages of at most 100 rows (default 60) in a stable order; `next` is an opaque cursor for the following page, and `null` marks the end. Tasks accept `filter` (`open`, `completed`, `today`, `upcoming`), `today` (the browser's local date), and `q`; bookmarks accept `q`, `favorite=1`, `collection`, and `unfiled=1`. `?summary=1` returns task open/completed counts or the bookmark total for the same filters plus the owner's collection names. Cursors are validated and rejected with 400 when malformed. Bundle export and import still read the complete sets directly on the server. The API is private to the signed-in owner; scripts that previously read a bare array must follow `next`.
+`GET /api/nivra/tasks` and `GET /api/nivra/bookmarks` return `{ items, next }` pages of at most 100 rows (default 60) in a stable order; `next` is an opaque cursor for the following page, and `null` marks the end. Tasks are ordered newest-created first with an ID tie-breaker, and accept `filter` (`open`, `completed`) and `q`; bookmarks accept `q`, `favorite=1`, `collection`, and `unfiled=1`. `?summary=1` returns task open/completed counts or the bookmark total for the same filters plus the owner's collection names. Cursors are validated and rejected with 400 when malformed. Bundle export and import still read the complete sets directly on the server. The API is private to the signed-in owner; scripts that previously read a bare array must follow `next`.
 
 ## Chunked file encryption
 

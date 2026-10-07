@@ -301,7 +301,7 @@ The global search dialog uses the shared shadcn Dialog, Command, Button and Popo
 
 ### Tasks
 
-The dedicated task view keeps one inline creation form above Open and Completed filters with counts, then search and text-first rows. The desktop search stays compact; on mobile the toolbar stacks and search spans the content width. A checkbox completes or reopens each task, while title edits stay inline and deletion uses the styled confirmation dialog. Task text wraps anywhere; checkbox and row-action targets are 44px, and mobile editing actions remain touch-sized. Keep loading, retryable error, and empty states inside the same reading flow.
+The dedicated task view keeps one inline creation form above Open and Completed filters with counts, then search and text-first rows. Both lists show newest-created tasks first; due dates remain optional row details and never change the list order. The desktop search stays compact; on mobile the toolbar stacks and search spans the content width. A checkbox completes or reopens each task, while title edits stay inline and deletion uses the styled confirmation dialog. Task text wraps anywhere; checkbox and row-action targets are 44px, and mobile editing actions remain touch-sized. Keep loading, retryable error, and empty states inside the same reading flow.
 
 ### Artifacts
 

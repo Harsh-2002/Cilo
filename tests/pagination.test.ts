@@ -113,7 +113,8 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
         );
         for (const route of [
           "tasks?filter=everything",
-          "tasks?today=2026-02-30",
+          "tasks?filter=today",
+          "tasks?filter=upcoming",
           "tasks?after=not-a-cursor",
           `tasks?after=${Buffer.from(JSON.stringify([1, 2, 3])).toString("base64url")}`,
           "bookmarks?after=%7B",
@@ -122,16 +123,16 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
       },
     );
     await t.test(
-      "tasks page in due-date order without gaps or repeats",
+      "tasks page newest first without gaps or repeats",
       async () => {
-        const open = await walk("tasks?filter=open&today=2026-10-05");
+        const open = await walk("tasks?filter=open");
         const unique = new Set(open.ids);
         assert.equal(unique.size, open.ids.length);
         assert.equal(open.ids.length, 130 - 26);
         assert.ok(open.pages > 3);
         const loaded = sqlite()
           .prepare(
-            "SELECT id FROM tasks WHERE owner_id=? AND completed_at IS NULL ORDER BY COALESCE(due_date,'9999'),created_at,id",
+            "SELECT id FROM tasks WHERE owner_id=? AND completed_at IS NULL ORDER BY created_at DESC,id DESC",
           )
           .all(owner.id) as { id: string }[];
         assert.deepEqual(
@@ -140,10 +141,6 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
         );
         const completed = await walk("tasks?filter=completed");
         assert.equal(completed.ids.length, 26);
-        const today = await walk("tasks?filter=today&today=2026-10-05");
-        assert.ok(today.ids.length > 0);
-        const upcoming = await walk("tasks?filter=upcoming&today=2026-10-05");
-        assert.ok(upcoming.ids.length > 0);
         const everything = new Set([...open.ids, ...completed.ids]);
         assert.equal(everything.size, 130);
         const { listTaskPage } = await import("../src/lib/server/tasks");
@@ -153,7 +150,6 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
           listTaskPage("another-owner", {
             filter: "open",
             query: "",
-            today: "2026-10-05",
             limit: 100,
           }).items.length,
           0,
@@ -169,7 +165,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
       },
     );
     await t.test("task cursors survive edits between pages", async () => {
-      const first = await value("tasks?filter=open&limit=10&today=2026-10-05");
+      const first = await value("tasks?filter=open&limit=10");
       assert.equal(first.items.length, 10);
       assert.ok(first.next);
       const target = first.items[0];
@@ -178,7 +174,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
         completed: true,
       });
       const second = await value(
-        `tasks?filter=open&limit=10&today=2026-10-05&after=${encodeURIComponent(first.next)}`,
+        `tasks?filter=open&limit=10&after=${encodeURIComponent(first.next)}`,
       );
       assert.equal(second.items.length, 10);
       const seen = new Set(first.items.map((item: { id: string }) => item.id));
@@ -229,6 +225,42 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
         assert.equal(summary.total, 33);
         assert.deepEqual(summary.collections, ["Reading"]);
         assert.equal((await value("bookmarks?summary=1&q=handbook")).total, 1);
+      },
+    );
+    await t.test(
+      "new tasks appear first regardless of schedule and stay first after reopening",
+      async () => {
+        const created = await value("tasks", "POST", {
+          title: "Newest unscheduled task",
+        });
+        assert.equal(
+          (await value("tasks?filter=open")).items[0].id,
+          created.id,
+        );
+        const scheduled = await value(`tasks/${created.id}`, "PATCH", {
+          revision: created.revision,
+          dueDate: "2099-01-01",
+        });
+        assert.equal(
+          (await value("tasks?filter=open")).items[0].id,
+          created.id,
+        );
+        const completed = await value(`tasks/${created.id}`, "PATCH", {
+          revision: scheduled.revision,
+          completed: true,
+        });
+        assert.equal(
+          (await value("tasks?filter=completed")).items[0].id,
+          created.id,
+        );
+        await value(`tasks/${created.id}`, "PATCH", {
+          revision: completed.revision,
+          completed: false,
+        });
+        assert.equal(
+          (await value("tasks?filter=open")).items[0].id,
+          created.id,
+        );
       },
     );
     await t.test("page size is bounded", async () => {

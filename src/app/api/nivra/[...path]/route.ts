@@ -646,17 +646,13 @@ async function handle(
         if (params.get("summary") === "1")
           return response(taskCounts(owner.id));
         const filter = z
-          .enum(["open", "completed", "today", "upcoming"])
+          .enum(["open", "completed"])
           .default("open")
           .parse(params.get("filter") ?? undefined);
-        const today =
-          params.get("today") || new Date().toISOString().slice(0, 10);
-        if (!validDate(today)) throw new HttpError(400, "Choose a valid date.");
         return response(
           listTaskPage(owner.id, {
             filter,
             query: params.get("q") || "",
-            today,
             limit: pageLimit(params.get("limit")),
             after: params.get("after"),
           }),

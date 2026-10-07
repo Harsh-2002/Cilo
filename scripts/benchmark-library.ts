@@ -132,7 +132,6 @@ async function main() {
               listTaskPage(owner, {
                 filter: "open",
                 query: "",
-                today: "2026-10-05",
                 limit: 60,
               }),
             ),
@@ -140,7 +139,6 @@ async function main() {
               listTaskPage(owner, {
                 filter: "open",
                 query: "",
-                today: "2026-10-05",
                 limit: 60,
                 after: lateTaskCursor,
               }),
@@ -149,7 +147,6 @@ async function main() {
               listTaskPage(owner, {
                 filter: "open",
                 query: "task 4999",
-                today: "2026-10-05",
                 limit: 60,
               }),
             ),

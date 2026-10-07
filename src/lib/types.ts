@@ -115,7 +115,7 @@ export type Overview = {
   refreshedAt: number;
 };
 export type Page<T> = { items: T[]; next: string | null };
-export type TaskFilter = "open" | "completed" | "today" | "upcoming";
+export type TaskFilter = "open" | "completed";
 export type Artifact = {
   id: string;
   kind: "text" | "image" | "file";

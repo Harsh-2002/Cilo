@@ -156,7 +156,6 @@ async function child() {
           listTaskPage(owner, {
             filter: "open",
             query: "",
-            today: "2026-10-06",
             limit: 30,
           }),
       ],

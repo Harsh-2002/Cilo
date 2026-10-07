@@ -66,7 +66,7 @@ test("paging migration keeps existing tasks and bookmarks and the paged queries 
     const database = sqlite();
     assert.ok(
       database
-        .prepare("SELECT 1 FROM migrations WHERE name LIKE '0012%'")
+        .prepare("SELECT 1 FROM migrations WHERE name LIKE '0024%'")
         .get(),
     );
     assert.deepEqual(taskCounts(owner), { open: 200, completed: 0 });
@@ -76,7 +76,7 @@ test("paging migration keeps existing tasks and bookmarks and the paged queries 
     do {
       const page: { items: unknown[]; next: string | null } = listTaskPage(
         owner,
-        { filter: "open", query: "", today: "2026-10-05", limit: 60, after },
+        { filter: "open", query: "", limit: 60, after },
       );
       seen += page.items.length;
       after = page.next;
@@ -93,7 +93,7 @@ test("paging migration keeps existing tasks and bookmarks and the paged queries 
         .join("\n");
     assert.match(
       plan(
-        "SELECT id FROM tasks t WHERE t.owner_id=? AND t.completed_at IS NULL ORDER BY COALESCE(t.due_date,'9999'),t.created_at,t.id LIMIT 61",
+        "SELECT id FROM tasks t WHERE t.owner_id=? AND t.completed_at IS NULL AND t.trashed_at IS NULL ORDER BY t.created_at DESC,t.id DESC LIMIT 61",
       ),
       /tasks_page_idx/,
     );

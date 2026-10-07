@@ -49,14 +49,11 @@ const listKey = (filter: string) => `tasks:list:${filter}`;
 const taskParams = (filter: string, query: string) =>
   new URLSearchParams({
     filter,
-    today: localDate(),
     limit: "60",
     ...(query.trim() ? { q: query.trim() } : {}),
   });
 const compareTasks = (a: Task, b: Task) =>
-  (a.dueDate || "9999").localeCompare(b.dueDate || "9999") ||
-  a.createdAt - b.createdAt ||
-  (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 function mergeTasks(items: Task[], incoming: Task[]) {
   const replaced = new Set(incoming.map((task) => task.id));
   return [...items.filter((task) => !replaced.has(task.id)), ...incoming].sort(
@@ -88,9 +85,7 @@ export function TasksPanel({
   const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState("");
   const [query, setQuery] = useState(initialQuery);
-  const [filter, setFilter] = useState<
-    "open" | "completed" | "today" | "upcoming"
-  >(initialFilter);
+  const [filter, setFilter] = useState<"open" | "completed">(initialFilter);
   const [editing, setEditing] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDate, setEditDate] = useState<string | null>(null);
@@ -115,7 +110,7 @@ export function TasksPanel({
       const result = (event as CustomEvent<CapturedItem>).detail;
       if (result.type !== "task") return;
       void refreshCounts();
-      if (filter === "open" && !query.trim() && next === null)
+      if (filter === "open" && !query.trim())
         setTasks((items) => mergeTasks(items, [result.item]));
     };
     window.addEventListener("nivra:captured", received);
@@ -238,7 +233,7 @@ export function TasksPanel({
         body: JSON.stringify({ title: title.trim() }),
       });
       invalidate();
-      if (filter === "open" && !query.trim() && next === null)
+      if (filter === "open" && !query.trim())
         setTasks((items) => mergeTasks(items, [task]));
       setTitle("");
       setFilter("open");
@@ -281,12 +276,7 @@ export function TasksPanel({
       (t) =>
         (filter === "completed"
           ? t.completedAt !== null
-          : t.completedAt === null &&
-            (filter === "today"
-              ? !!t.dueDate && t.dueDate <= today
-              : filter === "upcoming"
-                ? !!t.dueDate && t.dueDate > today
-                : true)) &&
+          : t.completedAt === null) &&
         t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
     )
     .sort(compareTasks);
@@ -339,22 +329,6 @@ export function TasksPanel({
               </Button>
               <Button
                 variant="ghost"
-                aria-pressed={filter === "today"}
-                disabled={busy || !!editing}
-                onClick={() => setFilter("today")}
-              >
-                Today
-              </Button>
-              <Button
-                variant="ghost"
-                aria-pressed={filter === "upcoming"}
-                disabled={busy || !!editing}
-                onClick={() => setFilter("upcoming")}
-              >
-                Upcoming
-              </Button>
-              <Button
-                variant="ghost"
                 aria-pressed={filter === "completed"}
                 disabled={busy || !!editing}
                 onClick={() => setFilter("completed")}
@@ -375,8 +349,6 @@ export function TasksPanel({
                   <SelectItem value="open">
                     Open · {counts?.open ?? "…"}
                   </SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
                   <SelectItem value="completed">
                     Completed · {counts?.completed ?? "…"}
                   </SelectItem>
@@ -412,7 +384,7 @@ export function TasksPanel({
             <ul
               className="task-list"
               aria-busy={loading}
-              aria-label={`${filter === "open" ? "Open" : filter === "completed" ? "Completed" : filter === "today" ? "Today" : "Upcoming"} tasks`}
+              aria-label={`${filter === "open" ? "Open" : "Completed"} tasks`}
             >
               {visible.map((task) => (
                 <li
@@ -641,22 +613,16 @@ export function TasksPanel({
                   ? "No matching tasks."
                   : filter === "completed"
                     ? "Your finished tasks will live here."
-                    : filter === "today"
-                      ? "Nothing due today."
-                      : filter === "upcoming"
-                        ? "Nothing scheduled ahead."
-                        : counts && counts.open + counts.completed
-                          ? "Everything is checked off."
-                          : "Make room for your next step."}
+                    : counts && counts.open + counts.completed
+                      ? "Everything is checked off."
+                      : "Make room for your next step."}
               </h3>
               <p>
                 {query
                   ? "Try another search."
                   : filter === "completed"
                     ? "Check off an open task to keep track of your progress."
-                    : filter === "today" || filter === "upcoming"
-                      ? "Edit a task to give it a due date."
-                      : "Add a task above. Check it off when you’re done."}
+                    : "Add a task above. Check it off when you’re done."}
               </p>
             </div>
           )}

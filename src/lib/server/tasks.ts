@@ -1,6 +1,6 @@
 import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db, sqlite } from "./db";
 import { tasks, notes } from "./schema";
 import { HttpError } from "./http";
@@ -50,18 +50,17 @@ export function listTasks(owner: string, includeTrash = false): Task[] {
         ...(includeTrash ? [] : [isNull(tasks.trashedAt)]),
       ),
     )
-    .orderBy(asc(tasks.createdAt))
+    .orderBy(desc(tasks.createdAt), desc(tasks.id))
     .all();
 }
 const taskColumns =
   "t.id,t.title,t.completed_at AS completedAt,t.revision,t.created_at AS createdAt,t.updated_at AS updatedAt,t.due_date AS dueDate,t.recurrence,t.recurrence_day AS recurrenceDay,t.parent_task_id AS parentTaskId,t.note_id AS noteId,n.title AS noteTitle";
-const taskOrder = "COALESCE(t.due_date,'9999'),t.created_at,t.id";
+const taskOrder = "t.created_at DESC,t.id DESC";
 export function listTaskPage(
   owner: string,
   options: {
     filter: TaskFilter;
     query: string;
-    today: string;
     limit: number;
     after?: string | null;
   },
@@ -71,26 +70,15 @@ export function listTaskPage(
   if (options.filter === "completed") where.push("t.completed_at IS NOT NULL");
   else {
     where.push("t.completed_at IS NULL");
-    if (options.filter === "today") {
-      where.push("t.due_date IS NOT NULL AND t.due_date<=?");
-      values.push(options.today);
-    } else if (options.filter === "upcoming") {
-      where.push("t.due_date>?");
-      values.push(options.today);
-    }
   }
   const term = options.query.trim().slice(0, 300);
   if (term) {
     where.push("instr(nivra_fold(t.title),nivra_fold(?))>0");
     values.push(term);
   }
-  const cursor = decodeCursor(options.after ?? null, [
-    "string",
-    "number",
-    "string",
-  ]);
+  const cursor = decodeCursor(options.after ?? null, ["number", "string"]);
   if (cursor) {
-    where.push(`(${taskOrder})>(?,?,?)`);
+    where.push("(t.created_at,t.id)<(?,?)");
     values.push(...cursor);
   }
   const rows = sqlite()
@@ -104,7 +92,7 @@ export function listTaskPage(
     items,
     next:
       rows.length > options.limit && last
-        ? encodeCursor([last.dueDate ?? "9999", last.createdAt, last.id])
+        ? encodeCursor([last.createdAt, last.id])
         : null,
   };
 }
