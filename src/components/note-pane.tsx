@@ -62,6 +62,7 @@ type Props = {
   tags: Tag[];
   onSaved: (note: Note) => void;
   onBack: () => void;
+  backLabel?: string;
   onOpen: (note: Note) => void;
   onDeleted: () => void;
   registerGuard: (guard: () => Promise<boolean>) => void;
@@ -75,6 +76,7 @@ export function NotePane({
   tags,
   onSaved,
   onBack,
+  backLabel = "Back to notes",
   onOpen,
   onDeleted,
   registerGuard,
@@ -401,7 +403,7 @@ export function NotePane({
                 variant="ghost"
                 size="icon"
                 className="mobile-back"
-                aria-label="Back to notes"
+                aria-label={backLabel}
                 onClick={onBack}
               >
                 <ArrowLeft size={18} />

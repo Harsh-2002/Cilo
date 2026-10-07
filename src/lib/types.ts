@@ -29,6 +29,17 @@ export type Note = {
   dailyDate: string | null;
 };
 export type NoteSummary = Omit<Note, "document">;
+export type TaggedItem = {
+  id: string;
+  type: "note" | "task" | "bookmark" | "artifact";
+  title: string;
+  excerpt: string;
+  updatedAt: number;
+  dailyDate: string | null;
+  favorite: boolean;
+  completed: boolean;
+  tags: Tag[];
+};
 export type Tag = {
   id: string;
   name: string;

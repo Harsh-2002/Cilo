@@ -1,4 +1,5 @@
 "use client";
+import { ResponsiveSurface } from "./responsive-surface";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import {
@@ -23,12 +24,7 @@ import { SearchText } from "./search-text";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { api } from "@/lib/client";
 import type { SearchResult } from "@/lib/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
+import { DialogTitle, DialogDescription } from "./ui/dialog";
 import {
   Command,
   CommandInput,
@@ -134,61 +130,62 @@ export function GlobalSearch({
     }
   };
   return (
-    <Dialog
+    <ResponsiveSurface
+      surface="search"
+      title="Search"
+      blocked={busy}
       open={open}
       onOpenChange={(next) => {
-        if (!next && !busy) onClose();
+        if (next) setOpen(true);
+        else if (!busy) onClose();
+      }}
+      className="global-search-dialog"
+      overlayClassName="search-overlay supports-backdrop-filter:backdrop-filter-none"
+      onEscapeKeyDown={(event) => {
+        if (filtersOpen) {
+          event.preventDefault();
+          setFiltersOpen(false);
+        }
+      }}
+      onCloseAutoFocus={(event) => {
+        if (nextFocus.current) {
+          event.preventDefault();
+          document.querySelector<HTMLInputElement>(nextFocus.current)?.focus();
+          nextFocus.current = null;
+        } else if (opener.current?.isConnected) {
+          event.preventDefault();
+          opener.current.focus();
+        }
+        opener.current = null;
       }}
     >
-      <DialogContent
-        className="global-search-dialog"
-        overlayClassName="supports-backdrop-filter:backdrop-filter-none"
-        onEscapeKeyDown={(event) => {
-          if (filtersOpen) {
-            event.preventDefault();
-            setFiltersOpen(false);
-          }
-        }}
-        onCloseAutoFocus={(event) => {
-          if (nextFocus.current) {
-            event.preventDefault();
-            document
-              .querySelector<HTMLInputElement>(nextFocus.current)
-              ?.focus();
-            nextFocus.current = null;
-          } else if (opener.current?.isConnected) {
-            event.preventDefault();
-            opener.current.focus();
-          }
-          opener.current = null;
-        }}
+      <DialogTitle className="sr-only">Search Nivra</DialogTitle>
+      <DialogDescription className="sr-only">
+        Find notes, tasks and bookmarks, or create something new.
+      </DialogDescription>
+      <Command
+        shouldFilter={false}
+        label="Search everything"
+        loop
+        value={selection}
+        onValueChange={setSelection}
+        vimBindings={false}
       >
-        <DialogTitle className="sr-only">Search Nivra</DialogTitle>
-        <DialogDescription className="sr-only">
-          Find notes, tasks and bookmarks, or create something new.
-        </DialogDescription>
-        <Command
-          shouldFilter={false}
-          label="Search everything"
-          loop
-          value={selection}
-          onValueChange={setSelection}
-          vimBindings={false}
-        >
-          <CommandInput
-            ref={searchInput}
-            aria-label="Search everything"
-            placeholder="Search everything…"
-            value={query}
-            maxLength={300}
-            disabled={busy}
-            onValueChange={(value) => {
-              setQuery(value);
-              setLoading(true);
-              setSelection("");
-              setError("");
-            }}
-          />
+        <CommandInput
+          ref={searchInput}
+          aria-label="Search everything"
+          placeholder="Search everything…"
+          value={query}
+          maxLength={300}
+          disabled={busy}
+          onValueChange={(value) => {
+            setQuery(value);
+            setLoading(true);
+            setSelection("");
+            setError("");
+          }}
+        />
+        <CommandList label="Search results" aria-busy={loading}>
           {loading && !results.length ? (
             <LoadingState kind="search" label="Loading search results" />
           ) : loading ? (
@@ -205,182 +202,181 @@ export function GlobalSearch({
               No matching items. Try another word or filter.
             </p>
           ) : null}
-          <CommandList label="Search results" aria-busy={loading}>
-            {!error && !!results.length && (
-              <CommandGroup
-                heading={query.trim() ? "Results" : "Recently edited"}
-              >
-                {results.map((result) => {
-                  const Icon =
-                    result.type === "note"
-                      ? FileText
-                      : result.type === "task"
-                        ? ListTodo
-                        : result.type === "artifact"
-                          ? result.artifactKind === "image"
-                            ? ImageIcon
-                            : Layers
-                          : Bookmark;
-                  return (
-                    <CommandItem
-                      disabled={busy || loading}
-                      key={`${result.type}-${result.id}`}
-                      value={`${result.type}-${result.id}`}
-                      onSelect={() =>
-                        void run(
-                          () => onSelect(result),
-                          result.type === "note"
-                            ? result.matchTerms?.length
-                              ? '[aria-label="Note content"]'
-                              : ".note-title"
-                            : result.type === "task"
-                              ? 'input[aria-label="Search tasks"]'
-                              : result.type === "artifact"
-                                ? 'input[aria-label="Search artifacts"]'
-                                : 'input[aria-label="Search bookmarks"]',
-                        )
-                      }
-                    >
-                      <Icon />
-                      <span className="search-result-copy">
-                        <strong>
-                          <SearchText
-                            text={result.title || "Untitled"}
-                            ranges={result.titleMatches}
-                          />
-                        </strong>
-                        <small>
-                          <SearchText
-                            text={result.excerpt}
-                            ranges={result.excerptMatches}
-                          />
-                        </small>
-                      </span>
-                      <span className="search-result-type">
-                        {result.type === "note"
-                          ? "Note"
-                          : result.type === "task"
-                            ? "Task"
-                            : result.type === "artifact"
-                              ? "Artifact"
-                              : "Bookmark"}
-                        {result.completed ? " · done" : ""}
-                      </span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            )}
-            <CommandSeparator aria-hidden="true" />
-            <CommandGroup heading="Create">
-              {(
-                [
-                  { id: "note", title: "New note", Icon: Plus },
-                  { id: "task", title: "Add a task", Icon: ListTodo },
-                  { id: "bookmark", title: "Save a bookmark", Icon: Bookmark },
-                  {
-                    id: "daily",
-                    title: "Open journal",
-                    Icon: CalendarDays,
-                  },
-                ] as const
-              ).map(({ id, title, Icon }) => (
-                <CommandItem
-                  key={id}
-                  value={`create-${id}`}
-                  disabled={busy || (loading && !!query.trim())}
-                  onSelect={() =>
-                    void run(
-                      () => onCommand(id),
-                      id === "task"
-                        ? 'input[aria-label="New task"]'
-                        : id === "bookmark"
-                          ? "#bookmark-url"
-                          : ".note-title",
-                    )
-                  }
-                >
-                  <Icon />
-                  {title}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-          <div className="search-keyboard-hints" aria-hidden="true">
-            <span>
-              <kbd>↑</kbd>
-              <kbd>↓</kbd> Navigate
-            </span>
-            <span>
-              <kbd>↵</kbd> Open
-            </span>
-            <span>
-              <kbd>Esc</kbd> Close
-            </span>
-          </div>
-        </Command>
-        <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="search-filter-trigger"
-              aria-label="Search filters"
-              disabled={busy}
+
+          {!error && !!results.length && (
+            <CommandGroup
+              heading={query.trim() ? "Results" : "Recently edited"}
             >
-              <SlidersHorizontal size={16} />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            className="search-filter-help"
+              {results.map((result) => {
+                const Icon =
+                  result.type === "note"
+                    ? FileText
+                    : result.type === "task"
+                      ? ListTodo
+                      : result.type === "artifact"
+                        ? result.artifactKind === "image"
+                          ? ImageIcon
+                          : Layers
+                        : Bookmark;
+                return (
+                  <CommandItem
+                    disabled={busy || loading}
+                    key={`${result.type}-${result.id}`}
+                    value={`${result.type}-${result.id}`}
+                    onSelect={() =>
+                      void run(
+                        () => onSelect(result),
+                        result.type === "note"
+                          ? result.matchTerms?.length
+                            ? '[aria-label="Note content"]'
+                            : ".note-title"
+                          : result.type === "task"
+                            ? 'input[aria-label="Search tasks"]'
+                            : result.type === "artifact"
+                              ? 'input[aria-label="Search artifacts"]'
+                              : 'input[aria-label="Search bookmarks"]',
+                      )
+                    }
+                  >
+                    <Icon />
+                    <span className="search-result-copy">
+                      <strong>
+                        <SearchText
+                          text={result.title || "Untitled"}
+                          ranges={result.titleMatches}
+                        />
+                      </strong>
+                      <small>
+                        <SearchText
+                          text={result.excerpt}
+                          ranges={result.excerptMatches}
+                        />
+                      </small>
+                    </span>
+                    <span className="search-result-type">
+                      {result.type === "note"
+                        ? "Note"
+                        : result.type === "task"
+                          ? "Task"
+                          : result.type === "artifact"
+                            ? "Artifact"
+                            : "Bookmark"}
+                      {result.completed ? " · done" : ""}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          )}
+          <CommandSeparator aria-hidden="true" />
+          <CommandGroup heading="Create">
+            {(
+              [
+                { id: "note", title: "New note", Icon: Plus },
+                { id: "task", title: "Add a task", Icon: ListTodo },
+                { id: "bookmark", title: "Save a bookmark", Icon: Bookmark },
+                {
+                  id: "daily",
+                  title: "Open journal",
+                  Icon: CalendarDays,
+                },
+              ] as const
+            ).map(({ id, title, Icon }) => (
+              <CommandItem
+                key={id}
+                value={`create-${id}`}
+                disabled={busy || (loading && !!query.trim())}
+                onSelect={() =>
+                  void run(
+                    () => onCommand(id),
+                    id === "task"
+                      ? 'input[aria-label="New task"]'
+                      : id === "bookmark"
+                        ? "#bookmark-url"
+                        : ".note-title",
+                  )
+                }
+              >
+                <Icon />
+                {title}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+        <div className="search-keyboard-hints" aria-hidden="true">
+          <span>
+            <kbd>↑</kbd>
+            <kbd>↓</kbd> Navigate
+          </span>
+          <span>
+            <kbd>↵</kbd> Open
+          </span>
+          <span>
+            <kbd>Esc</kbd> Close
+          </span>
+        </div>
+      </Command>
+      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="search-filter-trigger"
             aria-label="Search filters"
-            onCloseAutoFocus={(event) => {
-              if (searchInput.current) {
-                event.preventDefault();
-                searchInput.current.focus();
-              }
-            }}
+            disabled={busy}
           >
-            <p className="font-medium">Search filters</p>
-            <dl>
-              <div>
-                <dt>Notes</dt>
-                <dd>
-                  <code>type:note</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Tasks</dt>
-                <dd>
-                  <code>type:task</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Bookmarks</dt>
-                <dd>
-                  <code>type:bookmark</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Artifacts</dt>
-                <dd>
-                  <code>type:artifact</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Tags</dt>
-                <dd>
-                  <code>tag:work</code>
-                </dd>
-              </div>
-            </dl>
-            <p className="text-xs text-muted-foreground">
-              Combine a filter with your search.
-            </p>
-          </PopoverContent>
-        </Popover>
-      </DialogContent>
-    </Dialog>
+            <SlidersHorizontal size={16} />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="search-filter-help"
+          aria-label="Search filters"
+          onCloseAutoFocus={(event) => {
+            if (searchInput.current) {
+              event.preventDefault();
+              searchInput.current.focus();
+            }
+          }}
+        >
+          <p className="font-medium">Search filters</p>
+          <dl>
+            <div>
+              <dt>Notes</dt>
+              <dd>
+                <code>type:note</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Tasks</dt>
+              <dd>
+                <code>type:task</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Bookmarks</dt>
+              <dd>
+                <code>type:bookmark</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Artifacts</dt>
+              <dd>
+                <code>type:artifact</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Tags</dt>
+              <dd>
+                <code>tag:work</code>
+              </dd>
+            </div>
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            Combine a filter with your search.
+          </p>
+        </PopoverContent>
+      </Popover>
+    </ResponsiveSurface>
   );
 }

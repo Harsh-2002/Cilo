@@ -1,4 +1,5 @@
 "use client";
+import { ItemTagPicker } from "./item-tag-picker";
 import { LoadingState } from "./loading-state";
 import { useEffect, useRef, useState } from "react";
 import { useCompletion } from "@/lib/completion-client";
@@ -368,6 +369,20 @@ export function ArtifactViewer({
         </div>
         {item && (
           <footer className="artifact-actions artifact-viewer-footer">
+            <ItemTagPicker
+              type="artifact"
+              compact={false}
+              id={item.id}
+              title={item.title || item.name || "Untitled"}
+              disabled={busy}
+              onChanged={async () => {
+                const detail = await api<ArtifactDetail>(
+                  `artifacts/${item.id}`,
+                );
+                onChange(detail);
+                if (currentId.current === detail.id) setItem(detail);
+              }}
+            />
             {item.kind === "text" && (
               <Button
                 aria-label="Save changes"

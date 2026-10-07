@@ -244,10 +244,11 @@ export function updateTask(
             400,
             "The next occurrence is outside the supported date range.",
           );
+        const occurrenceId = randomUUID();
         db()
           .insert(tasks)
           .values({
-            id: randomUUID(),
+            id: occurrenceId,
             ownerId: owner,
             title: task.title,
             dueDate: following,
@@ -259,6 +260,11 @@ export function updateTask(
             updatedAt: Date.now(),
           })
           .run();
+        sqlite()
+          .prepare(
+            "INSERT INTO task_tags(task_id,tag_id) SELECT ?,tag_id FROM task_tags WHERE task_id=?",
+          )
+          .run(occurrenceId, id);
       }
       return enrich(task);
     })

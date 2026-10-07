@@ -17,7 +17,13 @@ const resume = process.argv[4] === "--resume";
 const root = process.argv[2];
 const base = process.argv[3] || "http://localhost:3000";
 assert.ok(root && path.isAbsolute(root));
-assert.ok(["localhost", "dev.l3b.cc.cd"].includes(new URL(base).hostname));
+const origin = new URL(base);
+assert.ok(
+  origin.protocol === "https:" ||
+    (origin.protocol === "http:" &&
+      ["localhost", "127.0.0.1"].includes(origin.hostname)),
+);
+assert.ok(!origin.username && !origin.password);
 const fixtures = JSON.parse(readFileSync(path.join(root, "fixtures.json")));
 const auditState = JSON.parse(readFileSync(path.join(root, "session.json")));
 const signed = encodeURIComponent(auditState.cookies[0].value);
@@ -52,7 +58,7 @@ const endpoints = {
     "/api/nivra/notes?view=journal&preview=1&limit=60&q=Scale%20test%20journal",
   tasks: "/api/nivra/tasks?filter=open&limit=60&q=Scale%20test%20task",
   bookmarks: "/api/nivra/bookmarks?limit=60&q=Scale%20test%20link",
-  artifacts: "/api/nivra/artifacts?limit=60&q=Scale%20test",
+  artifacts: "/api/nivra/artifacts?limit=60&q=Scale%20test&context=0",
   search: "/api/nivra/search?q=scaleprobe0999",
   overview: "/api/nivra/overview?date=2026-10-06",
 };
@@ -294,9 +300,13 @@ assert.equal(
   409,
 );
 report.security.push("Stale revision write rejected (409)");
-const file = await api.get(
-  `/api/nivra/artifacts/${fixtures.artifacts[900]}/file`,
+const filePage = await measured("/api/nivra/artifacts?kind=file&limit=60");
+const fixtureFiles = new Set(fixtures.artifacts);
+const pdf = filePage.body.items.find(
+  (item) => item.mime === "application/pdf" && fixtureFiles.has(item.id),
 );
+assert.ok(pdf, "A real PDF fixture exists");
+const file = await api.get(`/api/nivra/artifacts/${pdf.id}/file`);
 assert.equal(file.status(), 200);
 assert.match(file.headers()["content-disposition"], /attachment/);
 assert.equal(file.headers()["x-content-type-options"], "nosniff");
@@ -366,7 +376,8 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
       await page.locator(".workspace").waitFor();
       await page.locator(selector).waitFor();
       await page.waitForFunction(
-        () => !document.querySelector('[aria-busy="true"]'),
+        (selector) => !document.querySelector(`${selector} [aria-busy="true"]`),
+        selector,
       );
       const rowSelector =
         section === "notes" || section === "journal"

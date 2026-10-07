@@ -36,7 +36,7 @@ Quick creation still needs only a title. **Edit task** adds an optional calendar
 
 **Today** includes overdue and current-day open tasks. **Upcoming** contains future open tasks. **Completed** shows completed occurrences. Dates use the browser's local calendar day.
 
-Completing a daily, weekly or monthly task creates one next open occurrence with the same title and note association. Daily adds one day, weekly adds seven days, and monthly preserves the original day with end-of-month clamping. A January 31 series continues on February 28 and March 31. Reopening and completing an earlier occurrence again does not duplicate its already-created successor. Recurrence advances from the occurrence's date, rather than the date you happened to complete it. It does not send reminders or run a notification scheduler.
+Completing a daily, weekly or monthly task creates one next open occurrence with the same title, tags and note association. Daily adds one day, weekly adds seven days, and monthly preserves the original day with end-of-month clamping. A January 31 series continues on February 28 and March 31. Reopening and completing an earlier occurrence again does not duplicate its already-created successor. Recurrence advances from the occurrence's date, rather than the date you happened to complete it. It does not send reminders or run a notification scheduler.
 
 ## Journal
 
@@ -46,18 +46,26 @@ Templates were removed. Migration 0013 moves any existing template notes to Tras
 
 ## Portability
 
-Version-two Nivra bundles preserve histories, journal dates, internal links, task dates/series and note associations. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
+Version-two Nivra bundles preserve histories, journal dates, internal links, task dates/series and note associations and task/bookmark tags. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
 
 Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
 
 ## Overview
 
-Overview is the first navigation section and the default landing view after signing in. It shows your device’s full local date and year, a clock updated at each minute, open tasks, five recently edited notes, and four recently updated bookmarks. Recent notes exclude templates and trash.
+Overview is the first navigation section and the default landing view after signing in. It shows your device’s full local date and year, a clock updated at each minute, open tasks, recent notes, and recent bookmarks. Recent notes exclude templates and trash.
 
-Tasks show the total open count, due-today and overdue counts, and up to five open tasks ordered by due date; undated tasks come last. Complete a task directly from Overview, including recurring tasks. Selecting a task opens Tasks with its title as the search query; selecting a note opens its editor. Bookmark links open the saved website in a new tab. View all clears any previous section search.
+Tasks show the total open count, due-today and overdue counts, and up to twenty open tasks ordered by due date; undated tasks come last. Complete a task directly from Overview, including recurring tasks. Selecting a task opens Tasks with its title as the search query; selecting a note opens its editor. Bookmark links open the saved website in a new tab. View all clears any previous section search.
 
-Quick actions create a note, focus the task or bookmark creation field, or open journal. The overview updates after task completion, when returning to the tab or window, and every 30 seconds while visible. Hidden tabs suspend polling and the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.
+Quick actions create a note, focus the task or bookmark creation field, or open journal. Desktop shows three equal-height cards with up to twenty items each and scrolling inside the lists; phones show five tasks, five notes and four bookmarks. The overview updates after task completion, shared completion/resync events and returning to the tab or window. Hidden tabs close the shared stream and suspend the clock timer. Failed refreshes preserve the last loaded items and offer a retry. Overview uses the existing authenticated, uncached API and stores no separate dashboard data.
 
 ## Writing width
 
-Choose **Note actions → Page width → Standard / Wide**. Standard keeps the centered reading measure; Wide fills the available editor pane with the same responsive gutters. The choice belongs to each note, saves through the normal revision-aware autosave, and survives reload, duplication, template creation and lossless bundles. Existing notes default to Standard. Both modes use the same compact heading hierarchy; mobile layouts remain bounded by the screen. Public sharing retains its independent reading layout.
+Choose **Note actions → Page width → Standard / Wide**. Standard keeps the centered reading measure; Wide fills the available editor pane with the same responsive gutters. The choice belongs to each note, saves through the normal revision-aware autosave, and survives reload, duplication, lossless bundles. Existing notes default to Standard. Both modes use the same compact heading hierarchy; mobile layouts remain bounded by the screen. Public sharing retains its independent reading layout.
+
+## Tags
+
+Assign tags in note and journal editors, the Tags control on task and bookmark rows, or Tags in an artifact viewer. Select multiple existing tags and save. Clicking a sidebar tag opens all related item types together, with search and Load more. This collection has no creation controls. Tags remain attached in Trash and return on restoration.
+
+## Favorites
+
+Favorites collects starred notes, journal entries and bookmarks into searchable cards. Open a card to return to its editor or section. The collection has no creation action; create content in its own section or Quick. Refresh retains the Favorites route.

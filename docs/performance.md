@@ -1,69 +1,62 @@
-# Library performance and browser review
+# Large-library audit — 7 October 2026
 
-Nivra keeps SQLite local and encrypted. The active browser session loads note previews in pages of 60, with full documents fetched only when opened. Tag lookups are batched. Linked task and bookmark titles use joins rather than one extra lookup per item. Tasks and bookmarks are paged by the server in 60-row pages using stable keyset cursors, with a Load more action. Status filters, search, favorites, collection filters, counts and the collection list are computed in SQLite, so the browser never holds the complete section. Migration 0012 adds the matching ordering indexes.
+This audit uses the owner-authorized development instance served directly from the project checkout on port 3000. The fixture manifest contains 10,000 notes, 10,000 journal entries, 10,000 tasks, 10,000 bookmarks and 10,000 artifacts. Existing owner items are preserved. Artifacts include 9,000 text items, 500 PDFs and 500 PNGs; all 1,000 file extractions completed. There are 20 fixture tags, two tags per item across all five sections (100,000 associations), 5,000 favorite notes/journal entries and 2,500 favorite bookmarks.
 
-Migration 0011 adds covering search-order indexes. Global search chooses bounded result IDs before fetching FTS5 snippets for those results. Match markers become plain text and character ranges, rendered by React; imported content is never inserted as search-result HTML. A bounded 128-entry fuzzy-query cache invalidates after writes from this connection or another SQLite connection.
+## Query findings
 
-## Synthetic library benchmark
+SQLite already used WAL, a 5-second busy timeout, a 32 MiB connection cache, a 1,000-page automatic checkpoint, and 25 application indexes before this change (29 after the reverse tag indexes). FTS5 indexes exist for notes, tasks, bookmarks and artifacts. WAL allows readers alongside a writer; it does not permit simultaneous writers. Durability and encryption settings were retained. Migration 0017 adds tag relationships for tasks, bookmarks and artifacts, plus reverse lookup indexes, while preserving existing note tags. See the [SQLite WAL documentation](https://sqlite.org/wal.html).
 
-Run `npx tsx scripts/benchmark-library.ts`. It always creates and removes its own temporary encrypted data directory, overriding any existing data-directory environment setting. It seeds 10,000 notes, 5,000 tasks and 5,000 bookmarks, with linked notes and unique vocabulary. It performs twelve calls per operation; warm figures summarize the last ten. This measures server functions, not browser/network latency. The first measured call is not an operating-system cold-cache test.
+The default note list omitted the owner predicate even though its ordered indexes begin with owner ID. That forced scans and sorting on the large library. Passing the authenticated owner to the query allows SQLite to use the existing owner index prefix. Bounded full-text lists now stream native FTS relevance order and hydrate only the requested page; equal-rank results follow FTS order rather than an extra UUID sort. Full pagination checks cover every fixture without omissions or duplicate IDs.
 
-Recorded on this development VM on 2026-10-05:
+Global search previously generated snippets for up to 48 candidates before retaining 30 results, reopening an FTS cursor per result. It now selects the final results first and fetches context in one cursor per item type. The paired comparison found identical result identities and ordering, but the old repeated cursor could return another row's title/context. The new results were checked against canonical stored titles, with Unicode, deep-text and tag-filter regression coverage.
 
-| Operation                    |          Earlier warm median |            Updated warm median | Updated response size |
-| ---------------------------- | ---------------------------: | -----------------------------: | --------------------: |
-| Initial note list            | 2,687ms for all 10,000 notes | 6ms for a 60-note preview page |          24,721 bytes |
-| Linked tasks                 |                      4,540ms |                          431ms |       1,685,561 bytes |
-| Linked bookmarks             |                      1,544ms |                          482ms |       2,129,451 bytes |
-| Common global search         |                        814ms |                          135ms |           7,693 bytes |
-| Repeated typo search         |                      1,023ms |                           46ms |           7,693 bytes |
-| Repeated missing-term search |                        300ms |                           18ms |               2 bytes |
+Ten paired SQL samples against the same encrypted library gave these medians. These are warm SQL timings rather than browser latency, and browser verification was running on the host during parts of the comparison.
 
-The earlier full note list was 20,375,339 bytes. Paging and truncating previews provide the deterministic payload reduction; timing differences are indicative because machine load varied between runs. First measured typo/missing-term requests still took approximately 570/654ms on this large fixture before the cache was warm. This is not a latency guarantee or proof that every library size is equally fast.
+| Query                              |   Before |  After |
+| ---------------------------------- | -------: | -----: |
+| Notes first page                   |   734 ms |  11 ms |
+| Journal first page                 | 1,125 ms |   3 ms |
+| Favorite notes/journals first page |   753 ms |  30 ms |
+| Global broad search (`scale`)      | 1,118 ms | 181 ms |
+| Global tag and text search         |   286 ms |  83 ms |
+| Global unique-token search         |    76 ms |  72 ms |
+| Global deep-text search            |    34 ms |  37 ms |
 
-### Paged tasks and bookmarks
+## Functional and security checks
 
-Measured on the same 5,000-task and 5,000-bookmark fixture with `npx tsx scripts/benchmark-library.ts` on 2026-10-05 (server functions only; warm medians of ten calls):
+The live pagination pass visited 167 pages for each collection and found all 50,000 fixture IDs. Separate checks covered all 20 tag filters, full pagination through 5,000 favorite notes/journal entries, 2,500 favorite bookmarks and their combined 7,500-item Favorites collection, all supported search types, and matches beyond the displayed preview in both a note and an artifact.
 
-| Operation                                 | Full list (before)  | Paged (after)               |
-| ----------------------------------------- | ------------------- | --------------------------- |
-| Tasks, first view                         | 389ms, 1,685,561 B  | 1.4ms, 19,848 B for 60 rows |
-| Tasks, deep page by cursor                | not available       | 5.2ms, 20,371 B             |
-| Task search ("task 4999")                 | client-side         | 18ms, 361 B                 |
-| Task counts                               | derived client-side | 2.2ms, 27 B                 |
-| Bookmarks, first view                     | 403ms, 2,129,451 B  | 1.4ms, 25,701 B for 60 rows |
-| Bookmarks, deep page by cursor            | not available       | 4.2ms, 25,104 B             |
-| Bookmark search ("nebula reference 4999") | 22ms, whole list    | 22ms, 877 B                 |
-| Bookmark total and collection list        | derived client-side | 4.5ms, 31 B                 |
+Targeted live security checks passed for unauthenticated item/search/file/SSE access, cross-origin writes, malformed input, owner-setup reuse, blocked public signup, traversal-shaped identifiers, stale revision rejection, safe PDF download headers, SQL/FTS-shaped input and refusal to fetch private-network bookmark metadata. Synthetic security links are moved to Trash. These checks are an application audit, not an independent penetration test.
 
-Cursors are keyed on the sort columns (due date, creation time and identifier for tasks; creation time and identifier for bookmarks) rather than row offsets, so completing, deleting or editing an item between pages cannot skip or repeat other items. Task search folds case with the browser's Unicode rules through a registered SQLite function; it scans only the owner's matching status rows and is not backed by FTS5. Page size is capped at 100 rows on the server. Bookmark search keeps FTS5 with substring and typo fallback.
+## Interface behavior
 
-## Media delivery
+Favorites shares the organization-only card layout for starred notes, journals and bookmarks. Notes and Journal have their own descriptions and creation actions. Mobile Search and Settings are full-screen app pages with back navigation and persistent URLs; desktop dialogs remain. Search is 680px wide on desktop and retains its dimensions through loading, with a stronger dimmed backdrop and opacity-only transitions. Overview uses equal-height desktop cards that fill the available workspace, bounded 20-item lists and independent scrolling. Phones retain their compact recent-item lists. Tag selection opens an organization-only collection across notes, journals, tasks, bookmarks and artifacts, without creation actions. Shared tag pickers support tasks, bookmarks and artifacts, while notes and journals retain their existing editor controls. Revision checks protect tag saves; Trash preserves relationships, recurring tasks inherit tags, and task/bookmark bundle round trips and full-instance recovery preserve them.
 
-`npx tsx scripts/benchmark-media.ts` writes a 25 MiB and a 100 MiB (the upload maximum) encrypted file, then measures each scenario in its own process so peak memory is attributable. "Legacy" is the earlier behavior: authenticate and decrypt the whole the single-message v1 format object, then slice. Measured on this VM on 2026-10-05; timings vary by roughly 2x between runs on this shared host, so peak memory is the stable result.
+Vertical scrollbar tracks are hidden while scrolling remains functional. Named collection regions and Overview lists support keyboard scrolling. Horizontal scrolling bars remain for wide code, tables and diagrams; system forced-colors mode restores native scrollbars. Guidance: [MDN scrollbar accessibility](https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-width#accessibility).
 
-| File    | Scenario                      | Median time | Peak RSS growth |
-| ------- | ----------------------------- | ----------: | --------------: |
-| 25 MiB  | Seek, 1 MiB, legacy           |       129ms |         203 MiB |
-| 25 MiB  | Seek, 1 MiB, chunked          |        41ms |          39 MiB |
-| 25 MiB  | Full download, legacy         |       192ms |         299 MiB |
-| 25 MiB  | Full download, chunked stream |       335ms |          79 MiB |
-| 100 MiB | Seek, 1 MiB, legacy           |       577ms |         405 MiB |
-| 100 MiB | Seek, 1 MiB, chunked          |        40ms |          42 MiB |
-| 100 MiB | Full download, legacy         |       834ms |         540 MiB |
-| 100 MiB | Full download, chunked stream |     1,242ms |          83 MiB |
+## Encryption and file memory
 
-Seeking no longer scales with file size. A full chunked download is slower than a single in-memory decrypt (about 85 MB/s here, well above media bit rates) in exchange for bounded memory. Concurrent seeks multiply the per-request figure, not the file size. The 40 MiB floor includes runtime and allocator overhead, not file data. This measures server functions and response streaming, not browser decoding or network latency.
+Encryption defaults on and can be disabled only before a new installation's first startup. The saved mode rejects later changes; authentication secrets and recovery backups stay encrypted in both modes. See [self-hosting](self-hosting.md#encryption-and-key-custody).
 
-## Browser harness
+A separate synthetic comparison on 6 October used 5,000 items per section, three fresh processes per mode, a 32 MiB SQLite cache and 30 warm calls per workload. Ordinary warm reads were close: Overview was 16.54 ms without encryption and 17.72 ms encrypted; updating 100 tasks was 14.04 versus 16.66 ms. The first Notes read with a fresh SQLite cache was 112 versus 425 ms. Median process high-water RSS was 159.6 versus 162.0 MiB. This does not establish a useful idle-memory saving from disabling encryption; compiler and OCR costs are separate.
 
-The browser review uses a separate owner and encrypted instance on port 3004, configured with `NIVRA_PUBLIC_URL=http://localhost:3004` to match the runner origin. `scripts/seed-library-review.ts` refuses other directories or owners. `scripts/run-capture-review.mjs` uses a protected temporary session file and runs the same interactions through Playwright Chromium, Firefox and WebKit; browser binaries can be installed with `npx playwright install firefox webkit`, plus the platform dependencies where needed. The review context blocks service workers so injected network failures are intercepted consistently; this run does not verify the PWA service worker. Playwright is a development dependency and is excluded from the runtime image.
+Large local file operations showed a larger cost. These are medians of three processes, including adapter work and I/O, with filesystem caches retained; they do not isolate cipher instructions or measure S3 latency.
 
-```sh
-npx tsx scripts/seed-library-review.ts /tmp/nivra-capture-review-EXAMPLE
-node scripts/run-capture-review.mjs /tmp/nivra-capture-review-EXAMPLE
-```
+| Operation     | Unencrypted wall / CPU | Encrypted wall / CPU |
+| ------------- | ---------------------: | -------------------: |
+| Read 25 MiB   |           252 / 323 ms |         389 / 627 ms |
+| Write 25 MiB  |           190 / 226 ms |         518 / 630 ms |
+| Read 100 MiB  |           704 / 850 ms |     1,642 / 2,043 ms |
+| Write 100 MiB |           609 / 500 ms |     1,727 / 1,854 ms |
 
-These commands require a previously started disposable production artifact with the synthetic Capture Review Owner, its `review-data/` directory and authenticated `session.json`; they deliberately do not create or log into the real owner instance. The seeder refuses an already populated review library. Screenshots remain ignored under `.impeccable/review/`; credentials and generated data must never be committed.
+Bounded ciphertext reads and transferring one owned plaintext buffer to the extraction worker removed redundant copies. In three-process encrypted comparisons, processing two 25 MiB files reduced median high-water RSS from 319 to 212 MiB; two 100 MiB files from 747 to 385 MiB. The live default upload limit is 25 MiB; the larger values are synthetic tests of the configurable maximum. These results support lower processing peaks, rather than a long-duration leak audit.
 
-The harness checks capture layouts at 1440, 768, 390 and 320px in both themes, retained closed/failed drafts, note/task edits preserved while capturing, automatic link recognition, safe fallback bookmark cards, matching excerpts/highlights, relevant-block navigation, incremental lists and reload persistence. Engine automation does not certify physical iOS/Android keyboards or installed PWA behavior. See [verification results](verification.md) for the actual run outcomes.
+## Reproducing checks
+
+Use Node.js 24. Run `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run verify:branding`, `npm test` and `npm run build`. Browser harnesses use Playwright with Chromium, Firefox and WebKit; captures and credentials remain ignored and private. Production Docker and S3 integration use disposable data; see [the S3 integration procedure](rustfs-testing.md).
+
+`scripts/scale-fixtures.ts` requires `NIVRA_SCALE_ALLOW=dev-instance-fixtures`, the target installation's storage/key configuration, an absolute private output directory and exactly one owner. Its `seed`, `extend` and `enrich` commands create synthetic items, tags and favorites; `verify` checks fixture identity and integrity; `session` and `revoke` manage only a short-lived audit credential. The final argument selects 1,000, 5,000 or 10,000 items per section. These commands mutate the selected installation and require explicit authorization.
+
+`node scripts/audit-scale.mjs /absolute/private-output https://notes.example.com` checks full pagination, latency, targeted security behavior and browser layouts. `audit-library-filters.mjs` checks favorite pagination and mixed tag collections against the same fixture manifest. `audit-single-user.mjs` measures warmed sequential API use and idle SSE CPU/RAM for the selected service cgroup. Run it without compilation, backup or another load driver. These measurements include network and development-server overhead, rather than Core Web Vitals or a production capacity guarantee.
+
+`node --import tsx scripts/benchmark-encryption.ts run /absolute/new/private-directory` compares both storage modes using disposable generated data without changing the live installation. `scripts/benchmark-library.ts` and `scripts/benchmark-media.ts` likewise create isolated synthetic benchmarks. Keep raw databases, keys, sessions, host measurements and screenshots outside Git.

@@ -1,4 +1,5 @@
 "use client";
+import { ItemTagPicker } from "./item-tag-picker";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -291,7 +292,12 @@ export function TasksPanel({
     .sort(compareTasks);
   return (
     <section className="tasks-panel" aria-label="Tasks">
-      <div className="tasks-scroll">
+      <div
+        className="tasks-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Tasks"
+      >
         <div className="tasks-content section-content">
           <SectionHeading
             title="Tasks"
@@ -548,6 +554,16 @@ export function TasksPanel({
                       </div>
                     </div>
                   )}
+                  <ItemTagPicker
+                    type="task"
+                    id={task.id}
+                    title={task.title}
+                    disabled={busy || !!editing}
+                    onChanged={() => {
+                      invalidate();
+                      return load();
+                    }}
+                  />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

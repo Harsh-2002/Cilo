@@ -1,4 +1,5 @@
 import { moveToTrash } from "./trash";
+import { itemTags } from "./item-tags";
 import {
   enqueueJob,
   startJobWorker,
@@ -491,6 +492,7 @@ export async function exportBookmarkBundle(owner: string) {
     for (const key of [row.thumbnail_key, row.icon_key])
       if (key) files[`files/${key}`] = await storage.read(key);
     items.push({
+      tags: itemTags("bookmark", row.id),
       url: row.url,
       title: row.title,
       description: row.description,

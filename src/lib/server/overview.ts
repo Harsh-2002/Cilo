@@ -38,7 +38,7 @@ export function workspaceOverview(owner: string, today: string): Overview {
           asc(tasks.createdAt),
           asc(tasks.id),
         )
-        .limit(5)
+        .limit(20)
         .all(),
       notes: database
         .select({
@@ -55,7 +55,7 @@ export function workspaceOverview(owner: string, today: string): Overview {
           ),
         )
         .orderBy(desc(notes.updatedAt), asc(notes.id))
-        .limit(5)
+        .limit(20)
         .all(),
       bookmarks: database
         .select({
@@ -69,7 +69,7 @@ export function workspaceOverview(owner: string, today: string): Overview {
         .from(bookmarks)
         .where(and(eq(bookmarks.ownerId, owner), isNull(bookmarks.trashedAt)))
         .orderBy(desc(bookmarks.updatedAt), asc(bookmarks.id))
-        .limit(4)
+        .limit(20)
         .all(),
       refreshedAt: Date.now(),
     };

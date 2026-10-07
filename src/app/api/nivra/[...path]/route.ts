@@ -29,6 +29,15 @@ import { APIError } from "better-auth/api";
 import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 import { z } from "zod";
 import { tagColors } from "@/lib/tags";
+import {
+  assignItemTags,
+  itemTagState,
+  itemTags,
+  importItemTags,
+  taggedItems,
+  favoriteItems,
+  taggedTypes,
+} from "@/lib/server/item-tags";
 import { remapDocument } from "@/lib/document";
 import { auth } from "@/lib/server/auth";
 import { sqlite } from "@/lib/server/db";
@@ -125,6 +134,19 @@ const settings = () => {
     twoFactorEnabled: Boolean(owner?.two_factor_enabled),
   };
 };
+function collectionOptions(url: URL) {
+  return z
+    .object({
+      query: z.string().max(300),
+      limit: z.coerce.number().int().min(1).max(60),
+      offset: z.coerce.number().int().min(0).max(100000),
+    })
+    .parse({
+      query: url.searchParams.get("q") || "",
+      limit: url.searchParams.get("limit") || 60,
+      offset: url.searchParams.get("offset") || 0,
+    });
+}
 function needNote(id: string) {
   const note = getNote(id);
   if (!note) throw new HttpError(404, "This note was not found.");
@@ -588,7 +610,44 @@ async function handle(
         return response({ ok: true });
       }
     }
+    if (area === "item-tags" && id && action) {
+      const type = z.enum(taggedTypes).parse(id);
+      const itemId = z.string().uuid().parse(action);
+      if (method === "GET")
+        return response(itemTagState(owner.id, type, itemId));
+      if (method === "PATCH") {
+        const input = z
+          .object({
+            revision: z.number().int().positive(),
+            tags: z.array(z.string().uuid()).max(100),
+          })
+          .strict()
+          .parse(await json(request));
+        return response(
+          assignItemTags(owner.id, type, itemId, input.revision, input.tags),
+        );
+      }
+    }
+    if (area === "favorites" && method === "GET" && !id) {
+      const options = collectionOptions(url);
+      return response(
+        favoriteItems(owner.id, options.query, options.limit, options.offset),
+      );
+    }
     if (area === "tags") {
+      if (method === "GET" && id && action === "items") {
+        const tagId = z.string().uuid().parse(id);
+        const options = collectionOptions(url);
+        return response(
+          taggedItems(
+            owner.id,
+            tagId,
+            options.query,
+            options.limit,
+            options.offset,
+          ),
+        );
+      }
       if (method === "GET")
         return response(
           database
@@ -658,7 +717,9 @@ async function handle(
         }
       }
       if (method === "GET")
-        return response(id ? needNote(id) : listNotes(url.searchParams));
+        return response(
+          id ? needNote(id) : listNotes(url.searchParams, undefined, owner.id),
+        );
       if (method === "POST" && !id) {
         const input = z
           .object({
@@ -881,7 +942,10 @@ async function handle(
             format: "nivra",
             version: 2,
             notes,
-            tasks: listTasks(owner.id, true),
+            tasks: listTasks(owner.id, true).map((task) => ({
+              ...task,
+              tags: itemTags("task", task.id),
+            })),
             bookmarks: bookmarkExport.items,
             history: (
               database
@@ -1008,6 +1072,15 @@ async function handle(
           bookmarks: z
             .array(
               z.object({
+                tags: z
+                  .array(
+                    z.object({
+                      name: z.string().trim().min(1).max(50),
+                      color: z.enum(tagColors),
+                    }),
+                  )
+                  .max(100)
+                  .default([]),
                 url: z.string().max(4096).transform(bookmarkUrl),
                 title: z.string().trim().min(1).max(300),
                 description: z.string().max(2000),
@@ -1039,6 +1112,15 @@ async function handle(
           tasks: z
             .array(
               z.object({
+                tags: z
+                  .array(
+                    z.object({
+                      name: z.string().trim().min(1).max(50),
+                      color: z.enum(tagColors),
+                    }),
+                  )
+                  .max(100)
+                  .default([]),
                 id: z.string().uuid().optional(),
                 title: z.string().trim().min(1).max(300),
                 completedAt: z.number().int().nonnegative().nullable(),
@@ -1320,6 +1402,7 @@ async function handle(
                 );
               if (!item.trashedAt && item.metadataStatus === "pending")
                 enqueueJob(owner.id, "bookmark", bookmarkId);
+              importItemTags("bookmark", bookmarkId, item.tags);
             }
             for (const [index, task] of manifest.tasks.entries()) {
               const assigned = task.id
@@ -1343,6 +1426,7 @@ async function handle(
                   task.noteId ? noteIds.get(task.noteId) : null,
                   task.trashedAt,
                 );
+              importItemTags("task", assigned!, task.tags);
             }
             for (const task of manifest.tasks)
               if (task.id && task.parentTaskId) {

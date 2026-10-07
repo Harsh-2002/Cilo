@@ -14,7 +14,7 @@ import {
 test("link previews reject internal destinations and unsafe protocols", async () => {
   for (const address of [
     "127.0.0.1",
-    "10.1.1.5",
+    "10.0.0.1",
     "0.0.0.0",
     "169.254.169.254",
     "192.168.2.4",

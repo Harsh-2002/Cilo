@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { availableParallelism } from "node:os";
 process.on("unhandledRejection", (error) => {
@@ -8,7 +8,13 @@ process.on("unhandledRejection", (error) => {
 const [root, base, group, label = "api"] = process.argv.slice(2);
 assert.ok(root?.startsWith("/"));
 assert.ok(group?.startsWith("/sys/fs/cgroup/"));
-assert.ok(["localhost", "dev.l3b.cc.cd"].includes(new URL(base).hostname));
+const origin = new URL(base);
+assert.ok(
+  origin.protocol === "https:" ||
+    (origin.protocol === "http:" &&
+      ["localhost", "127.0.0.1"].includes(origin.hostname)),
+);
+assert.ok(!origin.username && !origin.password);
 mkdirSync(root, { recursive: true, mode: 0o700 });
 const session = JSON.parse(readFileSync(root + "/session.json"));
 const cookie = encodeURIComponent(session.cookies[0].value);
@@ -17,17 +23,24 @@ const headers = {
   Cookie: `better-auth.session_token=${cookie}; __Secure-better-auth.session_token=${cookie}`,
 };
 const endpoints = {
-  overview: "/overview?date=2026-10-06",
+  overview: "/overview?date=2026-10-07",
   notes: "/notes?view=all&preview=1&limit=60",
   journals: "/notes?view=journal&preview=1&limit=60",
-  favorites: "/notes?view=favorites&preview=1&limit=60",
+  favorites: "/favorites?limit=60",
   tasks: "/tasks?filter=open&limit=60",
   bookmarks: "/bookmarks?limit=60",
   artifacts: "/artifacts?limit=60",
   trash: "/trash",
   search: "/search?q=scaleprobe0999",
+  searchBroad: "/search?q=scale",
+  searchTags: "/search?q=type%3Anote%20tag%3A%22Scale%20Work%22%20scale",
+  bookmarkFavorites: "/bookmarks?favorite=1&limit=60",
   artifactSearch: "/artifacts?limit=60&q=Scale%20test&context=0",
 };
+if (existsSync(root + "/fixture-tags.json")) {
+  const tags = JSON.parse(readFileSync(root + "/fixture-tags.json"));
+  endpoints.taggedItems = `/tags/${tags.tags[0]}/items?limit=60`;
+}
 
 let stage = "warmup",
   prior,

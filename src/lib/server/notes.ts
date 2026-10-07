@@ -23,6 +23,7 @@ export function getNote(id: string): Note | undefined {
 export function listNotes(
   params: URLSearchParams,
   queryOverride?: string,
+  ownerId?: string,
 ): NoteSummary[] {
   const view = params.get("view");
   const where = [
@@ -34,6 +35,15 @@ export function listNotes(
   else if (view === "all" && !params.get("tag"))
     where.push("n.daily_date IS NULL");
   const values: (string | number)[] = [];
+  const owner =
+    ownerId ??
+    (
+      sqlite().prepare("SELECT id FROM user LIMIT 1").get() as
+        { id: string } | undefined
+    )?.id;
+  if (!owner) return [];
+  where.push("n.owner_id=?");
+  values.push(owner);
   const search = queryOverride ?? ftsQuery(params.get("q") || "");
   if (search) {
     where.push("notes_fts MATCH ?");
@@ -71,11 +81,38 @@ export function listNotes(
     params.get("preview") === "1"
       ? "substr(replace(n.text,char(10),' '),1,180)"
       : "n.text";
-  const rows = sqlite()
-    .prepare(
-      `SELECT ${columns},${text} AS text FROM ${source} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
-    )
-    .all(...values, ...(bounded ? [limit, offset] : [])) as NoteSummary[];
+  const database = sqlite();
+  const rows =
+    bounded && search
+      ? database.transaction(() => {
+          // Stream FTS relevance order, then read previews for the selected page.
+          const selected = database
+            .prepare(
+              `SELECT n.rowid AS picked FROM notes_fts CROSS JOIN notes n ON notes_fts.rowid=n.rowid WHERE ${where.join(" AND ")} ORDER BY notes_fts.rank LIMIT ? OFFSET ?`,
+            )
+            .all(...values, limit, offset) as { picked: number }[];
+          if (!selected.length) return [];
+          const hydrated = database
+            .prepare(
+              `SELECT n.rowid AS picked,${columns},${text} AS text FROM notes n WHERE n.owner_id=? AND n.rowid IN (${selected.map(() => "?").join(",")})`,
+            )
+            .all(
+              owner,
+              ...selected.map((row) => row.picked),
+            ) as (NoteSummary & { picked: number })[];
+          const byRow = new Map(
+            hydrated.map(({ picked, ...row }) => [picked, row]),
+          );
+          return selected.map((row) => byRow.get(row.picked)!).filter(Boolean);
+        })()
+      : (database
+          .prepare(
+            `SELECT ${columns},${text} AS text FROM ${source} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
+          )
+          .all(
+            ...values,
+            ...(bounded ? [limit, offset] : []),
+          ) as NoteSummary[]);
   if (
     !rows.length &&
     search &&
@@ -86,7 +123,7 @@ export function listNotes(
         .get(...values))
   ) {
     const fallback = fuzzyQuery(params.get("q") || "");
-    if (fallback) return listNotes(params, fallback);
+    if (fallback) return listNotes(params, fallback, owner);
   }
   const tags = new Map<string, Tag[]>();
   for (let start = 0; start < rows.length; start += 500) {

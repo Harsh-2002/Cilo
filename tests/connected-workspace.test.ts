@@ -500,12 +500,96 @@ test("connected workspace retains private search, recovery, journal and schedule
     await t.test(
       "version-two bundles remap note links, task series and history",
       async () => {
+        const tag = await value<{ id: string }>("tags", "POST", {
+          name: "Universal organization",
+          color: "gray",
+        });
+        const artifact = await value<{ id: string; revision: number }>(
+          "artifacts",
+          "POST",
+          {
+            text: "Indexed artifact words",
+          },
+        );
+        for (const [type, item] of [
+          ["note", source],
+          ["task", task],
+          ["bookmark", bookmark],
+          ["artifact", artifact],
+        ] as const) {
+          const endpoint = `item-tags/${type}/${item.id}`;
+          assert.equal(
+            (await call(endpoint, "GET", undefined, false)).status,
+            401,
+          );
+          const current = await value<{ revision: number }>(endpoint);
+          const tagged = await value<{
+            revision: number;
+            tags: { id: string }[];
+          }>(endpoint, "PATCH", { revision: current.revision, tags: [tag.id] });
+          assert.equal(tagged.tags[0].id, tag.id);
+          assert.equal(
+            (
+              await call(endpoint, "PATCH", {
+                revision: current.revision,
+                tags: [],
+              })
+            ).status,
+            409,
+          );
+          assert.equal(
+            (
+              await call(endpoint, "PATCH", {
+                revision: tagged.revision,
+                tags: ["invalid"],
+              })
+            ).status,
+            400,
+          );
+        }
+        const organized = await value<{ items: { type: string }[] }>(
+          `tags/${tag.id}/items?limit=60`,
+        );
+        assert.deepEqual(
+          new Set(organized.items.map((item) => item.type)),
+          new Set(["note", "task", "bookmark", "artifact"]),
+        );
+        assert.equal(
+          (await call(`tags/${tag.id}/items?limit=1000`)).status,
+          400,
+        );
+        assert.equal(
+          (await call(`tags/${tag.id}/items?limit=60`, "GET", undefined, false))
+            .status,
+          401,
+        );
+        assert.equal(
+          (await call("favorites?limit=60", "GET", undefined, false)).status,
+          401,
+        );
+        assert.equal((await call("favorites?limit=1000")).status, 400);
+        assert.equal((await call("favorites?offset=-1")).status, 400);
+        assert.ok(
+          Array.isArray(
+            (await value<{ items: unknown[] }>("favorites?limit=60")).items,
+          ),
+        );
         const exported = await call("export/bundle");
         const bytes = new Uint8Array(await exported.arrayBuffer());
         const manifest = JSON.parse(
           strFromU8(unzipSync(bytes)["manifest.json"]),
         );
         assert.equal(manifest.version, 2);
+        assert.ok(
+          manifest.tasks.some((item: { tags: { name: string }[] }) =>
+            item.tags.some((tag) => tag.name === "Universal organization"),
+          ),
+        );
+        assert.ok(
+          manifest.bookmarks.some((item: { tags: { name: string }[] }) =>
+            item.tags.some((tag) => tag.name === "Universal organization"),
+          ),
+        );
         const invalid = structuredClone(manifest);
         invalid.tasks[0].parentTaskId = invalid.tasks[0].id;
         const invalidEntries = unzipSync(bytes);
@@ -530,6 +614,14 @@ test("connected workspace retains private search, recovery, journal and schedule
           (r) => !before.some((b) => b.id === r.id),
         );
         const linked = restored.find((r) => r.title === task.title)!;
+        const restoredTags = await value<{ tags: { name: string }[] }>(
+          `item-tags/task/${linked.id}`,
+        );
+        assert.ok(
+          restoredTags.tags.some(
+            (tag) => tag.name === "Universal organization",
+          ),
+        );
         assert.notEqual(linked.noteId, target.id);
         assert.ok(linked.noteId);
         const series = restored.find((r) => r.parentTaskId !== null)!;
@@ -631,6 +723,17 @@ test("connected workspace retains private search, recovery, journal and schedule
               .get("monthly") as { n: number }
           ).n >= 2,
         );
+        for (const type of ["note", "task", "bookmark", "artifact"]) {
+          const table = `${type}_tags`;
+          const expected = sqlite()
+            .prepare(`SELECT count(*) AS n FROM ${table}`)
+            .get() as { n: number };
+          const actual = recovered
+            .prepare(`SELECT count(*) AS n FROM ${table}`)
+            .get() as { n: number };
+          assert.ok(expected.n > 0);
+          assert.equal(actual.n, expected.n);
+        }
         recovered.close();
       },
     );

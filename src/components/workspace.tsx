@@ -66,6 +66,7 @@ import type { TagColor } from "@/lib/tags";
 import { SettingsPanel } from "./settings-panel";
 import { BookmarksPanel } from "./bookmarks-panel";
 import { OverviewPanel } from "./overview-panel";
+import { ItemCollection } from "./item-collection";
 import { FeedbackOutlet } from "./inline-feedback";
 import { TrashPanel } from "./trash-panel";
 import { TasksPanel } from "./tasks-panel";
@@ -77,6 +78,7 @@ import { Shortcut, ShortcutKeys } from "./shortcut";
 import {
   workspacePath,
   workspaceView,
+  workspaceSurface,
   type WorkspaceView,
 } from "@/lib/workspace-routes";
 
@@ -102,7 +104,11 @@ export function Workspace({
       : (workspaceView(window.location.pathname) ?? initialView),
   );
   const acceptedUrl = useRef(
-    typeof window === "undefined" ? "" : window.location.href,
+    typeof window === "undefined"
+      ? ""
+      : workspaceSurface(window.location.pathname)
+        ? new URL("/overview", window.location.href).href
+        : window.location.href,
   );
   const routeSequence = useRef(0);
   const setView = useCallback((next: string) => {
@@ -117,7 +123,11 @@ export function Workspace({
     }
     acceptedUrl.current = window.location.href;
   }, []);
-  const [tag, setTag] = useState("");
+  const [tag, setTag] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : new URL(window.location.href).searchParams.get("tag") || "",
+  );
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("updated");
@@ -178,7 +188,7 @@ export function Workspace({
         ...(tag ? { tag } : {}),
       });
       const [list, allTags] = await Promise.all([
-        ["all", "favorites", "journal"].includes(view)
+        ["all", "journal"].includes(view) && !tag
           ? api<NoteSummary[]>(`notes?${params}`)
           : Promise.resolve([]),
         api<Tag[]>("tags"),
@@ -238,7 +248,8 @@ export function Workspace({
   }, [load]);
   useEffect(() => {
     if (
-      !["all", "favorites", "journal"].includes(view) ||
+      !["all", "journal"].includes(view) ||
+      tag ||
       listScope !== `${view}|${tag}` ||
       search ||
       loading
@@ -254,7 +265,7 @@ export function Workspace({
       previous.map((n) => (n.id === note.id ? { ...n, ...note } : n)),
     );
   }, []);
-  async function open(note: NoteSummary) {
+  async function open(note: Pick<NoteSummary, "id">) {
     if (active?.id === note.id) return;
     if (!(await guard.current())) {
       notify.error("Save your current edits before switching notes.");
@@ -310,6 +321,7 @@ export function Workspace({
   };
   const filter = async (next: string, tagId = "") => {
     if (!(await guard.current())) return false;
+    const previous = new URL(window.location.href);
     notify.dismiss();
     setSectionTarget({ query: "" });
     setView(next);
@@ -319,7 +331,12 @@ export function Workspace({
     setDrawer(false);
     const url = new URL(window.location.href);
     url.searchParams.delete("note");
-    window.history.replaceState(null, "", url);
+    if (tagId) url.searchParams.set("tag", tagId);
+    else url.searchParams.delete("tag");
+    if (url.href !== previous.href && url.pathname === previous.pathname)
+      window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+    acceptedUrl.current = url.href;
     return true;
   };
   const navigateNote = useCallback(
@@ -376,15 +393,23 @@ export function Workspace({
   }, [navigateNote]);
   useEffect(() => {
     const url = new URL(window.location.href);
+    if (workspaceSurface(url.pathname)) return;
     url.pathname = workspacePath(view);
     if (active) url.searchParams.set("note", active.id);
     else url.searchParams.delete("note");
+    if (tag) url.searchParams.set("tag", tag);
+    else url.searchParams.delete("tag");
     window.history.replaceState(null, "", url);
     acceptedUrl.current = url.href;
-  }, [active, view]);
+  }, [active, view, tag]);
   useEffect(() => {
     const restore = () => {
       const target = new URL(window.location.href);
+      if (
+        workspaceSurface(target.pathname) ||
+        target.href === acceptedUrl.current
+      )
+        return;
       const previous = acceptedUrl.current;
       const sequence = ++routeSequence.current;
       void (async () => {
@@ -398,7 +423,7 @@ export function Workspace({
         acceptedUrl.current = target.href;
         notify.dismiss();
         setViewState(workspaceView(target.pathname) ?? "overview");
-        setTag("");
+        setTag(target.searchParams.get("tag") || "");
         setQuery("");
         setSectionTarget({ query: "" });
         setActive(null);
@@ -501,7 +526,9 @@ export function Workspace({
         }),
       });
       setTagDialog(null);
+      sectionCache.clear();
       await load();
+      window.dispatchEvent(new Event("nivra:tags-changed"));
     } catch (e) {
       notify.error((e as Error).message);
     } finally {
@@ -512,7 +539,7 @@ export function Workspace({
     if (
       !(await confirm({
         title: `Delete “${item.name}”?`,
-        description: "The tag will be removed. Your notes will be kept.",
+        description: "The tag will be removed. Your items will be kept.",
         action: "Delete tag",
       }))
     )
@@ -520,9 +547,11 @@ export function Workspace({
     if (!(await guard.current())) return;
     try {
       await api(`tags/${item.id}`, { method: "DELETE" });
-      if (tag === item.id) setTag("");
+      sectionCache.clear();
+      if (tag === item.id) await filter(view);
       if (active) adopt(await api<Note>(`notes/${active.id}`));
       await load();
+      window.dispatchEvent(new Event("nivra:tags-changed"));
     } catch (e) {
       notify.error((e as Error).message);
     }
@@ -533,7 +562,12 @@ export function Workspace({
         <Mark small />
         <span>Nivra</span>
       </header>
-      <div className="navigation-scroll">
+      <div
+        className="navigation-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Navigation links"
+      >
         <button
           className="nav-item workspace-search"
           aria-label="Search"
@@ -660,7 +694,7 @@ export function Workspace({
     </div>
   );
   const title = tag
-    ? tags.find((t) => t.id === tag)?.name || "Notes"
+    ? tags.find((t) => t.id === tag)?.name || "Tagged items"
     : view === "favorites"
       ? "Favorites"
       : view === "trash"
@@ -757,191 +791,234 @@ export function Workspace({
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }
         />
+      ) : (tag || view === "favorites") && !active ? (
+        <ItemCollection
+          key={tag || "favorites"}
+          tag={tag || undefined}
+          title={title}
+          onOpen={(item) =>
+            item.type === "note"
+              ? void open(item)
+              : void selectResult({
+                  ...item,
+                  matchTerms: [],
+                  excerpt: item.excerpt,
+                })
+          }
+          opening={opening}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+        />
       ) : (
         <>
-          <section className="notes-list">
-            <FeedbackOutlet />
-            <header className="list-header">
-              <div>
-                <h1>{title}</h1>
-                <span
-                  className={`note-count ${shownNotes ? "" : "is-pending"}`}
-                >
-                  {rows.length}
-                  {shownHasMore ? "+" : ""}
-                </span>
-              </div>
-              {view === "journal" && (
+          {!tag && view !== "favorites" && (
+            <section className="notes-list">
+              <FeedbackOutlet />
+              <header className="list-header">
+                <div>
+                  <h1>{title}</h1>
+                  <span
+                    className={`note-count ${shownNotes ? "" : "is-pending"}`}
+                  >
+                    {rows.length}
+                    {shownHasMore ? "+" : ""}
+                  </span>
+                </div>
+                {view === "journal" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Write today’s entry"
+                    title="Write today’s entry"
+                    onClick={() => void today()}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Sort notes">
+                      <ArrowUpDown size={15} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {[
+                      { value: "updated", label: "Last edited" },
+                      { value: "created", label: "Date created" },
+                      { value: "title", label: "Title" },
+                    ].map((item) => (
+                      <DropdownMenuItem
+                        key={item.value}
+                        onSelect={() => setSort(item.value)}
+                      >
+                        {item.label}
+                        {sort === item.value && (
+                          <span className="ml-auto">✓</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="Write today’s entry"
-                  title="Write today’s entry"
-                  onClick={() => void today()}
+                  className="menu-toggle"
+                  aria-label="Open navigation"
+                  onClick={() =>
+                    window.innerWidth < 1024
+                      ? setDrawer(true)
+                      : setSidebar(true)
+                  }
                 >
-                  <Plus size={16} />
+                  <Menu size={18} />
                 </Button>
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Sort notes">
-                    <ArrowUpDown size={15} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {[
-                    { value: "updated", label: "Last edited" },
-                    { value: "created", label: "Date created" },
-                    { value: "title", label: "Title" },
-                  ].map((item) => (
-                    <DropdownMenuItem
-                      key={item.value}
-                      onSelect={() => setSort(item.value)}
-                    >
-                      {item.label}
-                      {sort === item.value && (
-                        <span className="ml-auto">✓</span>
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="menu-toggle"
-                aria-label="Open navigation"
-                onClick={() =>
-                  window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+              </header>
+              <p className="list-description">
+                {view === "journal"
+                  ? "One entry for each day you write."
+                  : "Write and organize your ideas."}
+              </p>
+              <div className="search-field">
+                <Search size={15} />
+                <Input
+                  ref={searchRef}
+                  aria-label={
+                    view === "journal"
+                      ? "Search journal entries"
+                      : "Search notes"
+                  }
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={
+                    view === "journal"
+                      ? "Search journal entries…"
+                      : "Search your notes…"
+                  }
+                />
+              </div>
+              <div
+                className="note-list-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label={
+                  view === "journal" ? "Journal entries" : "Note list"
                 }
               >
-                <Menu size={18} />
-              </Button>
-            </header>
-            <div className="search-field">
-              <Search size={15} />
-              <Input
-                ref={searchRef}
-                aria-label="Search notes"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search your notes…"
-              />
-            </div>
-            <div className="note-list-scroll" aria-label="Note list">
-              {error ? (
-                <div className="list-empty">
-                  <p role="alert">{error}</p>
-                  <Button variant="outline" size="sm" onClick={load}>
-                    <RefreshCw size={14} />
-                    Try again
-                  </Button>
-                </div>
-              ) : shownNotes === undefined ? (
-                <LoadingState
-                  kind="notes"
-                  label={`Loading ${view === "journal" ? "journal entries" : view === "favorites" ? "favorites" : "notes"}`}
-                />
-              ) : !rows.length ? (
-                <div className="list-empty">
-                  <FileText size={25} />
-                  <h2>
-                    {query
-                      ? "No matching notes"
-                      : view === "trash"
-                        ? "Nothing in trash"
-                        : view === "favorites"
-                          ? "Keep good ideas close"
-                          : view === "journal"
-                            ? "Your journal is empty"
-                            : "A fresh page awaits"}
-                  </h2>
-                  <p>
-                    {query
-                      ? "Try a different word or tag."
-                      : view === "favorites"
-                        ? "Star a note to find it here."
-                        : view === "trash"
-                          ? "Notes you delete will appear here."
-                          : view === "journal"
-                            ? "One entry for each day you write."
-                            : "Start with a thought. The rest will follow."}
-                  </p>
-                  {view === "all" && !query && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void create()}
-                    >
-                      <Plus size={14} />
-                      Create a note
+                {error ? (
+                  <div className="list-empty">
+                    <p role="alert">{error}</p>
+                    <Button variant="outline" size="sm" onClick={load}>
+                      <RefreshCw size={14} />
+                      Try again
                     </Button>
-                  )}
-                  {view === "journal" && !query && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void today()}
-                    >
-                      <Plus size={14} />
-                      Write today’s entry
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                rows.map((note) => (
-                  <button
-                    className={`note-list-item ${active?.id === note.id ? "selected" : ""}`}
-                    key={note.id}
-                    onClick={() => void open(note)}
-                  >
-                    <div>
-                      <strong>{note.title || "Untitled"}</strong>
-                      {note.favorite && <Star size={12} fill="currentColor" />}
-                    </div>
+                  </div>
+                ) : shownNotes === undefined ? (
+                  <LoadingState
+                    kind="notes"
+                    label={`Loading ${view === "journal" ? "journal entries" : "notes"}`}
+                  />
+                ) : !rows.length ? (
+                  <div className="list-empty">
+                    {view === "journal" ? (
+                      <NotebookPen size={25} />
+                    ) : (
+                      <FileText size={25} />
+                    )}
+                    <h2>
+                      {query
+                        ? view === "journal"
+                          ? "No matching journal entries"
+                          : "No matching notes"
+                        : view === "journal"
+                          ? "Your journal is empty"
+                          : "A fresh page awaits"}
+                    </h2>
                     <p>
-                      {note.text.replace(/\s+/g, " ").slice(0, 110) ||
-                        "An idea waiting to happen…"}
+                      {query
+                        ? "Try a different word."
+                        : view === "journal"
+                          ? "One entry for each day you write."
+                          : "Start with a thought. The rest will follow."}
                     </p>
-                    <footer>
-                      <time>
-                        {new Date(note.updatedAt).toLocaleDateString(
-                          undefined,
-                          {
-                            month: "short",
-                            day: "numeric",
-                          },
+                    {view === "all" && !query && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void create()}
+                      >
+                        <Plus size={14} />
+                        Create a note
+                      </Button>
+                    )}
+                    {view === "journal" && !query && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void today()}
+                      >
+                        <Plus size={14} />
+                        Write today’s entry
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  rows.map((note) => (
+                    <button
+                      className={`note-list-item ${active?.id === note.id ? "selected" : ""}`}
+                      key={note.id}
+                      onClick={() => void open(note)}
+                    >
+                      <div>
+                        <strong>{note.title || "Untitled"}</strong>
+                        {note.favorite && (
+                          <Star size={12} fill="currentColor" />
                         )}
-                      </time>
-                      {note.tags.slice(0, 2).map((tag) => (
-                        <span key={tag.id}>
-                          <span className="tag-dot" data-color={tag.color} />
-                          <span className="tag-name">{tag.name}</span>
-                        </span>
-                      ))}
-                    </footer>
-                  </button>
-                ))
-              )}
-              {!error && shownHasMore && (
-                <div className="note-list-more">
-                  {moreError && <p role="alert">{moreError}</p>}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={loading || loadingMore}
-                    onClick={() => void loadMore()}
-                  >
-                    {loadingMore
-                      ? "Loading…"
-                      : moreError
-                        ? "Try again"
-                        : "Load more"}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </section>
+                      </div>
+                      <p>
+                        {note.text.replace(/\s+/g, " ").slice(0, 110) ||
+                          "An idea waiting to happen…"}
+                      </p>
+                      <footer>
+                        <time>
+                          {new Date(note.updatedAt).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
+                        </time>
+                        {note.tags.slice(0, 2).map((tag) => (
+                          <span key={tag.id}>
+                            <span className="tag-dot" data-color={tag.color} />
+                            <span className="tag-name">{tag.name}</span>
+                          </span>
+                        ))}
+                      </footer>
+                    </button>
+                  ))
+                )}
+                {!error && shownHasMore && (
+                  <div className="note-list-more">
+                    {moreError && <p role="alert">{moreError}</p>}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={loading || loadingMore}
+                      onClick={() => void loadMore()}
+                    >
+                      {loadingMore
+                        ? "Loading…"
+                        : moreError
+                          ? "Try again"
+                          : "Load more"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
           {active ? (
             <NotePane
               key={`${active.id}-${generation}`}
@@ -950,6 +1027,15 @@ export function Workspace({
               onCapture={() => capture.current?.open()}
               tags={tags}
               onSaved={onSaved}
+              backLabel={
+                tag
+                  ? "Back to tagged items"
+                  : view === "favorites"
+                    ? "Back to favorites"
+                    : view === "journal"
+                      ? "Back to journal"
+                      : "Back to notes"
+              }
               onBack={() => void back()}
               onOpen={adopt}
               onDeleted={() => {
@@ -968,29 +1054,38 @@ export function Workspace({
               ) : (
                 <>
                   <div className="empty-illustration">
-                    <FileText size={38} strokeWidth={1} />
+                    {view === "journal" ? (
+                      <NotebookPen size={38} strokeWidth={1} />
+                    ) : (
+                      <FileText size={38} strokeWidth={1} />
+                    )}
                   </div>
                   <h2>
-                    {view === "trash"
-                      ? "Deleted items"
+                    {view === "journal"
+                      ? "Your journal, one day at a time."
                       : "Room for your next idea."}
                   </h2>
                   <p>
-                    {view === "trash"
-                      ? "Select a deleted item to review, restore or delete permanently."
+                    {view === "journal"
+                      ? "Open an entry to reflect, or start today’s journal."
                       : "Pick a note to keep going, or start something new."}
                   </p>
-                  {view !== "trash" && (
-                    <>
-                      <Button variant="outline" onClick={() => void create()}>
-                        Create a note
-                        <ArrowRight size={15} />
-                      </Button>
-                      <span className="shortcut-hint">
-                        <ShortcutKeys chord={shortcuts.newNote} />
-                        <span>to create a note</span>
-                      </span>
-                    </>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      view === "journal" ? void today() : void create()
+                    }
+                  >
+                    {view === "journal"
+                      ? "Create journal entry"
+                      : "Create a note"}
+                    <ArrowRight size={15} />
+                  </Button>
+                  {view !== "journal" && (
+                    <span className="shortcut-hint">
+                      <ShortcutKeys chord={shortcuts.newNote} />
+                      <span>to create a note</span>
+                    </span>
                   )}
                 </>
               )}
@@ -1048,6 +1143,7 @@ export function Workspace({
       <QuickCapture ref={capture} onCaptured={captured} />
       <SettingsPanel
         open={settingsOpen}
+        onOpen={() => setSettingsOpen(true)}
         onClose={() => setSettingsOpen(false)}
         owner={owner}
         initial={initialSettings}

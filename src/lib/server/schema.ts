@@ -131,7 +131,10 @@ export const noteTags = sqliteTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.noteId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.noteId, t.tagId] }),
+    index("note_tags_tag_idx").on(t.tagId, t.noteId),
+  ],
 );
 export const attachments = sqliteTable("attachments", {
   id: text("id").primaryKey(),
@@ -278,3 +281,70 @@ export const completionEvents = sqliteTable("completion_events", {
   status: text("status").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+export const taskTags = sqliteTable(
+  "task_tags",
+  {
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.taskId, t.tagId] }),
+    index("task_tags_tag_idx").on(t.tagId, t.taskId),
+  ],
+);
+export const bookmarkTags = sqliteTable(
+  "bookmark_tags",
+  {
+    bookmarkId: text("bookmark_id")
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.bookmarkId, t.tagId] }),
+    index("bookmark_tags_tag_idx").on(t.tagId, t.bookmarkId),
+  ],
+);
+export const artifacts = sqliteTable("artifacts", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"text" | "image" | "file">().notNull(),
+  title: text("title").notNull().default(""),
+  content: text("content").notNull().default(""),
+  name: text("name").notNull().default(""),
+  mime: text("mime").notNull().default(""),
+  size: integer("size").notNull().default(0),
+  width: integer("width").notNull().default(0),
+  height: integer("height").notNull().default(0),
+  storageKey: text("storage_key"),
+  thumbKey: text("thumb_key"),
+  extraction: text("extraction").notNull().default("none"),
+  revision: integer("revision").notNull().default(1),
+  trashedAt: integer("trashed_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+export const artifactTags = sqliteTable(
+  "artifact_tags",
+  {
+    artifactId: text("artifact_id")
+      .notNull()
+      .references(() => artifacts.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.artifactId, t.tagId] }),
+    index("artifact_tags_tag_idx").on(t.tagId, t.artifactId),
+  ],
+);

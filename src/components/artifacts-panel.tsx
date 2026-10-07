@@ -416,7 +416,12 @@ export function ArtifactsPanel({
         save(fromTransfer(e.dataTransfer));
       }}
     >
-      <div className="tasks-scroll">
+      <div
+        className="tasks-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Artifacts"
+      >
         <div className="artifacts-content section-content">
           <SectionHeading
             title="Artifacts"

@@ -17,9 +17,11 @@ import { createTextArtifact } from "../src/lib/server/artifacts";
 async function main() {
   const [mode, output, requestedCount = "1000"] = process.argv.slice(2);
   const count = Number(requestedCount);
-  assert.ok([1000, 5000].includes(count));
+  assert.ok([1000, 5000, 10000].includes(count));
   assert.ok(output && path.isAbsolute(output));
-  assert.ok(["seed", "extend", "session", "verify", "revoke"].includes(mode));
+  assert.ok(
+    ["seed", "extend", "enrich", "session", "verify", "revoke"].includes(mode),
+  );
   assert.equal(process.env.NIVRA_SCALE_ALLOW, "dev-instance-fixtures");
   assert.equal(dataDir, path.resolve(process.env.NIVRA_DATA_DIR!));
   mkdirSync(output, { recursive: true, mode: 0o700 });
@@ -31,7 +33,10 @@ async function main() {
   const owner = owners[0].id;
   const manifestPath = path.join(output, "fixtures.json");
   if (mode === "session") {
-    const ctx = await auth(new Request("https://dev.l3b.cc.cd")).$context;
+    const origin = new URL(
+      process.env.NIVRA_PUBLIC_URL || "http://localhost:3000",
+    );
+    const ctx = await auth(new Request(origin)).$context;
     const session = await ctx.internalAdapter.createSession(
       owner,
       false,
@@ -44,7 +49,7 @@ async function main() {
       "." +
       createHmac("sha256", ctx.secret).update(session.token).digest("base64");
     assert.ok(
-      await auth(new Request("https://dev.l3b.cc.cd")).api.getSession({
+      await auth(new Request(origin)).api.getSession({
         headers: new Headers({
           cookie: `${ctx.authCookies.sessionToken.name}=${encodeURIComponent(value)}`,
         }),
@@ -58,11 +63,11 @@ async function main() {
           {
             name: ctx.authCookies.sessionToken.name,
             value,
-            domain: "dev.l3b.cc.cd",
+            domain: origin.hostname,
             path: "/",
             expires: Date.now() / 1000 + 6 * 3600,
             httpOnly: true,
-            secure: true,
+            secure: origin.protocol === "https:",
             sameSite: "Lax",
           },
         ],
@@ -129,15 +134,102 @@ async function main() {
   }
   assert.equal(
     existsSync(manifestPath),
-    mode === "extend",
+    ["extend", "enrich"].includes(mode),
     "Use seed for new fixtures or extend for an existing manifest",
   );
-  const fixtureIds: Record<string, string[]> =
-    mode === "extend"
-      ? JSON.parse(readFileSync(manifestPath, "utf8"))
-      : { notes: [], tasks: [], bookmarks: [], artifacts: [], journals: [] };
+  const fixtureIds: Record<string, string[]> = ["extend", "enrich"].includes(
+    mode,
+  )
+    ? JSON.parse(readFileSync(manifestPath, "utf8"))
+    : { notes: [], tasks: [], bookmarks: [], artifacts: [], journals: [] };
+  function enrichFixtures() {
+    const labels = [
+      "Work",
+      "Personal",
+      "Research",
+      "Ideas",
+      "Reading",
+      "Planning",
+      "Projects",
+      "Learning",
+      "Travel",
+      "Finance",
+      "Health",
+      "Writing",
+      "Design",
+      "Engineering",
+      "Recipes",
+      "Home",
+      "Reference",
+      "Meetings",
+      "Archive",
+      "Review",
+    ];
+    const tagIds = labels.map((label) => {
+      const name = `Scale ${label}`;
+      const existing = database
+        .prepare("SELECT id FROM tags WHERE name=?")
+        .get(name) as { id: string } | undefined;
+      if (existing) return existing.id;
+      const id = randomUUID();
+      database
+        .prepare("INSERT INTO tags(id,name,color) VALUES(?,?,'gray')")
+        .run(id, name);
+      return id;
+    });
+    for (const kind of [
+      "notes",
+      "journals",
+      "tasks",
+      "bookmarks",
+      "artifacts",
+    ]) {
+      const table = kind === "journals" ? "notes" : kind;
+      const type = kind === "journals" ? "note" : kind.slice(0, -1);
+      const tagLink = database.prepare(
+        `INSERT OR IGNORE INTO ${type}_tags(${type}_id,tag_id) VALUES(?,?)`,
+      );
+      const mark =
+        kind === "tasks" || kind === "artifacts"
+          ? null
+          : database.prepare(
+              `UPDATE ${table} SET favorite=? WHERE id=? AND owner_id=?`,
+            );
+      for (let start = 0; start < fixtureIds[kind].length; start += 100) {
+        database
+          .transaction(() => {
+            for (
+              let index = start;
+              index < Math.min(start + 100, fixtureIds[kind].length);
+              index++
+            ) {
+              const id = fixtureIds[kind][index];
+              mark?.run(Number(index % 4 === 0), id, owner);
+              tagLink.run(id, tagIds[index % tagIds.length]);
+              tagLink.run(id, tagIds[(index + 7) % tagIds.length]);
+            }
+          })
+          .immediate();
+      }
+    }
+    writeFileSync(
+      path.join(output, "fixture-tags.json"),
+      JSON.stringify({
+        tags: tagIds,
+        labels: labels.map((label) => `Scale ${label}`),
+      }),
+      { mode: 0o600 },
+    );
+    console.log(
+      "Enriched fixtures: 20 tags, two tags per item across all five sections, one quarter of notes/journals/bookmarks marked favorite.",
+    );
+  }
+  if (mode === "enrich") {
+    enrichFixtures();
+    return;
+  }
   const previousCount = fixtureIds.notes.length;
-  assert.ok(previousCount < count);
+  assert.ok(previousCount < count || fixtureIds.artifacts.length < count);
   for (const kind of ["notes", "tasks", "bookmarks", "journals"])
     assert.equal(fixtureIds[kind].length, previousCount);
   const persist = () => {
@@ -250,7 +342,7 @@ async function main() {
   );
   const signed = encodeURIComponent(auditState.cookies[0].value);
   const cookie = `better-auth.session_token=${signed}; __Secure-better-auth.session_token=${signed}`;
-  const base = "https://dev.l3b.cc.cd";
+  const base = process.env.NIVRA_PUBLIC_URL || "http://localhost:3000";
   const fileStart = fixtureIds.artifacts.length - textCount;
   const acknowledgements: number[] = [];
   for (let index = fileStart; index < fileGoal; index++) {
@@ -290,6 +382,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   persist();
+  enrichFixtures();
   acknowledgements.sort((a, b) => a - b);
   writeFileSync(
     path.join(output, "seed-metrics.json"),

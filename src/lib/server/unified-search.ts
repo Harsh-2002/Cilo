@@ -32,9 +32,14 @@ export function parseSearch(input: string) {
 export function searchWorkspace(owner: string, input: string): SearchResult[] {
   const { type, tag, text } = parseSearch(input);
   const database = sqlite();
-  const results: SearchResult[] = [];
+  type Candidate = SearchResult & { searchRow: number };
+  const results: Candidate[] = [];
+  const enrichers = new Map<
+    SearchResult["type"],
+    (rows: Candidate[]) => SearchResult[]
+  >();
   for (const area of ["note", "task", "bookmark", "artifact"] as const) {
-    if ((type && type !== area) || (tag && area !== "note")) continue;
+    if (type && type !== area) continue;
     const table =
       area === "note"
         ? "notes"
@@ -48,7 +53,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     if (area === "note") conditions.push("trashed_at IS NULL AND kind='note'");
     if (tag) {
       conditions.push(
-        "EXISTS(SELECT 1 FROM note_tags nt JOIN tags t ON t.id=nt.tag_id WHERE nt.note_id=notes.id AND t.name=? COLLATE NOCASE)",
+        `EXISTS(SELECT 1 FROM ${area}_tags it JOIN tags t ON t.id=it.tag_id WHERE it.${area}_id=${table}.id AND t.name=? COLLATE NOCASE)`,
       );
       params.push(tag);
     }
@@ -89,23 +94,30 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     ) => {
       const start = `[[${randomUUID()}]]`;
       const end = `[[/${randomUUID()}]]`;
-      const statement = query
-        ? database.prepare(
-            `SELECT highlight(${table}_fts,0,?,?) AS title,snippet(${table}_fts,-1,?,?,'…',24) AS excerpt FROM ${table}_fts WHERE rowid=? AND ${table}_fts MATCH ?`,
-          )
-        : null;
-      return rows.map(({ searchRow, ...row }) => {
-        if (!statement) return row;
-        const marked = statement.get(
+      if (!query || !rows.length)
+        return rows.map(({ searchRow, ...row }) => {
+          void searchRow;
+          return row;
+        });
+      // Keep one FTS cursor so snippet's phrase cache survives across selected rows.
+      const marked = database
+        .prepare(
+          `SELECT rowid AS searchRow,highlight(${table}_fts,0,?,?) AS title,snippet(${table}_fts,-1,?,?,'…',24) AS excerpt FROM ${table}_fts WHERE (rowid+0) IN (${rows.map(() => "?").join(",")}) AND ${table}_fts MATCH ?`,
+        )
+        .all(
           start,
           end,
           start,
           end,
-          searchRow,
+          ...rows.map((row) => row.searchRow),
           query,
-        ) as { title: string; excerpt: string };
-        const title = decodeMatches(marked.title, start, end);
-        const excerpt = decodeMatches(marked.excerpt, start, end);
+        ) as { searchRow: number; title: string; excerpt: string }[];
+      const byRow = new Map(marked.map((row) => [row.searchRow, row]));
+      return rows.map(({ searchRow, ...row }) => {
+        const match = byRow.get(searchRow);
+        if (!match) return row;
+        const title = decodeMatches(match.title, start, end);
+        const excerpt = decodeMatches(match.excerpt, start, end);
         return {
           ...row,
           title: title.text,
@@ -134,13 +146,24 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
         usedQuery = fuzzy;
       }
     }
+    enrichers.set(area, (rows) =>
+      context(rows, usedQuery).map((row) => ({ ...row, type: area })),
+    );
     results.push(
-      ...context(found, usedQuery).map((r) => ({
+      ...found.map((r) => ({
         ...r,
         type: area,
         ...(area === "task" ? { completed: Boolean(r.completed) } : {}),
       })),
     );
   }
-  return results.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 30);
+  const selected = results
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 30);
+  const enriched = new Map<string, SearchResult>();
+  for (const [area, enrich] of enrichers) {
+    for (const row of enrich(selected.filter((row) => row.type === area)))
+      enriched.set(`${area}:${row.id}`, row);
+  }
+  return selected.map((row) => enriched.get(`${row.type}:${row.id}`)!);
 }

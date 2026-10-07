@@ -252,7 +252,7 @@ export function OverviewPanel({
                     {data.counts.today} due today
                   </p>
                   {data.tasks.length ? (
-                    <ul>
+                    <ul tabIndex={0} role="region" aria-label="Open tasks">
                       {data.tasks.map((task) => (
                         <li key={task.id} className="overview-task-row">
                           <div className="overview-check">
@@ -303,8 +303,14 @@ export function OverviewPanel({
                   )}
                   {data.counts.open > data.tasks.length && (
                     <p className="overview-more">
-                      Showing {data.tasks.length} of {data.counts.open} open
-                      tasks, earliest due first.
+                      Showing{" "}
+                      <span className="overview-desktop-count">
+                        {data.tasks.length}
+                      </span>
+                      <span className="overview-mobile-count">
+                        {Math.min(5, data.tasks.length)}
+                      </span>{" "}
+                      of {data.counts.open} open tasks, earliest due first.
                     </p>
                   )}
                 </section>
@@ -325,7 +331,7 @@ export function OverviewPanel({
                     </Button>
                   </header>
                   {data.notes.length ? (
-                    <ul>
+                    <ul tabIndex={0} role="region" aria-label="Recent notes">
                       {data.notes.map((note) => (
                         <li key={note.id}>
                           <button
@@ -373,7 +379,11 @@ export function OverviewPanel({
                     </Button>
                   </header>
                   {data.bookmarks.length ? (
-                    <ul>
+                    <ul
+                      tabIndex={0}
+                      role="region"
+                      aria-label="Recent bookmarks"
+                    >
                       {data.bookmarks.map((bookmark) => (
                         <li key={bookmark.id}>
                           <a

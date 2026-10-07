@@ -1,4 +1,5 @@
 "use client";
+import { ItemTagPicker } from "./item-tag-picker";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -341,7 +342,12 @@ export function BookmarksPanel({
   );
   return (
     <section className="tasks-panel bookmarks-panel" aria-label="Bookmarks">
-      <div className="tasks-scroll">
+      <div
+        className="tasks-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Bookmarks"
+      >
         <div className="bookmarks-content section-content">
           <SectionHeading
             title="Bookmarks"
@@ -603,6 +609,16 @@ export function BookmarksPanel({
                             fill={item.favorite ? "currentColor" : "none"}
                           />
                         </Button>
+                        <ItemTagPicker
+                          type="bookmark"
+                          id={item.id}
+                          title={item.title}
+                          disabled={busy || !!editing}
+                          onChanged={() => {
+                            invalidate();
+                            return load();
+                          }}
+                        />
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button

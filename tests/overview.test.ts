@@ -78,7 +78,7 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
     );
     const owner = (await value("status")).owner.id;
     const ids: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 25; i++) {
       const note = await value("notes", "POST", { title: `Note ${i}` });
       ids.push(note.id);
       sqlite()
@@ -91,7 +91,7 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
           .prepare("UPDATE notes SET trashed_at=?,updated_at=? WHERE id=?")
           .run(Date.now(), Date.now(), note.id),
     );
-    for (let i = 0; i < 7; i++)
+    for (let i = 0; i < 25; i++)
       db()
         .insert(bookmarks)
         .values({
@@ -133,11 +133,11 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
         const snapshot = await value("overview?date=2026-10-05");
         assert.deepEqual(
           snapshot.notes.map((n: { title: string }) => n.title),
-          ["Note 7", "Note 6", "Note 5", "Note 4", "Note 3"],
+          Array.from({ length: 20 }, (_, i) => `Note ${24 - i}`),
         );
         assert.deepEqual(
           snapshot.bookmarks.map((b: { title: string }) => b.title),
-          ["Bookmark 6", "Bookmark 5", "Bookmark 4", "Bookmark 3"],
+          Array.from({ length: 20 }, (_, i) => `Bookmark ${24 - i}`),
         );
         assert.ok(snapshot.refreshedAt > 0);
         assert.ok(
@@ -155,7 +155,14 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
         assert.deepEqual(snapshot.counts, { open: 6, today: 1, overdue: 1 });
         assert.deepEqual(
           snapshot.tasks.map((task: { title: string }) => task.title),
-          ["Overdue", "Today recurring", "Tomorrow", "Future", "Later"],
+          [
+            "Overdue",
+            "Today recurring",
+            "Tomorrow",
+            "Future",
+            "Later",
+            "Undated",
+          ],
         );
         assert.deepEqual((await value("overview?date=2026-10-06")).counts, {
           open: 6,

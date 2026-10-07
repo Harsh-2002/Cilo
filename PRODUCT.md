@@ -45,6 +45,10 @@ Keyboard-operable controls, visible focus, readable contrast, reduced-motion sup
 
 A private shelf for pasted text, screenshots, documents and media. Upload, paste or drop without mandatory folders or tags. Uploaded files use durable background jobs for local English OCR and bounded document extraction. Bookmark previews also load in the background; completion updates refresh the workspace through an authenticated SSE stream. Originals, thumbnails and extracted text use the installation's persisted encryption mode locally or in configured compatible storage. Unsupported formats remain downloadable and searchable by name; media is not transcribed.
 
+Tags organize notes, journal entries, tasks, bookmarks and artifacts together. Selecting a tag shows a searchable, paginated collection of all tagged item types without creation actions. Tags survive Trash and restoration; permanently deleting an item removes its tag relationships. Recurring tasks carry their tags into the next occurrence. Note bundles also preserve task and bookmark tags, and full-instance backups include all tag relationships.
+
+Favorites is a browsing-only card collection of starred notes, journal entries and bookmarks. Creating notes and journal entries belongs in their sections or Quick, rather than Favorites or tag collections.
+
 ## Next iteration
 
 Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Task reminders, offline editing, and collaboration remain deferred.

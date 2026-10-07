@@ -9,6 +9,12 @@ export const workspaceRoutes = {
   trash: "/trash",
 } as const;
 export type WorkspaceView = keyof typeof workspaceRoutes;
+export const workspaceSurfaces = ["search", "settings"] as const;
+export function workspaceSurface(pathname: string) {
+  return workspaceSurfaces.find(
+    (surface) => `/${surface}` === pathname.replace(/\/$/, ""),
+  );
+}
 export function workspaceView(pathname: string): WorkspaceView | null {
   if (pathname === "/") return "overview";
   return (
