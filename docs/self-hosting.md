@@ -2,7 +2,7 @@
 
 ## Start and onboard
 
-Run `docker compose up -d --build`, then open `http://localhost:3000`. Create your name, username, and password in the onboarding wizard. Passwords require at least 12 characters. Download the recovery code before continuing. No SMTP, manual auth secret, or account environment variables are required.
+Run `docker compose up -d --build`, then open `http://localhost:3000`. Create your name, username or email identifier, and password in the onboarding wizard. Passwords require at least 12 characters. Download the recovery code before continuing. No SMTP, manual auth secret, or account environment variables are required. Name and login identifier are fixed after onboarding. An email-shaped identifier is used for login only; it does not enable email delivery.
 
 Complete setup before making a fresh installation available to other people: the first successful setup submission creates its owner. Later signup is disabled. This installation supports exactly one owner.
 
@@ -16,7 +16,7 @@ The production Dockerfile uses separate dependency, build, and runtime stages. T
 | `NIVRA_PUBLIC_URL` | Browser request origin                  | Canonical origin, e.g. `https://notes.example.com`, for reverse-proxy authentication and origin checks |
 | `NIVRA_DATA_DIR`   | `./data` locally; `/app/data` in Docker | Database, secret, and uploads                                                                          |
 
-Set variables in the shell or copy the minimal `.env.example` to `.env`. Defaults provide local files, daily local backups retaining seven copies, a 25 MiB upload limit, and encryption. Only fill in S3 settings if using S3. Advanced overrides include `NIVRA_S3_REGION` (default `us-east-1`), `NIVRA_S3_FORCE_PATH_STYLE` (default `true`), `NIVRA_S3_PREFIX` (default `nivra/`), and `NIVRA_BACKUP_PREFIX` (default `nivra-backups/`); preserve custom prefixes during upgrades. Appearance belongs in UI settings. The attachment limit is configured with `NIVRA_UPLOAD_LIMIT_MIB` (default 25; integer 1–100). Storage configuration is environment-only. Authentication secrets are generated on first boot and preserved in the data directory.
+Set variables in the shell or copy the minimal `.env.example` to `.env`. Defaults provide local files, daily local backups retaining seven copies, a 25 MiB upload limit, and encryption. Only fill in S3 settings if using S3. Advanced overrides include `NIVRA_S3_REGION` (default `us-east-1`), `NIVRA_S3_FORCE_PATH_STYLE` (default `true`), `NIVRA_S3_PREFIX` (default `nivra/`), and `NIVRA_BACKUP_PREFIX` (default `nivra-backups/`); preserve custom prefixes during upgrades. Choose Light, Dark or System from the sidebar theme menu. Settings contains Account and Import & export. The attachment limit is configured with `NIVRA_UPLOAD_LIMIT_MIB` (default 25; integer 1–100). Storage configuration is environment-only. Authentication secrets are generated on first boot and preserved in the data directory.
 
 Docker and direct host startup bind to `0.0.0.0` by default; no bind-address variable is needed. For mobile installation and remote access, serve HTTPS through your reverse proxy, preserve the request host, and set `NIVRA_PUBLIC_URL` to the browser-visible origin. Keep the app at the domain root; subpath hosting is not supported. The app container runs as the Node user, UID 1000. A custom bind-mounted data directory must be writable by that user.
 

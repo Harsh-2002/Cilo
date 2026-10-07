@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 
-export type JobKind = "artifact" | "bookmark";
+export type JobKind = "artifact" | "bookmark" | "thumbnail";
 export type Job = {
   id: string;
   owner_id: string;
@@ -36,7 +36,7 @@ export function enqueueJob(owner: string, kind: JobKind, target: string) {
 }
 export function completionEvent(
   owner: string,
-  kind: JobKind | "backup",
+  kind: Exclude<JobKind, "thumbnail"> | "backup",
   target: string,
   status: string,
 ) {
@@ -59,7 +59,7 @@ export function claimJob(
     .transaction(() => {
       const row = sqlite()
         .prepare(
-          "SELECT * FROM background_jobs WHERE (state='queued' AND available_at<=?) OR (state='running' AND lease_until<=?) ORDER BY CASE WHEN kind=? THEN 0 ELSE 1 END,available_at,created_at LIMIT 1",
+          "SELECT * FROM background_jobs WHERE (state='queued' AND available_at<=?) OR (state='running' AND lease_until<=?) ORDER BY CASE WHEN kind='thumbnail' THEN 0 WHEN kind=? THEN 1 ELSE 2 END,available_at,created_at LIMIT 1",
         )
         .get(now, now, preferredKind ?? null) as Job | undefined;
       if (!row) return;
@@ -93,7 +93,12 @@ export function commitJob(job: Job, write: () => string) {
           status === "failed" || status === "unavailable" ? "failed" : "done",
           job.id,
         );
-      completionEvent(job.owner_id, job.kind, job.target_id, status);
+      completionEvent(
+        job.owner_id,
+        job.kind === "thumbnail" ? "artifact" : job.kind,
+        job.target_id,
+        status,
+      );
       return true;
     })
     .immediate();
@@ -115,6 +120,8 @@ async function execute(job: Job) {
     };
     if (job.kind === "artifact")
       await (await import("./artifact-processing")).processArtifact(context);
+    else if (job.kind === "thumbnail")
+      await (await import("./artifact-thumbnails")).processThumbnail(context);
     else await (await import("./bookmarks")).processBookmark(context);
   } catch {
     if (job.attempts >= maxAttempts) {
@@ -123,6 +130,12 @@ async function execute(job: Job) {
           sqlite()
             .prepare(
               "UPDATE artifacts SET extraction='failed',updated_at=? WHERE id=? AND owner_id=? AND extraction='pending' AND trashed_at IS NULL",
+            )
+            .run(Date.now(), job.target_id, job.owner_id);
+        else if (job.kind === "thumbnail")
+          sqlite()
+            .prepare(
+              "UPDATE artifacts SET thumbnail_status='failed',updated_at=? WHERE id=? AND owner_id=? AND thumbnail_status='pending' AND trashed_at IS NULL",
             )
             .run(Date.now(), job.target_id, job.owner_id);
         else

@@ -11,3 +11,5 @@ Nivra's own source is MIT licensed. Dependencies retain their original notices a
 - shadcn/ui, Next.js, React, Drizzle, Better Auth, and Lucide retain their package licenses. The lockfile records the complete dependency set.
 
 See the LICENSE files in installed packages and upstream distributions for full terms. Review dependency advisories when updating; do not use `npm audit fix --force` to silently downgrade the editor or framework.
+
+- `@napi-rs/canvas`: MIT. Local PDF thumbnail rendering uses its packaged native Canvas implementation; retain upstream notices. FFmpeg is provided by the runtime distribution for video thumbnails; its license depends on that distribution’s build and bundled codecs.

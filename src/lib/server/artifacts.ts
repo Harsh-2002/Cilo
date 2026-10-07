@@ -1,3 +1,4 @@
+import { thumbnailSupported } from "./artifact-thumbnails";
 import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
@@ -151,6 +152,14 @@ export async function createFileArtifact(
             now,
           );
         if (read) enqueueJob(owner, "artifact", id);
+        if (thumbnailSupported(mime)) {
+          sqlite()
+            .prepare(
+              "UPDATE artifacts SET thumbnail_status='pending' WHERE id=?",
+            )
+            .run(id);
+          enqueueJob(owner, "thumbnail", id);
+        }
       })
       .immediate();
   } catch (error) {

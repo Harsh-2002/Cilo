@@ -1,3 +1,4 @@
+import { isLoginIdentifier } from "../login-identifier";
 import { environment } from "./environment";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -12,7 +13,7 @@ import * as schema from "./schema";
 import { requestOrigin } from "./http";
 import {
   passkeyPlugin,
-  passkeyGuard,
+  authGuard,
   passkeyFreshSeconds,
   passkeyOptions,
 } from "./passkeys";
@@ -78,8 +79,16 @@ export function auth(request?: Request) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
-    plugins: [username(), twoFactor({ issuer: "Nivra" }), passkeyPlugin()],
-    hooks: { before: passkeyGuard, after: passkeyOptions },
+    plugins: [
+      username({
+        usernameValidator: isLoginIdentifier,
+        maxUsernameLength: 254,
+        usernameNormalization: (value) => value.trim().toLowerCase(),
+      }),
+      twoFactor({ issuer: "Nivra" }),
+      passkeyPlugin(),
+    ],
+    hooks: { before: authGuard, after: passkeyOptions },
     trustedOrigins: [origin],
     rateLimit: { enabled: true, window: 60, max: 30 },
     session: {

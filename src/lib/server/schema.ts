@@ -278,7 +278,7 @@ export const backgroundJobs = sqliteTable("background_jobs", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  kind: text("kind").$type<"artifact" | "bookmark">().notNull(),
+  kind: text("kind").$type<"artifact" | "bookmark" | "thumbnail">().notNull(),
   targetId: text("target_id").notNull(),
   state: text("state")
     .$type<"queued" | "running" | "done" | "failed">()

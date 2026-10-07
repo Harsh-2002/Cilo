@@ -21,11 +21,20 @@ const config: NextConfig = {
   },
   output: "standalone",
   agentRules: false,
-  serverExternalPackages: ["better-sqlite3", "tesseract.js", "unpdf", "sharp"],
+  serverExternalPackages: [
+    "better-sqlite3",
+    "tesseract.js",
+    "unpdf",
+    "sharp",
+    "@napi-rs/canvas",
+  ],
   outputFileTracingIncludes: {
     "/*": [
       "./migrations/**/*",
       "./generated/processing-worker.cjs",
+      "./generated/thumbnail-worker.cjs",
+      "./node_modules/@napi-rs/canvas/**/*",
+      "./node_modules/@napi-rs/canvas-linux-*/**/*",
       "./generated/publication-renderer.cjs",
       "./node_modules/better-sqlite3/build/Release/better_sqlite3.node",
       // The OCR engine starts worker threads from its own files and reads local language data.

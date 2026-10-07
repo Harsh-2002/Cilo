@@ -11,6 +11,9 @@ export async function register() {
     await preparePublicationPages();
     const { startBackupScheduler } = await import("./lib/server/backups");
     startBackupScheduler();
+    const { resumeThumbnails } =
+      await import("./lib/server/artifact-thumbnails");
+    resumeThumbnails();
     const { startJobWorker } = await import("./lib/server/jobs");
     startJobWorker();
   }

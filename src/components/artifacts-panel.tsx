@@ -1,4 +1,5 @@
 "use client";
+import { ArtifactPreview } from "./artifact-preview";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
 import {
@@ -12,11 +13,7 @@ import {
   ClipboardPaste,
   Copy,
   Download,
-  File as FileIcon,
-  FileAudio,
-  FileVideo,
   FileText,
-  Image as ImageIcon,
   Layers,
   Grid2X2,
   List as ListIcon,
@@ -32,7 +29,6 @@ import { api } from "@/lib/client";
 import {
   fromClipboard,
   fromTransfer,
-  makeThumbnail,
   type Dropped,
 } from "@/lib/artifacts-client";
 import { sectionCache } from "@/lib/section-cache";
@@ -118,16 +114,6 @@ const withoutContent = (detail: ArtifactDetail | Artifact): Artifact => {
   delete copy.content;
   return copy as Artifact;
 };
-const typeIcon = (item: Artifact) =>
-  item.kind === "image"
-    ? ImageIcon
-    : item.kind === "text"
-      ? FileText
-      : item.mime.startsWith("audio/")
-        ? FileAudio
-        : item.mime.startsWith("video/")
-          ? FileVideo
-          : FileIcon;
 
 export function ArtifactsPanel({
   onNavigation,
@@ -248,8 +234,6 @@ export function ArtifactsPanel({
       });
     const form = new FormData();
     form.set("file", source);
-    const thumbnail = await makeThumbnail(source);
-    if (thumbnail) form.set("thumb", thumbnail, "thumbnail");
     return api<Artifact>("artifacts", { method: "POST", body: form });
   }
   function save(sources: Dropped[]) {
@@ -638,9 +622,7 @@ export function ArtifactsPanel({
           ) : visible.length ? (
             <ArtifactGallery loading={loading} layout={layout}>
               {visible.map((item) => {
-                const Icon = typeIcon(item);
                 const label = item.name || artifactLabel(item);
-                const source = item.thumbnail ? "thumbnail" : "file";
                 return (
                   <li key={item.id} className={`artifact-card is-${item.kind}`}>
                     <button
@@ -648,26 +630,10 @@ export function ArtifactsPanel({
                       onClick={() => setViewing(item.id)}
                       aria-label={`Open ${label}`}
                     >
-                      <span className="artifact-thumb">
-                        {item.kind === "image" || item.thumbnail ? (
-                          <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/api/nivra/artifacts/${item.id}/${source}`}
-                              alt=""
-                              loading="lazy"
-                              width={item.width || undefined}
-                              height={item.height || undefined}
-                            />
-                          </>
-                        ) : (
-                          <Icon
-                            size={36}
-                            strokeWidth={1.4}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </span>
+                      <ArtifactPreview
+                        key={`${item.id}:${item.updatedAt}`}
+                        item={item}
+                      />
                       <span className="artifact-details">
                         <strong className="artifact-card-title" title={label}>
                           {label}

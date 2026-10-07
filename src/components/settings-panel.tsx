@@ -2,20 +2,15 @@
 import { ResponsiveSurface } from "./responsive-surface";
 import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
 import { FeedbackOutlet } from "./inline-feedback";
 import { notify } from "@/lib/feedback";
 import {
   Download,
   Upload,
   Loader2,
-  Sun,
-  Moon,
-  Monitor,
   ChevronRight,
   ArrowLeft,
   FolderOpen,
-  Check,
   FileText,
   LogOut,
 } from "lucide-react";
@@ -30,7 +25,7 @@ import { api, authRequest, downloadRequest } from "@/lib/client";
 import { importFiles, type ImportResult } from "@/lib/import-files";
 import type { Owner, Settings } from "@/lib/types";
 
-type Section = "appearance" | "account" | "data";
+type Section = "account" | "data";
 type AccountView = "profile" | "password" | "recovery" | "mfa" | "passkeys";
 export function SettingsPanel({
   open,
@@ -51,7 +46,7 @@ export function SettingsPanel({
   onImported: () => Promise<void>;
   onSignOut: () => Promise<void>;
 }) {
-  const [tab, setTab] = useState<Section>("appearance");
+  const [tab, setTab] = useState<Section>("account");
   const [accountView, setAccountView] = useState<AccountView>("profile");
   const [busy, setBusy] = useState(false);
   const [mfaGuard, setMfaGuard] = useState(false);
@@ -59,8 +54,7 @@ export function SettingsPanel({
     Boolean(initial.twoFactorEnabled),
   );
   const [error, setError] = useState("");
-  const [name, setName] = useState(owner.name);
-  const [username, setUsername] = useState(owner.username);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -68,7 +62,6 @@ export function SettingsPanel({
   const [selection, setSelection] = useState<File[]>([]);
   const [results, setResults] = useState<ImportResult[]>([]);
   const [currentFile, setCurrentFile] = useState("");
-  const { theme, setTheme } = useTheme();
   const importRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const bundleRef = useRef<HTMLInputElement>(null);
@@ -77,10 +70,6 @@ export function SettingsPanel({
       api<{ owner: Owner | null; settings: Settings | null }>("status")
         .then((result) => {
           setMfaEnabled(Boolean(result.settings?.twoFactorEnabled));
-          if (result.owner) {
-            setName(result.owner.name);
-            setUsername(result.owner.username);
-          }
         })
         .catch((e) => setError(e.message));
   }, [open]);
@@ -174,7 +163,6 @@ export function SettingsPanel({
           >
             {(
               [
-                { id: "appearance", label: "Appearance" },
                 { id: "account", label: "Account" },
                 { id: "data", label: "Import & export" },
               ] as const
@@ -224,52 +212,6 @@ export function SettingsPanel({
             tabIndex={0}
           >
             <FeedbackOutlet />
-            {tab === "appearance" && (
-              <>
-                <div className="settings-section-heading">
-                  <h2>Color theme</h2>
-                  <p>Choose a look, or follow your device.</p>
-                </div>
-                <div className="theme-options">
-                  {(
-                    [
-                      { value: "light", Icon: Sun, label: "Light" },
-                      { value: "dark", Icon: Moon, label: "Dark" },
-                      { value: "system", Icon: Monitor, label: "System" },
-                    ] as const
-                  ).map(({ value, Icon, label }) => (
-                    <button
-                      type="button"
-                      disabled={busy || mfaGuard}
-                      key={value}
-                      aria-pressed={(theme || initial.theme) === value}
-                      className={
-                        (theme || initial.theme) === value ? "selected" : ""
-                      }
-                      onClick={() =>
-                        void run(async () => {
-                          await api("settings", {
-                            method: "PATCH",
-                            body: JSON.stringify({ theme: value }),
-                          });
-                          setTheme(value);
-                        })
-                      }
-                    >
-                      <Icon size={21} />
-                      <span>{label}</span>
-                      {theme === value && (
-                        <Check className="theme-check" size={14} />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <p className="settings-footnote">
-                  Your choice is saved for this browser and used as your
-                  workspace default.
-                </p>
-              </>
-            )}
             {tab === "account" && (
               <>
                 {accountView !== "profile" && (
@@ -292,52 +234,19 @@ export function SettingsPanel({
                 )}
                 {accountView === "profile" && (
                   <>
-                    <form
-                      className="settings-form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void run(async () => {
-                          await authRequest("update-user", {
-                            name,
-                            username,
-                          });
-                          notify.success("Account updated.");
-                        });
-                      }}
-                    >
-                      <div className="settings-profile-fields">
-                        <div className="field">
-                          <Label htmlFor="settings-name">Name</Label>
-                          <Input
-                            id="settings-name"
-                            value={name}
-                            required
-                            maxLength={80}
-                            onChange={(e) => setName(e.target.value)}
-                          />
-                        </div>
-                        <div className="field">
-                          <Label htmlFor="settings-username">Username</Label>
-                          <Input
-                            id="settings-username"
-                            value={username}
-                            required
-                            minLength={3}
-                            maxLength={32}
-                            autoCapitalize="none"
-                            autoComplete="username"
-                            onChange={(e) => setUsername(e.target.value)}
-                          />
-                        </div>
+                    <dl className="settings-profile-fields account-identity">
+                      <div>
+                        <dt>Name</dt>
+                        <dd>{owner.name}</dd>
                       </div>
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        disabled={busy || mfaGuard}
-                      >
-                        Save account
-                      </Button>
-                    </form>
+                      <div>
+                        <dt>Username or email</dt>
+                        <dd>{owner.username}</dd>
+                      </div>
+                    </dl>
+                    <p className="field-hint">
+                      Your account identity is fixed after setup.
+                    </p>
                     <div className="settings-security">
                       <button
                         disabled={busy || mfaGuard}

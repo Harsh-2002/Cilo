@@ -77,6 +77,12 @@ export function moveToTrash(
             "UPDATE background_jobs SET state='failed',lease_token=NULL,lease_until=NULL WHERE kind=? AND target_id=? AND owner_id=?",
           )
           .run(kind, id, owner);
+        if (kind === "artifact")
+          sqlite()
+            .prepare(
+              "UPDATE background_jobs SET state='failed',lease_token=NULL,lease_until=NULL WHERE kind='thumbnail' AND target_id=? AND owner_id=?",
+            )
+            .run(id, owner);
         completionEvent(owner, kind, id, "trashed");
       }
     })
@@ -110,6 +116,15 @@ export function restoreTrash(
             .get(id)
         )
           enqueueJob(owner, kind, id);
+        if (
+          kind === "artifact" &&
+          sqlite()
+            .prepare(
+              "SELECT 1 FROM artifacts WHERE id=? AND thumbnail_status='pending'",
+            )
+            .get(id)
+        )
+          enqueueJob(owner, "thumbnail", id);
         completionEvent(owner, kind, id, "restored");
       }
     })

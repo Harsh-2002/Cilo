@@ -1,19 +1,12 @@
 "use client";
 import { ItemTagPicker } from "./item-tag-picker";
+import { ArtifactIcon } from "./artifact-icon";
 import { LoadingState } from "./loading-state";
 import { useEffect, useRef, useState } from "react";
 import { useCompletion } from "@/lib/completion-client";
 import { FeedbackOutlet } from "./inline-feedback";
 import { notify } from "@/lib/feedback";
-import {
-  Copy,
-  Download,
-  FileText,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Copy, Download, Loader2, RefreshCw, Trash2, X } from "lucide-react";
 import { api } from "@/lib/client";
 import { readableSize } from "@/lib/artifacts-client";
 import type { Artifact, ArtifactDetail } from "@/lib/types";
@@ -292,7 +285,7 @@ export function ArtifactViewer({
               )}
               {item.kind === "file" && !mediaKind && (
                 <div className="artifact-viewer-file">
-                  <FileText size={28} strokeWidth={1.4} />
+                  <ArtifactIcon item={item} size={28} strokeWidth={1.4} />
                   <span>{item.mime || "File"}</span>
                 </div>
               )}

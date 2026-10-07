@@ -9,3 +9,14 @@ await build({
   external: ["tesseract.js", "unpdf", "better-sqlite3", "sharp"],
   logLevel: "warning",
 });
+
+await build({
+  entryPoints: ["scripts/thumbnail-worker.ts"],
+  outfile: "generated/thumbnail-worker.cjs",
+  bundle: true,
+  platform: "node",
+  target: "node24",
+  format: "cjs",
+  external: ["sharp", "unpdf", "@napi-rs/canvas"],
+  logLevel: "warning",
+});

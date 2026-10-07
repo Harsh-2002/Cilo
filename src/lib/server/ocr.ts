@@ -1,3 +1,4 @@
+import { resumeThumbnails } from "./artifact-thumbnails";
 import { sqlite } from "./db";
 import { enqueueJob, startJobWorker } from "./jobs";
 import { shutdownEngine } from "./ocr-engine";
@@ -16,5 +17,6 @@ export function resumeOcr() {
     )
     .all() as { id: string; owner_id: string }[];
   for (const row of rows) enqueueJob(row.owner_id, "artifact", row.id);
+  resumeThumbnails();
   startJobWorker();
 }

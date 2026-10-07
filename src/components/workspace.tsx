@@ -1,4 +1,5 @@
 "use client";
+import { ThemeMenu } from "./theme-menu";
 import { LoadingState } from "./loading-state";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -680,6 +681,7 @@ export function Workspace({
             <SettingsIcon size={16} />
             Settings
           </button>
+          <ThemeMenu />
           <Button
             variant="ghost"
             size="icon"

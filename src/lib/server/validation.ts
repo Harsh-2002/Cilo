@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLoginIdentifier } from "../login-identifier";
 import { validDate } from "../dates";
 export const calendarDate = z
   .string()
@@ -9,7 +10,11 @@ export const taskSchedule = {
   noteId: z.string().uuid().nullable().optional(),
 };
 export const credentials = z.object({
-  username: z.string().regex(/^[a-zA-Z0-9_.]{3,30}$/),
+  username: z
+    .string()
+    .trim()
+    .max(254)
+    .refine(isLoginIdentifier, "Use a username or a valid email address."),
   password: z.string().min(12).max(128),
 });
 export const setupInput = credentials.extend({

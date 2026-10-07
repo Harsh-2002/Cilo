@@ -407,21 +407,23 @@ export function AuthScreen({
                 </div>
               ) : (
                 <div className="field">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Username or email</Label>
                   <Input
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                     minLength={3}
-                    maxLength={30}
-                    pattern="[a-zA-Z0-9_.]+"
+                    maxLength={254}
+                    autoCapitalize="none"
+                    spellCheck={false}
                     autoComplete="username"
-                    placeholder="Choose a username"
+                    placeholder="Username or email address"
                   />
                   {setup && (
                     <p className="field-hint">
-                      Letters, numbers, dots, and underscores.
+                      Use 3–30 letters, numbers, dots or underscores, or an
+                      email address.
                     </p>
                   )}
                 </div>

@@ -273,7 +273,7 @@ test("artifacts store anything, read text out of it, and make all of it searchab
         );
         assert.equal(
           (await call(`artifacts/${image.id}/thumbnail`)).status,
-          404,
+          200,
         );
       },
     );

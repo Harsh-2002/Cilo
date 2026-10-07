@@ -54,3 +54,5 @@ Favorites is a browsing-only card collection of starred notes, journal entries a
 Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Task reminders, offline editing, and collaboration remain deferred.
 
 Passkeys are an optional login method alongside passwords and account recovery. They require PIN or biometric verification, support discoverable FIDO2 hardware and password-manager credentials, and have account settings for enrollment, rename and removal. Verified passkeys satisfy login when TOTP is enabled; password login still requires TOTP. Account recovery preserves registered passkeys, while revoking sessions and clearing TOTP.
+
+The owner’s name and login identifier are fixed after onboarding. Login identifiers accept a username or email address without requiring email delivery. Appearance is available in the sidebar; Settings contains Account and Import & export. Artifact cards use background-generated private thumbnails or file-type icons, while extracted content remains in search and the detailed viewer.

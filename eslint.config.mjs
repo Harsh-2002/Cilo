@@ -6,7 +6,11 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    files: ["src/components/editor.tsx", "src/components/note-content.tsx"],
+    files: [
+      "src/components/editor.tsx",
+      "src/components/note-content.tsx",
+      "src/components/artifact-preview.tsx",
+    ],
     rules: { "@next/next/no-img-element": "off" },
   },
   globalIgnores([

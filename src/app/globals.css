@@ -5166,3 +5166,35 @@ button:disabled {
   display: grid;
   gap: 12px;
 }
+
+.navigation-theme {
+  position: relative;
+  flex-shrink: 0;
+}
+.navigation-theme > button {
+  width: 44px;
+  height: 44px;
+}
+.navigation-theme-error {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  width: 180px;
+  padding: 12px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.account-identity {
+  margin: 0;
+}
+.account-identity dt {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-bottom: 6px;
+}
+.account-identity dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

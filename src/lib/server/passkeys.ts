@@ -39,7 +39,18 @@ export function passkeyPlugin() {
     },
   });
 }
-export const passkeyGuard = createAuthMiddleware(async (ctx) => {
+export const authGuard = createAuthMiddleware(async (ctx) => {
+  if (
+    (ctx.path === "/update-user" &&
+      ["name", "username", "displayUsername", "email"].some(
+        (field) => ctx.body?.[field] !== undefined,
+      )) ||
+    ctx.path === "/change-email"
+  )
+    throw new APIError("FORBIDDEN", {
+      message: "Your account name and login identifier are fixed after setup.",
+      code: "ACCOUNT_IDENTITY_FIXED",
+    });
   if (!ctx.path?.startsWith("/passkey/")) return;
   const origin = new URL(
     environment().NIVRA_PUBLIC_URL || "http://localhost:3000",

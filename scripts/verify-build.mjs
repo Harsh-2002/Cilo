@@ -27,6 +27,14 @@ if (!existsSync(path.join(root, "generated/publication-renderer.cjs")))
   throw new Error(
     "The publication renderer is missing from the shipping artifact.",
   );
+if (!existsSync(path.join(root, "generated/thumbnail-worker.cjs")))
+  throw new Error(
+    "The thumbnail worker is missing from the shipping artifact.",
+  );
+if (!existsSync(path.join(root, "node_modules/@napi-rs/canvas")))
+  throw new Error(
+    "PDF preview rendering is missing from the shipping artifact.",
+  );
 for (const file of ["main.js", "reader.css", "geist-latin-wght-normal.woff2"])
   if (!existsSync(path.join("public/reader", file)))
     throw new Error("A prebuilt public reader asset is missing.");
