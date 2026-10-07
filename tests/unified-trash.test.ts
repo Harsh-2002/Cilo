@@ -6,6 +6,36 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 
+test("notes Trash upgrade avoids scanning active notes and journals", async () => {
+  const connection = new Database(":memory:");
+  try {
+    for (const name of (await readdir("migrations"))
+      .filter((n) => n.endsWith(".sql") && n < "0018")
+      .sort())
+      connection.exec(await readFile(path.join("migrations", name), "utf8"));
+    connection.exec(
+      "INSERT INTO user(id,name,email,username,created_at,updated_at) VALUES('owner','Owner','owner@local.invalid','owner',1,1); INSERT INTO notes(id,owner_id,title,document,text,created_at,updated_at,daily_date,trashed_at) VALUES('active','owner','Active','{}','Kept',1,1,NULL,NULL),('deleted','owner','Deleted journal','{}','Recover',1,1,'2026-10-07',10)",
+    );
+    const sql =
+      "SELECT id,title FROM notes WHERE owner_id=? AND trashed_at IS NOT NULL AND kind='note' ORDER BY trashed_at DESC,id LIMIT 61";
+    const before = connection.prepare(sql).all("owner");
+    connection.exec(
+      await readFile("migrations/0018_notes_trash_index.sql", "utf8"),
+    );
+    assert.deepEqual(connection.prepare(sql).all("owner"), before);
+    const plan = connection
+      .prepare(`EXPLAIN QUERY PLAN ${sql}`)
+      .all("owner") as {
+      detail: string;
+    }[];
+    assert.ok(plan.some((row) => row.detail.includes("notes_trash_idx")));
+    assert.ok(plan.every((row) => !row.detail.includes("TEMP B-TREE")));
+    assert.equal(connection.pragma("integrity_check", { simple: true }), "ok");
+  } finally {
+    connection.close();
+  }
+});
+
 test("Trash migration preserves existing rows and marks no item deleted", async () => {
   const connection = new Database(":memory:");
   try {
