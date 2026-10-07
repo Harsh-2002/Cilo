@@ -31,6 +31,14 @@ const config: NextConfig = {
   output: "standalone",
   agentRules: false,
   serverExternalPackages: [
+    "better-auth",
+    "@better-auth/core",
+    "@better-auth/passkey",
+    "drizzle-orm",
+    "@modelcontextprotocol/server",
+    "@better-auth/mcp",
+    "@better-auth/cimd",
+    "@better-auth/api-key",
     "better-sqlite3",
     "tesseract.js",
     "unpdf",
@@ -42,6 +50,16 @@ const config: NextConfig = {
       "./migrations/**/*",
       "./generated/processing-worker.cjs",
       "./generated/thumbnail-worker.cjs",
+      ...new Set(
+        (
+          JSON.parse(
+            readFileSync("generated/agent-markdown-trace.json", "utf8"),
+          ) as string[]
+        ).map((file) => {
+          const dependency = file.match(/^node_modules\/(?:@[^/]+\/)?[^/]+/);
+          return dependency ? `./${dependency[0]}/**/*` : `./${file}`;
+        }),
+      ),
       "./node_modules/@napi-rs/canvas/**/*",
       "./node_modules/@napi-rs/canvas-linux-*/**/*",
       "./generated/publication-renderer.cjs",

@@ -3,13 +3,23 @@ import { db, sqlite } from "./db";
 import { notes } from "./schema";
 import { getNote } from "./notes";
 import { HttpError } from "./http";
-import type { Note } from "../types";
+import { plainText } from "./validation";
+import type { Document, Note } from "../types";
 // Journal entries are ordinary notes with a date; each day has at most one.
-export async function dailyNote(owner: string, date: string): Promise<Note> {
+export async function dailyNote(
+  owner: string,
+  date: string,
+  document?: Document,
+): Promise<Note> {
   const existing = sqlite()
     .prepare("SELECT id FROM notes WHERE owner_id=? AND daily_date=?")
     .get(owner, date) as { id: string } | undefined;
   if (existing) {
+    if (document)
+      throw new HttpError(
+        409,
+        "This journal already exists. Read its revision before editing.",
+      );
     const note = getNote(existing.id)!;
     if (note.trashedAt)
       throw new HttpError(
@@ -27,11 +37,11 @@ export async function dailyNote(owner: string, date: string): Promise<Note> {
         id,
         ownerId: owner,
         title: date,
-        document: {
+        document: document ?? {
           schemaVersion: 1,
           blocks: [{ type: "paragraph", content: [] }],
         },
-        text: "",
+        text: document ? plainText(document.blocks) : "",
         dailyDate: date,
         createdAt: now,
         updatedAt: now,
@@ -43,6 +53,11 @@ export async function dailyNote(owner: string, date: string): Promise<Note> {
       .prepare("SELECT id FROM notes WHERE owner_id=? AND daily_date=?")
       .get(owner, date) as { id: string } | undefined;
     if (!winner) throw error;
+    if (document)
+      throw new HttpError(
+        409,
+        "This journal was created concurrently. Read it before editing.",
+      );
     return getNote(winner.id)!;
   }
   return getNote(id)!;

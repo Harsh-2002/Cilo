@@ -1,3 +1,9 @@
+import { eq } from "drizzle-orm";
+import { mcp } from "@better-auth/mcp";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { apiKey } from "@better-auth/api-key";
+import { jwt } from "better-auth/plugins/jwt";
 import { isLoginIdentifier } from "../login-identifier";
 import { environment } from "./environment";
 import { betterAuth } from "better-auth";
@@ -80,6 +86,7 @@ function createAuth(origin: string) {
   return betterAuth({
     appName: "Nivra",
     baseURL: origin,
+    disabledPaths: ["/token"],
     secret: authSecret(),
     database: drizzleAdapter(db(), { provider: "sqlite", schema }),
     emailAndPassword: {
@@ -96,6 +103,38 @@ function createAuth(origin: string) {
       }),
       twoFactor({ issuer: "Nivra" }),
       passkeyPlugin(),
+      jwt({ disableSettingJwtHeader: true }),
+      apiKey({
+        defaultPrefix: "nivra_",
+        enableSessionForAPIKeys: false,
+        rateLimit: { enabled: true, timeWindow: 60000, maxRequests: 120 },
+        permissions: { defaultPermissions: { nivra: ["read"] } },
+      }),
+      ...(new URL(origin).protocol === "https:" ||
+      ["localhost", "127.0.0.1", "[::1]"].includes(new URL(origin).hostname)
+        ? [
+            mcp({
+              loginPage: "/oauth/login",
+              consentPage: "/oauth/consent",
+              resource: `${origin}/mcp`,
+              scopes: ["nivra:read", "nivra:write", "offline_access"],
+              grantTypes: ["authorization_code", "refresh_token"],
+              accessTokenExpiresIn: 900,
+              refreshTokenExpiresIn: 2592000,
+              clientPrivileges: ({ user }) =>
+                !!user &&
+                !!db()
+                  .select()
+                  .from(schema.user)
+                  .where(eq(schema.user.id, user.id))
+                  .get(),
+            }),
+            cimd({
+              fetchClientMetadataResource,
+              metadataProfile: "mcp-2026-07-28",
+            }),
+          ]
+        : []),
     ],
     hooks: { before: authGuard, after: passkeyOptions },
     trustedOrigins: [origin],

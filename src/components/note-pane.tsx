@@ -1,4 +1,5 @@
 "use client";
+import { useCompletion } from "@/lib/completion-client";
 import { LoadingState } from "./loading-state";
 import {
   useCallback,
@@ -213,6 +214,33 @@ export function NotePane({
       window.removeEventListener("online", reconnect);
     };
   }, []);
+  useCompletion("content", (event) => {
+    if (
+      (event.kind && event.kind !== "content") ||
+      (event.target && event.target !== current.current.id)
+    )
+      return;
+    const id = current.current.id;
+    void api<Note>(`notes/${id}`)
+      .then(async (latest) => {
+        if (saving.current) await saving.current;
+        if (
+          !mounted.current ||
+          current.current.id !== id ||
+          latest.revision <= current.current.revision
+        )
+          return;
+        if (version.current !== savedVersion.current) {
+          blocked.current = true;
+          setState("conflict");
+          setError(
+            "This note changed elsewhere. Your edits are kept here; save them as a new note or reload the latest version.",
+          );
+        } else if (latest.trashedAt) onDeleted();
+        else onOpen(latest);
+      })
+      .catch(() => {});
+  });
   function change(update: Partial<Note>) {
     current.current = { ...current.current, ...update };
     setNote(current.current);

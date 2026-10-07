@@ -5248,3 +5248,103 @@ button:disabled {
 .setup-auth-method [data-slot="button"] {
   min-height: 44px;
 }
+
+.ai-connections {
+  display: grid;
+  gap: 24px;
+}
+.ai-connections h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.ai-connections .check-row {
+  min-height: 44px;
+}
+.ai-connections .check-row [data-slot="checkbox"] {
+  min-height: 0;
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+}
+.ai-copy-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.ai-copy-row input {
+  min-width: 0;
+  flex: 1;
+}
+.ai-key-form,
+.ai-client-form {
+  display: grid;
+  gap: 12px;
+}
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ai-secret {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.ai-secret pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  margin: 12px 0;
+  user-select: all;
+}
+.ai-connection-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ai-connection-list li {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ai-connection-list li > div {
+  min-width: 0;
+}
+.ai-connection-list strong,
+.ai-connection-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ai-connection-list small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.ai-client-form {
+  margin-top: 16px;
+}
+.oauth-card {
+  display: grid;
+  gap: 16px;
+}
+.oauth-error {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  padding: 12px;
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+@media (max-width: 600px) {
+  .ai-connection-list li {
+    align-items: flex-start;
+  }
+  .ai-connection-list li > button {
+    flex-shrink: 0;
+  }
+}

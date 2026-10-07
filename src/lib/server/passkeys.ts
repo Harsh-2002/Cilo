@@ -53,6 +53,24 @@ export function passkeyPlugin() {
 }
 export const authGuard = createAuthMiddleware(async (ctx) => {
   if (
+    ((ctx.request || ctx.headers) && ctx.path?.startsWith("/api-key/")) ||
+    ctx.path?.startsWith("/oauth2/create-client") ||
+    ctx.path?.startsWith("/oauth2/update-client") ||
+    ctx.path?.startsWith("/oauth2/delete-client") ||
+    ctx.path?.startsWith("/oauth2/rotate-client")
+  ) {
+    const session = await getSessionFromCtx(ctx);
+    if (
+      !session ||
+      Date.now() - new Date(session.session.createdAt).getTime() >=
+        passkeyFreshSeconds * 1000
+    )
+      throw new APIError("FORBIDDEN", {
+        message: "Sign in again before managing AI credentials.",
+      });
+  }
+
+  if (
     (ctx.path === "/update-user" &&
       ["name", "username", "displayUsername", "email"].some(
         (field) => ctx.body?.[field] !== undefined,

@@ -36,7 +36,7 @@ export function enqueueJob(owner: string, kind: JobKind, target: string) {
 }
 export function completionEvent(
   owner: string,
-  kind: Exclude<JobKind, "thumbnail"> | "backup",
+  kind: Exclude<JobKind, "thumbnail"> | "backup" | "content",
   target: string,
   status: string,
 ) {

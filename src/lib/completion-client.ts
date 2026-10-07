@@ -3,12 +3,13 @@ import { useEffect, useRef } from "react";
 import { api } from "./client";
 import { sectionCache } from "./section-cache";
 export type Completion = {
-  kind?: "artifact" | "bookmark" | "backup";
+  kind?: "artifact" | "bookmark" | "backup" | "content";
   target?: string;
   status?: string;
 };
 function dispatch(detail: Completion) {
-  sectionCache.clear("artifacts:", "bookmarks:", "overview");
+  if (!detail.kind || detail.kind === "content") sectionCache.clear();
+  else sectionCache.clear("artifacts:", "bookmarks:", "overview");
   window.dispatchEvent(new CustomEvent("nivra:completion", { detail }));
 }
 export function useCompletionStream(onRevoked: () => void) {
@@ -60,7 +61,11 @@ export function useCompletionStream(onRevoked: () => void) {
         received();
         try {
           const detail = JSON.parse((event as MessageEvent).data) as Completion;
-          if (["artifact", "bookmark", "backup"].includes(detail.kind || ""))
+          if (
+            ["artifact", "bookmark", "backup", "content"].includes(
+              detail.kind || "",
+            )
+          )
             dispatch(detail);
         } catch {}
       });
@@ -100,7 +105,12 @@ export function useCompletion(
   useEffect(() => {
     const listener = (event: Event) => {
       const detail = (event as CustomEvent<Completion>).detail;
-      if (!kind || !detail.kind || detail.kind === kind)
+      if (
+        !kind ||
+        !detail.kind ||
+        detail.kind === "content" ||
+        detail.kind === kind
+      )
         handler.current(detail);
     };
     window.addEventListener("nivra:completion", listener);

@@ -31,6 +31,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api/|share/|_next/|icons/|fonts/|icon\\.svg|manifest\\.webmanifest|sw\\.js|offline\\.html).*)",
+    "/((?!api/|mcp(?:/|$)|\\.well-known/|share/|_next/|icons/|fonts/|icon\\.svg|manifest\\.webmanifest|sw\\.js|offline\\.html).*)",
   ],
 };

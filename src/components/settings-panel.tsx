@@ -1,4 +1,5 @@
 "use client";
+import { AiConnections } from "./ai-connections";
 import { ResponsiveSurface } from "./responsive-surface";
 import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
@@ -25,7 +26,7 @@ import { api, authRequest, downloadRequest } from "@/lib/client";
 import { importFiles, type ImportResult } from "@/lib/import-files";
 import type { Owner, Settings } from "@/lib/types";
 
-type Section = "account" | "data";
+type Section = "account" | "data" | "agents";
 type AccountView = "profile" | "password" | "recovery" | "mfa" | "passkeys";
 export function SettingsPanel({
   open,
@@ -169,6 +170,7 @@ export function SettingsPanel({
               [
                 { id: "account", label: "Account" },
                 { id: "data", label: "Import & export" },
+                { id: "agents", label: "AI connections" },
               ] as const
             ).map((item, index, items) => (
               <button
@@ -524,6 +526,12 @@ export function SettingsPanel({
                   </>
                 )}
               </>
+            )}
+            {tab === "agents" && (
+              <AiConnections
+                onGuardChange={setMfaGuard}
+                onSignOut={onSignOut}
+              />
             )}
             {tab === "data" && (
               <>

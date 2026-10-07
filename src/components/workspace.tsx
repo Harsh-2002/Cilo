@@ -72,7 +72,7 @@ import { FeedbackOutlet } from "./inline-feedback";
 import { TrashPanel } from "./trash-panel";
 import { TasksPanel } from "./tasks-panel";
 import { ArtifactsPanel } from "./artifacts-panel";
-import { useCompletionStream } from "@/lib/completion-client";
+import { useCompletion, useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
 import { Shortcut, ShortcutKeys } from "./shortcut";
@@ -210,6 +210,17 @@ export function Workspace({
       if (seq === loadSequence.current) setLoading(false);
     }
   }, [view, tag, search, sort]);
+  const completionRefresh = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useCompletion("content", (event) => {
+    if (event.kind && event.kind !== "content") return;
+    clearTimeout(completionRefresh.current);
+    completionRefresh.current = setTimeout(() => {
+      void load();
+    }, 150);
+  });
+  useEffect(() => () => clearTimeout(completionRefresh.current), []);
   const loadMore = async () => {
     if (loadingMore || loading || !hasMore || listScope !== `${view}|${tag}`)
       return;

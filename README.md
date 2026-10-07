@@ -42,9 +42,13 @@ npm test
 npm run build
 ```
 
+Production builds use Next.js’s Webpack compiler; development uses its default Turbopack compiler.
+
 Next.js · TypeScript · shadcn/ui · Tailwind CSS v4 · BlockNote · SQLite/FTS5 · Drizzle · Better Auth · Excalidraw.
 
 Notes require a connection in this release. MinIO/RustFS-compatible S3 storage is optional. Bookmark preview cards, collections, batch import, and read-only publishing are available. [Overview, global search, version history, connected notes, recurring tasks and Journal](docs/connected-workspace.md) are included. Encrypted instance backups run daily by default and can target local storage or the shared S3-compatible storage. Offline editing and collaboration are deferred. See [architecture](docs/architecture.md), [self-hosting and backups](docs/self-hosting.md), and [contributing](CONTRIBUTING.md).
+
+[AI connections](docs/mcp.md) provide scoped API keys and OAuth for agents through `/mcp`.
 
 The [performance and verification guide](docs/performance.md) lists executed checks, corrected defects, and remaining browser/device coverage.
 
