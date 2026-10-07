@@ -1,4 +1,5 @@
 "use client";
+import "@/lib/drawing-assets";
 import { useConfirm } from "./confirm-provider";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -48,9 +49,6 @@ export default function CanvasDialog({
   const baseline = useRef<string | null>(null);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
-    (
-      window as unknown as { EXCALIDRAW_ASSET_PATH: string }
-    ).EXCALIDRAW_ASSET_PATH = "/excalidraw/";
     let active = true;
     async function load() {
       const data = JSON.parse(

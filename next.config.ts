@@ -3,9 +3,10 @@ import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
 const config: NextConfig = {
   devIndicators: false,
+  poweredByHeader: false,
   experimental: {
     webpackMemoryOptimizations: true,
-    turbopackMemoryEviction: "full",
+    turbopackMemoryEviction: "auto",
   },
   allowedDevOrigins: (environment().NIVRA_DEV_ORIGINS || "")
     .split(",")
@@ -58,6 +59,18 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(), microphone=(), geolocation=(), payment=(), public-key-credentials-get=(self), public-key-credentials-create=(self), clipboard-read=(self), clipboard-write=(self)",
+          },
+          ...(environment()
+            .NIVRA_PUBLIC_URL?.toLowerCase()
+            .startsWith("https://")
+            ? [{ key: "Strict-Transport-Security", value: "max-age=15552000" }]
+            : []),
         ],
       },
       {

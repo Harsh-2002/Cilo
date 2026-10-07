@@ -13,7 +13,9 @@ const fail = (error) => {
 };
 process.on("uncaughtException", fail);
 process.on("unhandledRejection", fail);
-const resume = process.argv[4] === "--resume";
+const mode = process.argv[4];
+assert.ok(mode === undefined || ["--resume", "--security-only"].includes(mode));
+const resume = mode !== undefined;
 const root = process.argv[2];
 const base = process.argv[3] || "http://localhost:3000";
 assert.ok(root && path.isAbsolute(root));
@@ -321,28 +323,64 @@ for (const q of ["' OR 1=1 --", '" ) MATCH *', "<script>alert(1)</script>"]) {
 report.security.push(
   "SQL/FTS-shaped queries remain bounded and do not cause server errors",
 );
+const firstPage = await anon.get("/");
+const secondPage = await anon.get("/");
+assert.equal(firstPage.status(), 200);
+const policy = firstPage.headers()["content-security-policy"];
+const nonce = policy?.match(/'nonce-([^']+)'/)?.[1];
+assert.ok(nonce, "Application HTML has a script nonce");
+assert.notEqual(
+  nonce,
+  secondPage
+    .headers()
+    ["content-security-policy"]?.match(/'nonce-([^']+)'/)?.[1],
+);
+assert.ok((await firstPage.text()).includes(`nonce="${nonce}"`));
+assert.ok(policy.includes("'strict-dynamic'"));
+assert.equal(firstPage.headers()["x-powered-by"], undefined);
+assert.equal(
+  firstPage.headers()["cross-origin-resource-policy"],
+  "same-origin",
+);
+assert.equal(firstPage.headers()["cross-origin-opener-policy"], "same-origin");
+assert.ok(
+  firstPage
+    .headers()
+    ["permissions-policy"].includes("public-key-credentials-get=(self)"),
+);
+report.security.push(
+  "Fresh page script nonces, privacy headers and same-origin passkey permissions",
+);
 await anon.dispose();
 console.log("Targeted security checks passed");
 writeFileSync(path.join(root, "report.json"), JSON.stringify(report, null, 2));
+if (mode === "--security-only") {
+  await api.dispose();
+  console.log("Targeted security audit passed.");
+  process.exit(0);
+}
 for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+  phase = `${name} browser startup`;
   const browser = await engine.launch(
     name === "chromium" ? { channel: "chrome" } : {},
   );
   for (const width of [390, 1440]) {
     const context = await browser.newContext({
       storageState: {
-        cookies: auditState.cookies.flatMap((cookie) => [
-          {
+        cookies: auditState.cookies.flatMap((cookie) => {
+          const normalized = {
             ...cookie,
             value: encodeURIComponent(cookie.value),
-            name: "better-auth.session_token",
-          },
-          {
-            ...cookie,
-            value: encodeURIComponent(cookie.value),
-            name: "__Secure-better-auth.session_token",
-          },
-        ]),
+            domain: origin.hostname,
+            secure: origin.protocol === "https:",
+          };
+          return [
+            { ...normalized, name: "better-auth.session_token" },
+            ...(normalized.secure
+              ? [{ ...normalized, name: "__Secure-better-auth.session_token" }]
+              : []),
+          ];
+        }),
         origins: [],
       },
       viewport: { width, height: 900 },

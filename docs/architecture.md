@@ -12,9 +12,11 @@ Canvas blocks store scene JSON and refer to local attachments for their embedded
 
 ## Accounts and access
 
-The browser onboarding wizard creates one owner with a username and password. A SQLite trigger and setup transaction enforce the single-owner invariant. Better Auth manages password hashes, sessions, and username login; a generated internal `nivra.invalid` address satisfies its account model without requiring mail infrastructure. Public signup is disabled.
+The onboarding wizard creates one owner with a name, username or email identifier, and either a password or verified passkey. A SQLite trigger and setup transaction enforce the single-owner invariant. Better Auth manages password hashes, sessions, optional TOTP and discoverable passkeys; username-only identifiers receive an internal `nivra.invalid` address without requiring mail infrastructure. Public signup is disabled. Authentication configuration is reused in a bounded origin cache; sessions are still checked against SQLite, so revocation remains immediate.
 
-A one-use recovery code is hashed in the database. Recovery changes the credential password, revokes all sessions, and replaces the code in one transaction. Generating a replacement while signed in requires the current password. Recovery and setup have bounded attempt limits.
+A one-use recovery code is hashed in the database. Recovery changes the credential password, revokes all sessions, and replaces the code in one transaction. Generating a replacement requires the current password, or a fresh passkey session when no password exists. Recovery and setup have bounded attempt limits.
+
+Application HTML uses a fresh script nonce and dynamic rendering. The proxy overwrites incoming nonce headers, and production disallows script evaluation and unapproved inline scripts. Inline styles remain necessary for editor and positioned controls. Published HTML retains its separate reader policy. Responses deny framing, restrict cross-origin access and browser permissions while allowing same-origin passkeys and clipboard actions, and enable HSTS when the canonical public URL is HTTPS. Cross-origin embedder isolation is intentionally omitted to preserve remote content in notes.
 
 ## Files and runtime
 

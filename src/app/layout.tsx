@@ -1,5 +1,6 @@
 import "@fontsource-variable/geist";
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { brandDescription } from "@/lib/brand";
 import { launchImages } from "@/lib/pwa.mjs";
 import { themeBootstrap } from "@/lib/theme";
@@ -27,16 +28,18 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: dark)", color: "#111111" },
   ],
 };
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nivra-nonce") ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
           id="nivra-theme-bootstrap"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: themeBootstrap }}
         />
       </head>

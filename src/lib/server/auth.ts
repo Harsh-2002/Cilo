@@ -64,10 +64,19 @@ export function authSecret() {
       .trim();
   }
 }
+const instances = new Map<string, ReturnType<typeof createAuth>>();
 export function auth(request?: Request) {
   const origin = request
     ? requestOrigin(request)
     : environment().NIVRA_PUBLIC_URL || "http://localhost:3000";
+  const cached = instances.get(origin);
+  if (cached) return cached;
+  const instance = createAuth(origin);
+  if (instances.size >= 8) instances.delete(instances.keys().next().value!);
+  instances.set(origin, instance);
+  return instance;
+}
+function createAuth(origin: string) {
   return betterAuth({
     appName: "Nivra",
     baseURL: origin,
@@ -94,7 +103,6 @@ export function auth(request?: Request) {
     session: {
       expiresIn: 60 * 60 * 24 * 14,
       freshAge: passkeyFreshSeconds,
-      passkeyOptions,
     },
   });
 }

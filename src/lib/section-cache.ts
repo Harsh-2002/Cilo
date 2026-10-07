@@ -2,10 +2,17 @@
 const entries = new Map<string, unknown>();
 export const sectionCache = {
   get<T>(key: string) {
-    return entries.get(key) as T | undefined;
+    const value = entries.get(key);
+    if (entries.has(key)) {
+      entries.delete(key);
+      entries.set(key, value);
+    }
+    return value as T | undefined;
   },
   set(key: string, value: unknown) {
+    entries.delete(key);
     entries.set(key, value);
+    if (entries.size > 24) entries.delete(entries.keys().next().value!);
   },
   clear(...prefixes: string[]) {
     for (const key of [...entries.keys()])
