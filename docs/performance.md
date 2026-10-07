@@ -24,11 +24,40 @@ Ten paired SQL samples against the same encrypted library gave these medians. Th
 | Global unique-token search         |    76 ms |  72 ms |
 | Global deep-text search            |    34 ms |  37 ms |
 
+## Single-user development-server measurement
+
+After the final index upgrade and completed source checks, one driver made 20 sequential requests per endpoint with 150 ms between requests. It first warmed the endpoints, held one SSE connection through 60 seconds of idle, and finished with 30 seconds of idle after browsing. No local test suite, production build or backup ran during the measurement. The shared host and development compiler remain sources of variation; these are API response timings rather than page-render or Core Web Vitals measurements.
+
+| Endpoint               | Median | 95th percentile |
+| ---------------------- | -----: | --------------: |
+| Overview               | 206 ms |          334 ms |
+| Notes                  | 176 ms |          503 ms |
+| Journal                | 151 ms |          343 ms |
+| Mixed Favorites        | 121 ms |          193 ms |
+| Tasks                  |  77 ms |          117 ms |
+| Bookmarks              |  93 ms |          240 ms |
+| Artifacts              |  80 ms |          110 ms |
+| Trash                  |  77 ms |          198 ms |
+| Tagged collection      |  75 ms |          131 ms |
+| Unique-token search    | 104 ms |          171 ms |
+| Broad full-text search | 231 ms |          435 ms |
+| Tag and text search    | 147 ms |          234 ms |
+
+Trash improved from 780 ms median before the missing index to 77 ms after it. An earlier run had Notes/Journal medians of 86/83 ms; the final run recorded 176/151 ms. The database query improvement is reproducible, but the development host does not provide a fixed latency guarantee.
+
+The service cgroup includes the application, compiler children, native allocations and charged filesystem cache. During sequential browsing it peaked at 1.54 GiB, averaged 155.8% of one CPU core and peaked at 246.9% in a one-second sample. On this four-core host those CPU values are 38.9% average and 61.7% peak of total capacity. The first idle interval averaged 9.0% of one core (2.25% of host capacity), including a 227.3% spike; the immediate post-browsing interval averaged 23.0% of one core. Median idle samples were much lower, but the spikes must not be discarded as zero CPU. Development child-process activity was observed during this run; it does not isolate the cost of SQLite or encryption.
+
+A separate follow-up allowed 30 seconds to settle and sampled 60 seconds with one SSE connection. Median CPU was 0.358% of one core (0.09% of host capacity), but the average was 34.7% of one core (8.68% of the host) and the one-second peak was 246.7% (61.7% of the host). Cgroup memory peaked at 1.42 GiB in that interval. The low median does not establish the requested near-zero average idle target: that target remains unmet in the measured development runtime. Further profiling must attribute these intermittent child-process/GC/compiler spikes before claiming they are fixed.
+
+Earlier bulk pagination, compilation and processing overlapped, reaching 367.3% of one core (91.8% of this host) and 2.56 GiB of cgroup memory. That is a mixed verification workload, not normal browsing. The configured development service memory limit is a guard rather than evidence of leak-free behavior. A longer-duration leak test and production-runtime capacity benchmark remain unverified.
+
 ## Functional and security checks
 
 The live pagination pass visited 167 pages for each collection and found all 50,000 fixture IDs. Separate checks covered all 20 tag filters, full pagination through 5,000 favorite notes/journal entries, 2,500 favorite bookmarks and their combined 7,500-item Favorites collection, all supported search types, and matches beyond the displayed preview in both a note and an artifact.
 
 Targeted live security checks passed for unauthenticated item/search/file/SSE access, cross-origin writes, malformed input, owner-setup reuse, blocked public signup, traversal-shaped identifiers, stale revision rejection, safe PDF download headers, SQL/FTS-shaped input and refusal to fetch private-network bookmark metadata. Synthetic security links are moved to Trash. These checks are an application audit, not an independent penetration test.
+
+The final source checks passed: type checking, lint, formatting, branding, all 123 tests and the production build, including the private-data shipping guard. Browser checks passed across Chromium, Firefox and WebKit for the five main content sections at desktop and phone sizes; separate checks covered mixed Favorites, tag collections, tag saves, search geometry, mobile Search/Settings navigation and Overview layouts. The full-instance encrypted backup restored successfully, including tag relationships. Browser emulation does not certify physical devices, assistive technology or installed-PWA behavior.
 
 ## Interface behavior
 
