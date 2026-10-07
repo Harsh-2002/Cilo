@@ -5198,3 +5198,17 @@ button:disabled {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.setup-auth-method {
+  display: grid;
+  gap: 12px;
+}
+.setup-auth-method > [role="group"] {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.setup-auth-method [data-slot="button"] {
+  min-height: 44px;
+}

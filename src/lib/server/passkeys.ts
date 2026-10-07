@@ -4,6 +4,8 @@ import {
   createAuthMiddleware,
   getSessionFromCtx,
 } from "better-auth/api";
+import { sqlite } from "./db";
+import { passkeySetupIntent, createPasskeyOwner } from "./passkey-setup";
 import { environment } from "./environment";
 
 export const passkeyFreshSeconds = 300;
@@ -27,9 +29,19 @@ export function passkeyPlugin() {
       userVerification: "required",
     },
     registration: {
-      requireSession: true,
-      afterVerification: ({ verification }) => {
+      requireSession: false,
+      resolveUser: ({ context }) => {
+        if (sqlite().prepare("SELECT 1 FROM user").get())
+          throw new APIError("UNAUTHORIZED", {
+            message: "Sign in to add a passkey.",
+          });
+        const row = passkeySetupIntent(context);
+        return { id: row.user_id, name: row.username, displayName: row.name };
+      },
+      afterVerification: async ({ verification, ctx, context, user }) => {
         requireVerifiedPasskey(verification.registrationInfo?.userVerified);
+        const session = await getSessionFromCtx(ctx);
+        if (!session) createPasskeyOwner(context, user.id);
       },
     },
     authentication: {
@@ -72,9 +84,48 @@ export const authGuard = createAuthMiddleware(async (ctx) => {
   )
     return;
   const session = await getSessionFromCtx(ctx);
-  if (!session)
+  const name = ctx.body?.name;
+  if (
+    typeof name === "string" &&
+    (name.trim().length < 1 || name.trim().length > 80)
+  )
+    throw new APIError("BAD_REQUEST", {
+      message: "Use a passkey name between 1 and 80 characters.",
+    });
+  if (!session) {
+    if (
+      !sqlite().prepare("SELECT 1 FROM user").get() &&
+      ctx.path === "/passkey/generate-register-options"
+    ) {
+      passkeySetupIntent(ctx.query?.context);
+      return;
+    }
+    if (
+      !sqlite().prepare("SELECT 1 FROM user").get() &&
+      ctx.path === "/passkey/verify-registration" &&
+      ctx.body?.createSession === true
+    )
+      return;
     throw new APIError("UNAUTHORIZED", {
       message: "Sign in to manage your passkeys.",
+    });
+  }
+  if (
+    ctx.path === "/passkey/delete-passkey" &&
+    !sqlite()
+      .prepare(
+        "SELECT 1 FROM account WHERE user_id=? AND provider_id='credential' AND password IS NOT NULL",
+      )
+      .get(session.user.id) &&
+    (
+      sqlite()
+        .prepare("SELECT count(*) n FROM passkey WHERE user_id=?")
+        .get(session.user.id) as { n: number }
+    ).n <= 1
+  )
+    throw new APIError("BAD_REQUEST", {
+      message:
+        "Add a password or another passkey before removing your last passkey.",
     });
   if (
     Date.now() - new Date(session.session.createdAt).getTime() >=
@@ -84,19 +135,34 @@ export const authGuard = createAuthMiddleware(async (ctx) => {
       message: "Sign in again before managing passkeys.",
       code: "PASSKEY_REAUTH_REQUIRED",
     });
-  const name = ctx.body?.name;
-  if (
-    typeof name === "string" &&
-    (name.trim().length < 1 || name.trim().length > 80)
-  )
-    throw new APIError("BAD_REQUEST", {
-      message: "Use a passkey name between 1 and 80 characters.",
-    });
 });
 
 export const passkeyOptions = createAuthMiddleware(async (ctx) => {
-  if (ctx.path !== "/passkey/generate-authenticate-options") return;
   const options = ctx.context.returned;
+  if (
+    ctx.path === "/passkey/generate-register-options" &&
+    options &&
+    typeof options === "object" &&
+    "user" in options &&
+    options.user &&
+    typeof options.user === "object"
+  ) {
+    const session = await getSessionFromCtx(ctx);
+    const identity = session
+      ? (sqlite()
+          .prepare("SELECT name,username FROM user WHERE id=?")
+          .get(session.user.id) as { name: string; username: string })
+      : passkeySetupIntent(ctx.query?.context);
+    return ctx.json({
+      ...options,
+      user: {
+        ...options.user,
+        name: identity.username,
+        displayName: identity.name,
+      },
+    });
+  }
+  if (ctx.path !== "/passkey/generate-authenticate-options") return;
   if (options && typeof options === "object" && "challenge" in options)
     return ctx.json({ ...options, userVerification: "required" });
 });

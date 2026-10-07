@@ -49,6 +49,7 @@ export type Settings = {
   theme: "light" | "dark" | "system";
   uploadLimit: number;
   twoFactorEnabled?: boolean;
+  hasPassword?: boolean;
 };
 export type Publication = {
   token: string;

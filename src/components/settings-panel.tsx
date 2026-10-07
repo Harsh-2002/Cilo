@@ -49,6 +49,7 @@ export function SettingsPanel({
   const [tab, setTab] = useState<Section>("account");
   const [accountView, setAccountView] = useState<AccountView>("profile");
   const [busy, setBusy] = useState(false);
+  const [hasPassword, setHasPassword] = useState(initial.hasPassword ?? true);
   const [mfaGuard, setMfaGuard] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(
     Boolean(initial.twoFactorEnabled),
@@ -70,6 +71,7 @@ export function SettingsPanel({
       api<{ owner: Owner | null; settings: Settings | null }>("status")
         .then((result) => {
           setMfaEnabled(Boolean(result.settings?.twoFactorEnabled));
+          setHasPassword(Boolean(result.settings?.hasPassword));
         })
         .catch((e) => setError(e.message));
   }, [open]);
@@ -244,9 +246,6 @@ export function SettingsPanel({
                         <dd>{owner.username}</dd>
                       </div>
                     </dl>
-                    <p className="field-hint">
-                      Your account identity is fixed after setup.
-                    </p>
                     <div className="settings-security">
                       <button
                         disabled={busy || mfaGuard}
@@ -267,7 +266,11 @@ export function SettingsPanel({
                       >
                         <span>
                           <strong>Password</strong>
-                          <small>Change your sign-in password.</small>
+                          <small>
+                            {hasPassword
+                              ? "Change your sign-in password."
+                              : "Add a password as another sign-in method."}
+                          </small>
                         </span>
                         <ChevronRight size={16} />
                       </button>
@@ -336,6 +339,7 @@ export function SettingsPanel({
                 )}
                 {accountView === "passkeys" && (
                   <PasskeySettings
+                    hasPassword={hasPassword}
                     onGuardChange={setMfaGuard}
                     onSignOut={() => run(onSignOut)}
                   />
@@ -343,7 +347,9 @@ export function SettingsPanel({
                 {accountView === "password" && (
                   <>
                     <div className="settings-section-heading">
-                      <h2>Change password</h2>
+                      <h2>
+                        {hasPassword ? "Change password" : "Add password"}
+                      </h2>
                       <p>Use at least 12 characters.</p>
                     </div>
                     <form
@@ -355,17 +361,26 @@ export function SettingsPanel({
                           return;
                         }
                         void run(async () => {
-                          await authRequest("change-password", {
-                            currentPassword,
-                            newPassword,
-                            revokeOtherSessions: true,
-                          });
+                          if (hasPassword)
+                            await authRequest("change-password", {
+                              currentPassword,
+                              newPassword,
+                              revokeOtherSessions: true,
+                            });
+                          else
+                            await api("account-password", {
+                              method: "POST",
+                              body: JSON.stringify({ password: newPassword }),
+                            });
+                          setHasPassword(true);
                           setCurrentPassword("");
                           setNewPassword("");
                           setConfirm("");
                           setAccountView("profile");
                           notify.success(
-                            "Password changed. Other sessions were signed out.",
+                            hasPassword
+                              ? "Password changed. Other sessions were signed out."
+                              : "Password added.",
                           );
                         });
                       }}
@@ -392,30 +407,50 @@ export function SettingsPanel({
                           set: setConfirm,
                           autocomplete: "new-password",
                         },
-                      ].map((field) => (
-                        <div className="field" key={field.id}>
-                          <Label htmlFor={field.id}>{field.label}</Label>
-                          <Input
-                            id={field.id}
-                            type="password"
-                            autoComplete={field.autocomplete}
-                            value={field.value}
-                            minLength={
-                              field.id === "current-password" ? undefined : 12
-                            }
-                            maxLength={128}
-                            required
-                            onChange={(e) => field.set(e.target.value)}
-                          />
-                        </div>
-                      ))}
+                      ]
+                        .filter(
+                          (field) =>
+                            hasPassword || field.id !== "current-password",
+                        )
+                        .map((field) => (
+                          <div className="field" key={field.id}>
+                            <Label htmlFor={field.id}>{field.label}</Label>
+                            <Input
+                              id={field.id}
+                              type="password"
+                              autoComplete={field.autocomplete}
+                              value={field.value}
+                              minLength={
+                                field.id === "current-password" ? undefined : 12
+                              }
+                              maxLength={128}
+                              required
+                              onChange={(e) => field.set(e.target.value)}
+                            />
+                          </div>
+                        ))}
                       <Button type="submit" disabled={busy || mfaGuard}>
-                        Update password
+                        {hasPassword ? "Update password" : "Add password"}
                       </Button>
                     </form>
                   </>
                 )}
-                {accountView === "mfa" && (
+                {accountView === "mfa" && !hasPassword && (
+                  <div className="settings-section-heading">
+                    <h2>Add a password first</h2>
+                    <p>
+                      An authenticator protects password sign-in. Passkeys
+                      already require your PIN or biometrics.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setAccountView("password")}
+                    >
+                      Add password
+                    </Button>
+                  </div>
+                )}
+                {accountView === "mfa" && hasPassword && (
                   <MfaSettings
                     enabled={mfaEnabled}
                     beforeAction={beforeAction}
@@ -451,20 +486,31 @@ export function SettingsPanel({
                         });
                       }}
                     >
-                      <div className="field">
-                        <Label htmlFor="recovery-password">
-                          Current password
-                        </Label>
-                        <Input
-                          id="recovery-password"
-                          type="password"
-                          autoComplete="current-password"
-                          value={currentPassword}
-                          required
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                        />
-                      </div>
-                      <Button type="submit" disabled={busy || !currentPassword}>
+                      {hasPassword && (
+                        <div className="field">
+                          <Label htmlFor="recovery-password">
+                            Current password
+                          </Label>
+                          <Input
+                            id="recovery-password"
+                            type="password"
+                            autoComplete="current-password"
+                            value={currentPassword}
+                            required
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                          />
+                        </div>
+                      )}
+                      {!hasPassword && (
+                        <p className="field-hint">
+                          Sign in with your passkey again if your session is
+                          more than five minutes old.
+                        </p>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={busy || (hasPassword && !currentPassword)}
+                      >
                         Generate new code
                       </Button>
                     </form>

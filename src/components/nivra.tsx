@@ -16,10 +16,12 @@ export function Nivra({
 }) {
   const [status, setStatus] = useState<{
     setup: boolean;
+    methods: { password: boolean; passkey: boolean };
     owner: Owner | null;
     settings: Settings | null;
   } | null>(null);
   const [error, setError] = useState("");
+  const signingOut = useRef(false);
   const { setTheme } = useTheme();
   const setThemeRef = useRef(setTheme);
   useEffect(() => {
@@ -60,11 +62,16 @@ export function Nivra({
       owner={status.owner}
       initialSettings={status.settings!}
       onSignOut={() => {
-        setStatus(null);
-        void refresh();
+        if (signingOut.current) return;
+        signingOut.current = true;
+        window.location.replace("/");
       }}
     />
   ) : (
-    <AuthScreen setup={status.setup} onReady={refresh} />
+    <AuthScreen
+      setup={status.setup}
+      methods={status.methods}
+      onReady={refresh}
+    />
   );
 }

@@ -1,3 +1,10 @@
+import {
+  beginPasskeySetup,
+  discardPasskeySetup,
+  expirePasskeySetups,
+  loginMethods,
+} from "@/lib/server/passkey-setup";
+import { passkeyFreshSeconds } from "@/lib/server/passkeys";
 import { listTrash, restoreTrash, deleteTrash } from "@/lib/server/trash";
 import {
   historicalBundleFormat,
@@ -130,6 +137,11 @@ const settings = () => {
     .get() as { two_factor_enabled: number } | undefined;
   return {
     ...(row as { theme: string }),
+    hasPassword: !!sqlite()
+      .prepare(
+        "SELECT 1 FROM account WHERE provider_id='credential' AND password IS NOT NULL",
+      )
+      .get(),
     uploadLimit: uploadLimit(),
     twoFactorEnabled: Boolean(owner?.two_factor_enabled),
   };
@@ -197,6 +209,8 @@ async function handle(
       if (action) throw new HttpError(404, "This shared note was not found.");
       return response(published);
     }
+    if (area === "status" || area === "setup-passkey" || area === "setup")
+      expirePasskeySetups();
     const owner = database
       .prepare("SELECT id,name,username FROM user LIMIT 1")
       .get() as { id: string; name: string; username: string } | undefined;
@@ -206,9 +220,22 @@ async function handle(
       });
       return response({
         setup: !owner,
+        methods: loginMethods(owner?.id),
         owner: session ? owner : null,
         settings: session ? settings() : null,
       });
+    }
+    if (area === "setup-passkey" && method === "POST") {
+      throttle("setup");
+      if (id === "cancel") {
+        const input = z
+          .object({ context: z.string().min(43).max(43) })
+          .parse(await json(request));
+        discardPasskeySetup(input.context);
+        return response({ ok: true });
+      }
+      if (id) throw new HttpError(404, "Setup action was not found.");
+      return response(beginPasskeySetup(await json(request)));
     }
     if (area === "setup" && method === "POST") {
       throttle("setup");
@@ -292,6 +319,26 @@ async function handle(
               "UPDATE account SET password=?,updated_at=? WHERE user_id=? AND provider_id='credential'",
             )
             .run(password, Date.now(), owner.id);
+          if (
+            !database
+              .prepare(
+                "SELECT 1 FROM account WHERE user_id=? AND provider_id='credential'",
+              )
+              .get(owner.id)
+          )
+            database
+              .prepare(
+                "INSERT INTO account(id,account_id,provider_id,user_id,password,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+              )
+              .run(
+                randomUUID(),
+                owner.id,
+                "credential",
+                owner.id,
+                password,
+                Date.now(),
+                Date.now(),
+              );
           database.prepare("DELETE FROM session").run();
           database.prepare("DELETE FROM verification").run();
           database
@@ -312,6 +359,21 @@ async function handle(
     });
     if (!session || !owner || session.user.id !== owner.id)
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "account-password" && method === "POST" && !id) {
+      if (
+        Date.now() - new Date(session.session.createdAt).getTime() >=
+        passkeyFreshSeconds * 1000
+      )
+        throw new HttpError(403, "Sign in again before adding a password.");
+      const input = credentials
+        .omit({ username: true })
+        .parse(await json(request));
+      await auth(request).api.setPassword({
+        headers: request.headers,
+        body: { newPassword: input.password },
+      });
+      return response({ ok: true });
+    }
     if (area === "events" && method === "GET" && !id) {
       startJobWorker();
       return completionStream(request, owner.id, session.session.id);
@@ -348,12 +410,21 @@ async function handle(
         const input = z
           .object({ password: z.string() })
           .parse(await json(request));
-        const result = await auth(request).api.verifyPassword({
-          body: input,
-          headers: request.headers,
-        });
-        if (!result.status)
-          throw new HttpError(400, "The current password is incorrect.");
+        if (loginMethods(owner.id).password) {
+          const result = await auth(request).api.verifyPassword({
+            body: input,
+            headers: request.headers,
+          });
+          if (!result.status)
+            throw new HttpError(400, "The current password is incorrect.");
+        } else if (
+          Date.now() - new Date(session.session.createdAt).getTime() >=
+          passkeyFreshSeconds * 1000
+        )
+          throw new HttpError(
+            403,
+            "Sign in again before replacing your recovery code.",
+          );
         const code = recovery();
         database
           .prepare("UPDATE instance SET recovery_hash=? WHERE id=1")

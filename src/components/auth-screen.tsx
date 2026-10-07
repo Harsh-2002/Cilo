@@ -1,5 +1,6 @@
 "use client";
 import { brandPath, brandFramePath, brandTagline } from "@/lib/brand";
+import { MfaSettings } from "./mfa-settings";
 import { useState } from "react";
 import {
   passkeyAuth,
@@ -93,11 +94,19 @@ export function RecoveryCard({
 }
 export function AuthScreen({
   setup,
+  methods,
   onReady,
 }: {
   setup: boolean;
+  methods: { password: boolean; passkey: boolean };
   onReady: () => void;
 }) {
+  const [setupMethod, setSetupMethod] = useState<"password" | "passkey">(
+    "password",
+  );
+  const [mfaSetup, setMfaSetup] = useState(false);
+  const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  const [mfaGuard, setMfaGuard] = useState(false);
   const [step, setStep] = useState(0);
   const [mfa, setMfa] = useState(false);
   const [backup, setBackup] = useState(false);
@@ -119,17 +128,47 @@ export function AuthScreen({
     e.preventDefault();
     if (busy) return;
     setError("");
-    if ((setup || recovering) && password !== confirm) {
+    if (
+      ((setup && setupMethod === "password") || recovering) &&
+      password !== confirm
+    ) {
       setError("Your passwords don’t match.");
       return;
     }
     setBusy(true);
     try {
       if (setup) {
-        const result = await api<{ recoveryCode: string }>("setup", {
-          method: "POST",
-          body: JSON.stringify({ name, username, password }),
-        });
+        let result: { recoveryCode: string };
+        if (setupMethod === "passkey") {
+          const intent = await api<{ context: string; recoveryCode: string }>(
+            "setup-passkey",
+            { method: "POST", body: JSON.stringify({ name, username }) },
+          );
+          try {
+            const registered = await passkeyAuth.passkey.addPasskey({
+              context: intent.context,
+              createSession: true,
+              name: "Primary passkey",
+            });
+            if (registered.error)
+              throw new Error(
+                passkeyCancelled(registered.error)
+                  ? "Passkey creation was cancelled. Try again or choose password."
+                  : registered.error.message ||
+                      "Passkey creation failed. Try again.",
+              );
+            result = { recoveryCode: intent.recoveryCode };
+          } finally {
+            await api("setup-passkey/cancel", {
+              method: "POST",
+              body: JSON.stringify({ context: intent.context }),
+            }).catch(() => {});
+          }
+        } else
+          result = await api<{ recoveryCode: string }>("setup", {
+            method: "POST",
+            body: JSON.stringify({ name, username, password }),
+          });
         setRecoveryCode(result.recoveryCode);
         setPassword("");
         setConfirm("");
@@ -281,7 +320,8 @@ export function AuthScreen({
           <>
             <h1>A space that feels like you.</h1>
             <p className="auth-description">
-              Choose your appearance. You can change this anytime in settings.
+              Choose your appearance. You can change this anytime in the
+              sidebar.
             </p>
             <div className="theme-options">
               {(
@@ -303,7 +343,41 @@ export function AuthScreen({
                 </button>
               ))}
             </div>
-            <Button className="w-full" disabled={busy} onClick={finish}>
+            {setupMethod === "password" &&
+              (mfaSetup ? (
+                <MfaSettings
+                  enabled={mfaEnrolled}
+                  beforeAction={async () => true}
+                  onChanged={setMfaEnrolled}
+                  onGuardChange={(guard) => {
+                    setMfaGuard(guard);
+                    if (!guard && mfaEnrolled) setMfaSetup(false);
+                  }}
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={mfaEnrolled}
+                  onClick={() => setMfaSetup(true)}
+                >
+                  {mfaEnrolled
+                    ? "Authenticator enabled"
+                    : "Add an authenticator (optional)"}
+                </Button>
+              ))}
+            <p className="field-hint">
+              You can add{" "}
+              {setupMethod === "password"
+                ? "passkeys"
+                : "a password and an authenticator"}{" "}
+              in Settings → Account.
+            </p>
+            <Button
+              className="w-full"
+              disabled={busy || mfaGuard}
+              onClick={finish}
+            >
               {busy ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : (
@@ -331,7 +405,7 @@ export function AuthScreen({
                   ? "Use your saved recovery code to set a new password. Registered passkeys stay valid; remove unwanted keys in Settings after signing in."
                   : "Pick up where your thoughts left off."}
             </p>
-            {!setup && !recovering && (
+            {!setup && !recovering && methods.passkey && (
               <div className="auth-passkeys">
                 <Button
                   type="button"
@@ -373,126 +447,178 @@ export function AuthScreen({
                 </Button>
                 <p className="field-hint">
                   {passkeysSupported
-                    ? "Or sign in with your password below."
+                    ? methods.password
+                      ? "Or sign in with your password below."
+                      : "Use your saved device, security key or password manager."
                     : "Passkeys need a supported browser and HTTPS or localhost."}
                 </p>
               </div>
             )}
-            <form onSubmit={submit} className="auth-form">
-              {setup && (
-                <div className="field">
-                  <Label htmlFor="name">Your name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    maxLength={80}
-                    autoComplete="name"
-                    placeholder="How should we call you?"
-                  />
-                </div>
-              )}
-              {recovering ? (
-                <div className="field">
-                  <Label htmlFor="recovery">Recovery code</Label>
-                  <Input
-                    id="recovery"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    required
-                    autoComplete="off"
-                    placeholder="Your saved recovery code"
-                  />
-                </div>
-              ) : (
-                <div className="field">
-                  <Label htmlFor="username">Username or email</Label>
-                  <Input
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    minLength={3}
-                    maxLength={254}
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    autoComplete="username"
-                    placeholder="Username or email address"
-                  />
-                  {setup && (
-                    <p className="field-hint">
-                      Use 3–30 letters, numbers, dots or underscores, or an
-                      email address.
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="field">
-                <Label htmlFor="password">
-                  {recovering ? "New password" : "Password"}
-                </Label>
-                <div className="password-field">
-                  <Input
-                    id="password"
-                    type={visible ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={setup || recovering ? 12 : undefined}
-                    maxLength={128}
-                    autoComplete={
-                      setup || recovering ? "new-password" : "current-password"
-                    }
-                    placeholder={
-                      setup || recovering
-                        ? "At least 12 characters"
-                        : "Enter your password"
-                    }
-                  />
-                  <button
-                    type="button"
-                    aria-label={visible ? "Hide password" : "Show password"}
-                    onClick={() => setVisible(!visible)}
-                  >
-                    {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-                  </button>
-                </div>
-              </div>
-              {(setup || recovering) && (
-                <div className="field">
-                  <Label htmlFor="confirm">Confirm password</Label>
-                  <Input
-                    id="confirm"
-                    type="password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    required
-                    autoComplete="new-password"
-                    placeholder="Once more, to be sure"
-                  />
-                </div>
-              )}
-              {error && (
-                <p className="form-error" role="alert">
-                  {error}
-                </p>
-              )}
-              <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <>
-                    {setup
-                      ? "Create your space"
-                      : recovering
-                        ? "Reset password"
-                        : "Sign in"}
-                    <ArrowRight size={16} />
-                  </>
+            {(setup || recovering || methods.password) && (
+              <form onSubmit={submit} className="auth-form">
+                {setup && (
+                  <div className="field">
+                    <Label htmlFor="name">Your name</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      maxLength={80}
+                      autoComplete="name"
+                      placeholder="How should we call you?"
+                    />
+                  </div>
                 )}
-              </Button>
-            </form>
+                {recovering ? (
+                  <div className="field">
+                    <Label htmlFor="recovery">Recovery code</Label>
+                    <Input
+                      id="recovery"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      required
+                      autoComplete="off"
+                      placeholder="Your saved recovery code"
+                    />
+                  </div>
+                ) : (
+                  <div className="field">
+                    <Label htmlFor="username">Username or email</Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      minLength={3}
+                      maxLength={254}
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      autoComplete="username"
+                      placeholder="Username or email address"
+                    />
+                    {setup && (
+                      <p className="field-hint">
+                        Use 3–30 letters, numbers, dots or underscores, or an
+                        email address.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {setup && (
+                  <div className="setup-auth-method">
+                    <Label>How would you like to sign in?</Label>
+                    <div role="group" aria-label="Sign-in method">
+                      <Button
+                        type="button"
+                        variant={
+                          setupMethod === "password" ? "default" : "outline"
+                        }
+                        aria-pressed={setupMethod === "password"}
+                        onClick={() => {
+                          setSetupMethod("password");
+                          setError("");
+                        }}
+                      >
+                        Password
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={
+                          setupMethod === "passkey" ? "default" : "outline"
+                        }
+                        aria-pressed={setupMethod === "passkey"}
+                        disabled={!passkeysSupported}
+                        onClick={() => {
+                          setSetupMethod("passkey");
+                          setPassword("");
+                          setConfirm("");
+                          setError("");
+                        }}
+                      >
+                        <KeyRound size={16} />
+                        Passkey
+                      </Button>
+                    </div>
+                    <p className="field-hint">
+                      {setupMethod === "passkey"
+                        ? "Use a device, security key or password manager. No password is required."
+                        : "Use a password, with an optional authenticator for extra protection."}
+                    </p>
+                  </div>
+                )}
+                {(!setup || setupMethod === "password") && (
+                  <div className="field">
+                    <Label htmlFor="password">
+                      {recovering ? "New password" : "Password"}
+                    </Label>
+                    <div className="password-field">
+                      <Input
+                        id="password"
+                        type={visible ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={setup || recovering ? 12 : undefined}
+                        maxLength={128}
+                        autoComplete={
+                          setup || recovering
+                            ? "new-password"
+                            : "current-password"
+                        }
+                        placeholder={
+                          setup || recovering
+                            ? "At least 12 characters"
+                            : "Enter your password"
+                        }
+                      />
+                      <button
+                        type="button"
+                        aria-label={visible ? "Hide password" : "Show password"}
+                        onClick={() => setVisible(!visible)}
+                      >
+                        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {((setup && setupMethod === "password") || recovering) && (
+                  <div className="field">
+                    <Label htmlFor="confirm">Confirm password</Label>
+                    <Input
+                      id="confirm"
+                      type="password"
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      placeholder="Once more, to be sure"
+                    />
+                  </div>
+                )}
+                {error && (
+                  <p className="form-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={busy}>
+                  {busy ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      {setup
+                        ? setupMethod === "passkey"
+                          ? "Create your passkey"
+                          : "Create your space"
+                        : recovering
+                          ? "Reset password"
+                          : "Sign in"}
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
             {!setup && (
               <button
                 className="text-button auth-secondary"
@@ -509,7 +635,7 @@ export function AuthScreen({
                     Back to sign in
                   </>
                 ) : (
-                  "Forgot your password?"
+                  "Use recovery code"
                 )}
               </button>
             )}
@@ -521,9 +647,6 @@ export function AuthScreen({
           </p>
         )}
       </section>
-      <footer className="auth-footer">
-        Your space. Your server. Your ideas.
-      </footer>
     </main>
   );
 }

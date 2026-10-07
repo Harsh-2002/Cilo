@@ -17,9 +17,11 @@ type Credential = {
   createdAt?: string | Date | null;
 };
 export function PasskeySettings({
+  hasPassword,
   onGuardChange,
   onSignOut,
 }: {
+  hasPassword: boolean;
   onGuardChange: (blocked: boolean) => void;
   onSignOut: () => Promise<void>;
 }) {
@@ -98,6 +100,11 @@ export function PasskeySettings({
   return (
     <div className="passkey-settings">
       <h2>Passkeys</h2>
+      {!hasPassword && items?.length === 1 && (
+        <p className="field-hint">
+          Add a password or another passkey before removing your last passkey.
+        </p>
+      )}
       <p className="settings-description">
         Sign in with a security key, your device or a password manager. A PIN or
         biometrics verifies it’s you.
@@ -217,7 +224,9 @@ export function PasskeySettings({
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={busy || reauth}
+                    disabled={
+                      busy || reauth || (!hasPassword && items.length <= 1)
+                    }
                     onClick={() =>
                       void run(async () => {
                         if (
