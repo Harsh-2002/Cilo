@@ -49,6 +49,7 @@ export function SettingsPanel({
   const [tab, setTab] = useState<Section>("account");
   const [accountView, setAccountView] = useState<AccountView>("profile");
   const [busy, setBusy] = useState(false);
+  const [otherSessionsSignedOut, setOtherSessionsSignedOut] = useState(false);
   const [hasPassword, setHasPassword] = useState(initial.hasPassword ?? true);
   const [mfaGuard, setMfaGuard] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(
@@ -89,6 +90,7 @@ export function SettingsPanel({
     }
   }
   function close() {
+    setOtherSessionsSignedOut(false);
     setCurrentPassword("");
     setNewPassword("");
     setConfirm("");
@@ -303,7 +305,11 @@ export function SettingsPanel({
                       <div className="settings-row">
                         <div>
                           <h3>Other sessions</h3>
-                          <p>Sign out your other browsers and devices.</p>
+                          <p role="status" aria-live="polite">
+                            {otherSessionsSignedOut
+                              ? "Other sessions signed out."
+                              : "Sign out your other browsers and devices."}
+                          </p>
                         </div>
                         <Button
                           variant="outline"
@@ -311,8 +317,9 @@ export function SettingsPanel({
                           disabled={busy || mfaGuard}
                           onClick={() =>
                             void run(async () => {
+                              setOtherSessionsSignedOut(false);
                               await authRequest("revoke-other-sessions", {});
-                              notify.success("Other sessions signed out.");
+                              setOtherSessionsSignedOut(true);
                             })
                           }
                         >

@@ -17,7 +17,7 @@ export function InlineFeedback() {
       setFeedback((event as CustomEvent<Feedback | null>).detail);
     const place = () => {
       const dialogs = document.querySelectorAll(
-        '[data-slot="dialog-content"] .feedback-slot',
+        '[data-slot="dialog-content"] .feedback-slot,.mobile-app-page .feedback-slot',
       );
       const slots = document.querySelectorAll(
         ".section-heading .feedback-slot,.writing-surface > .feedback-slot,.notes-list > .feedback-slot",

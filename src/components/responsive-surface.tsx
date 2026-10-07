@@ -64,7 +64,10 @@ export function ResponsiveSurface({
       }
       state.current.onOpenChange(atSurface);
     };
-    const timer = setTimeout(restore, 0);
+    const timer = setTimeout(() => {
+      if (window.location.pathname.replace(/\/$/, "") === `/${surface}`)
+        restore();
+    }, 0);
     window.addEventListener("popstate", restore);
     return () => {
       clearTimeout(timer);

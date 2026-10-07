@@ -11,12 +11,10 @@ import {
 } from "react";
 import {
   Bookmark,
-  CalendarDays,
   FileText,
   Image as ImageIcon,
   Layers,
   ListTodo,
-  Plus,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -31,19 +29,14 @@ import {
   CommandItem,
   CommandList,
   CommandGroup,
-  CommandSeparator,
 } from "./ui/command";
 export type SearchHandle = { open: () => void; toggle: () => void };
 export function GlobalSearch({
   ref,
   onSelect,
-  onCommand,
 }: {
   ref: Ref<SearchHandle>;
   onSelect: (result: SearchResult) => Promise<boolean>;
-  onCommand: (
-    command: "note" | "task" | "bookmark" | "daily",
-  ) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -161,7 +154,7 @@ export function GlobalSearch({
     >
       <DialogTitle className="sr-only">Search Nivra</DialogTitle>
       <DialogDescription className="sr-only">
-        Find notes, tasks and bookmarks, or create something new.
+        Find your notes, journal entries, tasks, bookmarks and artifacts.
       </DialogDescription>
       <Command
         shouldFilter={false}
@@ -199,13 +192,15 @@ export function GlobalSearch({
             </p>
           ) : !loading && !results.length ? (
             <p className="picker-message" role="status">
-              No matching items. Try another word or filter.
+              {query.trim()
+                ? "No matching items. Try another word or filter."
+                : "Your recent items will appear here."}
             </p>
           ) : null}
 
           {!error && !!results.length && (
             <CommandGroup
-              heading={query.trim() ? "Results" : "Recently edited"}
+              heading={query.trim() ? "Search results" : "Recent items"}
             >
               {results.map((result) => {
                 const Icon =
@@ -246,12 +241,15 @@ export function GlobalSearch({
                           ranges={result.titleMatches}
                         />
                       </strong>
-                      <small>
-                        <SearchText
-                          text={result.excerpt}
-                          ranges={result.excerptMatches}
-                        />
-                      </small>
+                      {result.excerpt.trim() &&
+                        result.excerpt.trim() !== result.title.trim() && (
+                          <small>
+                            <SearchText
+                              text={result.excerpt}
+                              ranges={result.excerptMatches}
+                            />
+                          </small>
+                        )}
                     </span>
                     <span className="search-result-type">
                       {result.type === "note"
@@ -268,40 +266,6 @@ export function GlobalSearch({
               })}
             </CommandGroup>
           )}
-          <CommandSeparator aria-hidden="true" />
-          <CommandGroup heading="Create">
-            {(
-              [
-                { id: "note", title: "New note", Icon: Plus },
-                { id: "task", title: "Add a task", Icon: ListTodo },
-                { id: "bookmark", title: "Save a bookmark", Icon: Bookmark },
-                {
-                  id: "daily",
-                  title: "Open journal",
-                  Icon: CalendarDays,
-                },
-              ] as const
-            ).map(({ id, title, Icon }) => (
-              <CommandItem
-                key={id}
-                value={`create-${id}`}
-                disabled={busy || (loading && !!query.trim())}
-                onSelect={() =>
-                  void run(
-                    () => onCommand(id),
-                    id === "task"
-                      ? 'input[aria-label="New task"]'
-                      : id === "bookmark"
-                        ? "#bookmark-url"
-                        : ".note-title",
-                  )
-                }
-              >
-                <Icon />
-                {title}
-              </CommandItem>
-            ))}
-          </CommandGroup>
         </CommandList>
         <div className="search-keyboard-hints" aria-hidden="true">
           <span>

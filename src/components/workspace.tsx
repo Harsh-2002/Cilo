@@ -1137,11 +1137,7 @@ export function Workspace({
           </form>
         </DialogContent>
       </Dialog>
-      <GlobalSearch
-        ref={globalSearch}
-        onSelect={selectResult}
-        onCommand={searchCommand}
-      />
+      <GlobalSearch ref={globalSearch} onSelect={selectResult} />
       <QuickCapture ref={capture} onCaptured={captured} />
       <SettingsPanel
         open={settingsOpen}
