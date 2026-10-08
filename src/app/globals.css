@@ -886,7 +886,8 @@ button:disabled {
 .note-title {
   resize: none;
   overflow: hidden;
-  width: 100%;
+  width: calc(100% + 24px);
+  margin-inline: -12px;
   display: block;
   font-size: 26px;
   line-height: 1.4;
@@ -894,9 +895,9 @@ button:disabled {
   letter-spacing: -0.035em;
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: 0 12px;
   outline: none;
-  border-radius: 0;
+  border-radius: 4px;
 }
 .note-title::placeholder {
   color: var(--muted-foreground);
@@ -904,7 +905,6 @@ button:disabled {
 .note-title:focus-visible {
   outline: none;
   background: var(--muted);
-  border-radius: 4px;
 }
 .note-tags {
   display: flex;
