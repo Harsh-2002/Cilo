@@ -7,6 +7,7 @@ export type Task = {
   createdAt: number;
   updatedAt: number;
   dueDate: string | null;
+  plannedDate: string | null;
   recurrence: import("./dates").Recurrence | null;
   recurrenceDay: number | null;
   parentTaskId: string | null;
@@ -31,7 +32,7 @@ export type Note = {
 export type NoteSummary = Omit<Note, "document">;
 export type TaggedItem = {
   id: string;
-  type: "note" | "task" | "bookmark" | "artifact";
+  type: "note" | "task" | "bookmark" | "artifact" | "event";
   title: string;
   excerpt: string;
   updatedAt: number;
@@ -81,7 +82,7 @@ export type Bookmark = {
 export type SearchResult = {
   dailyDate?: string | null;
   id: string;
-  type: "note" | "task" | "bookmark" | "artifact";
+  type: "note" | "task" | "bookmark" | "artifact" | "event";
   title: string;
   excerpt: string;
   artifactKind?: "text" | "image" | "file";
@@ -137,7 +138,8 @@ export type Artifact = {
 };
 export type ArtifactDetail = Artifact & { content: string };
 
-export type TrashKind = "note" | "journal" | "task" | "bookmark" | "artifact";
+export type TrashKind =
+  "note" | "journal" | "task" | "bookmark" | "artifact" | "event";
 export type TrashItem = {
   id: string;
   kind: TrashKind;

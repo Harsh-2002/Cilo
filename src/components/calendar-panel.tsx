@@ -1,0 +1,810 @@
+"use client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Temporal } from "@js-temporal/polyfill";
+import {
+  Bell,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Plus,
+} from "lucide-react";
+import {
+  addDays,
+  type CalendarEvent,
+  type CalendarItem,
+  type CalendarRange,
+} from "@/lib/calendar";
+import { localDate, validDate } from "@/lib/dates";
+import { api } from "@/lib/client";
+import { useCompletion } from "@/lib/completion-client";
+import { SectionHeading } from "./section-heading";
+import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
+import { DatePicker } from "./date-picker";
+import { CalendarEventEditor, CalendarSelect } from "./calendar-event-editor";
+import { useConfirm } from "./confirm-provider";
+import { CalendarTimeGrid } from "./calendar-time-grid";
+import { CalendarNotifications } from "./calendar-notifications";
+
+type TaskPage = {
+  items: {
+    id: string;
+    title: string;
+    revision: number;
+    dueDate: string | null;
+    plannedDate: string | null;
+  }[];
+  nextOffset: number | null;
+};
+type View = "month" | "week" | "day" | "year";
+const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function initialRoute() {
+  const params =
+    typeof window === "undefined"
+      ? new URLSearchParams()
+      : new URL(window.location.href).searchParams;
+  return {
+    date: validDate(params.get("date") ?? "")
+      ? params.get("date")!
+      : localDate(),
+    view: (["month", "week", "day", "year"].includes(params.get("view") ?? "")
+      ? params.get("view")
+      : "month") as View,
+    mode: params.get("mode") === "activity" ? "activity" : "planning",
+  };
+}
+function monthDays(date: string) {
+  const first = Temporal.PlainDate.from(date).with({ day: 1 });
+  const start = first.subtract({ days: first.dayOfWeek % 7 });
+  return Array.from({ length: 42 }, (_, i) =>
+    start.add({ days: i }).toString(),
+  );
+}
+function range(date: string, view: View) {
+  const day = Temporal.PlainDate.from(date);
+  if (view === "day") return [date, addDays(date, 1)];
+  if (view === "week") {
+    const start = day.subtract({ days: day.dayOfWeek % 7 }).toString();
+    return [start, addDays(start, 7)];
+  }
+  if (view === "year") {
+    const first = day.with({ month: 1, day: 1 });
+    return [first.toString(), first.add({ years: 1 }).toString()];
+  }
+  const days = monthDays(date);
+  return [days[0], addDays(days[41], 1)];
+}
+function dayLabel(
+  date: string,
+  options: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  },
+) {
+  return new Date(date + "T12:00").toLocaleDateString(undefined, options);
+}
+export function CalendarPanel({
+  onNavigation,
+  onOpenItem,
+  registerGuard,
+  onWriteJournal,
+}: {
+  onNavigation: () => void;
+  onOpenItem: (item: CalendarItem) => void;
+  onWriteJournal: (date: string) => Promise<void>;
+  registerGuard?: (guard: () => Promise<boolean>) => (() => void) | void;
+}) {
+  const [route, setRoute] = useState(initialRoute),
+    [data, setData] = useState<CalendarRange | null>(null),
+    [agenda, setAgenda] = useState<CalendarRange | null>(null),
+    [taskMode, setTaskMode] = useState<"unscheduled" | "overdue" | null>(null),
+    [taskPage, setTaskPage] = useState<TaskPage | null>(null),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [completed, setCompleted] = useState(false),
+    [monthPreview, setMonthPreview] = useState(3),
+    [editor, setEditor] = useState<{
+      event: CalendarEvent | null;
+      occurrence?: string;
+    } | null>(() =>
+      typeof window !== "undefined" &&
+      new URL(window.location.href).searchParams.get("new") === "1"
+        ? { event: null }
+        : null,
+    ),
+    [notifications, setNotifications] = useState(false),
+    [busy, setBusy] = useState(false),
+    [refresh, setRefresh] = useState(0);
+  const monthGrid = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const grid = monthGrid.current;
+    if (!grid) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const cellHeight = entry.contentRect.height / 6;
+      setMonthPreview(
+        Math.max(0, Math.min(3, Math.floor((cellHeight - 58) / 22))),
+      );
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [route.view, loading]);
+  const zone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [],
+  );
+  const [from, to] = range(route.date, route.view);
+  const confirm = useConfirm(),
+    dirty = useRef(false),
+    cache = useRef(new Map<string, CalendarRange>());
+  const setDirty = useCallback((value: boolean) => {
+    dirty.current = value;
+  }, []);
+  const allowed = useCallback(
+    async () =>
+      !dirty.current ||
+      (await confirm({
+        title: "Discard event changes?",
+        description: "Your unsaved changes will be lost.",
+        action: "Discard changes",
+      })),
+    [confirm],
+  );
+  useEffect(() => registerGuard?.(allowed), [registerGuard, allowed]);
+  const navigate = useCallback(
+    (next: Partial<typeof route>, replace = false) => {
+      const value = { ...route, ...next };
+      setRoute(value);
+      setTaskMode(null);
+      const url = new URL(window.location.href);
+      url.searchParams.set("date", value.date);
+      url.searchParams.set("view", value.view);
+      url.searchParams.set("mode", value.mode);
+      window.history[replace ? "replaceState" : "pushState"](null, "", url);
+      window.dispatchEvent(new Event("nivra:route-updated"));
+    },
+    [route],
+  );
+  useEffect(() => {
+    const abort = new AbortController(),
+      key = [from, to, zone, route.mode, completed].join(":");
+    const cached = cache.current.get(key);
+    const timer = setTimeout(() => {
+      if (cached) setData(cached);
+      setLoading(true);
+      setError("");
+      void api<CalendarRange>(
+        `calendar/range?${new URLSearchParams({ from, to, timezone: zone, mode: route.mode, limit: route.view === "year" ? "1" : "500", preview: route.view === "year" ? "0" : route.view === "month" ? "3" : "50", includeCompleted: completed ? "1" : "0" })}`,
+        { signal: abort.signal },
+      )
+        .then((value) => {
+          cache.current.set(key, value);
+          if (cache.current.size > 8)
+            cache.current.delete(cache.current.keys().next().value!);
+          setData(value);
+          setLoading(false);
+        })
+        .catch((e) => {
+          if (!abort.signal.aborted) {
+            setError((e as Error).message);
+            setLoading(false);
+          }
+        });
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      abort.abort();
+    };
+  }, [from, to, zone, route.mode, refresh, completed, route.view]);
+  useEffect(() => {
+    const abort = new AbortController();
+    void api<CalendarRange>(
+      `calendar/range?${new URLSearchParams({ from: route.date, to: addDays(route.date, 1), timezone: zone, mode: route.mode, limit: "50", includeCompleted: completed ? "1" : "0" })}`,
+      { signal: abort.signal },
+    )
+      .then(setAgenda)
+      .catch((e) => {
+        if (!abort.signal.aborted) setError((e as Error).message);
+      });
+    return () => abort.abort();
+  }, [route.date, route.mode, zone, refresh, completed]);
+  useEffect(() => {
+    if (!taskMode) return;
+    const abort = new AbortController();
+    const timer = setTimeout(() => {
+      setTaskPage(null);
+      void api<TaskPage>(
+        `calendar/tasks?mode=${taskMode}&date=${localDate()}`,
+        { signal: abort.signal },
+      )
+        .then(setTaskPage)
+        .catch((e) => {
+          if (!abort.signal.aborted) setError((e as Error).message);
+        });
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      abort.abort();
+    };
+  }, [taskMode, refresh]);
+  useCompletion(undefined, () => setRefresh((value) => value + 1));
+  useEffect(() => {
+    const params = new URL(window.location.href).searchParams;
+    const id = params.get("event");
+    if (!id) return;
+    const abort = new AbortController();
+    void api<CalendarEvent>(`calendar/events/${encodeURIComponent(id)}`, {
+      signal: abort.signal,
+    })
+      .then((event) =>
+        setEditor({ event, occurrence: params.get("occurrence") ?? undefined }),
+      )
+      .catch((e) => {
+        if (!abort.signal.aborted) setError((e as Error).message);
+      });
+    return () => abort.abort();
+  }, []);
+  const closeEditor = () => {
+    dirty.current = false;
+    setEditor(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("event");
+    url.searchParams.delete("occurrence");
+    for (const key of ["new", "link", "linkType", "linkTitle"])
+      url.searchParams.delete(key);
+    window.history.replaceState(null, "", url);
+    window.dispatchEvent(new Event("nivra:route-updated"));
+  };
+  async function open(item: CalendarItem) {
+    if (item.type !== "event") {
+      onOpenItem(item);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const event = await api<CalendarEvent>(
+        `calendar/events/${item.sourceId}`,
+      );
+      setEditor({ event, occurrence: item.occurrence });
+      const url = new URL(window.location.href);
+      url.searchParams.set("event", event.id);
+      if (item.occurrence) url.searchParams.set("occurrence", item.occurrence);
+      window.history.pushState(null, "", url);
+      window.dispatchEvent(new Event("nivra:route-updated"));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function shift(direction: number) {
+    const day = Temporal.PlainDate.from(route.date);
+    navigate({
+      date: day
+        .add(
+          route.view === "year"
+            ? { years: direction }
+            : route.view === "month"
+              ? { months: direction }
+              : { days: direction * (route.view === "week" ? 7 : 1) },
+        )
+        .toString(),
+    });
+  }
+  const visible = (item: CalendarItem) => completed || !item.completed;
+  const itemsOn = (date: string, items = data?.items ?? []) =>
+    items.filter(
+      (item) =>
+        visible(item) &&
+        item.date <= date &&
+        (item.endDate
+          ? item.endDate > date ||
+            (item.endDate === date &&
+              !!item.endAt &&
+              new Date(item.endAt).getHours() !== 0)
+          : item.date === date),
+    );
+  const entry = (item: CalendarItem) => (
+    <Button
+      key={item.id}
+      variant="ghost"
+      className="schedule-agenda-entry"
+      onClick={() => void open(item)}
+      disabled={busy}
+    >
+      <span className="schedule-entry-time">
+        {item.startAt && item.label === "Event"
+          ? new Date(item.startAt).toLocaleTimeString(undefined, {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : item.type === "event"
+            ? "All day"
+            : item.label}
+      </span>
+      <span>
+        <strong>{item.title}</strong>
+        <small>
+          {item.type === "event" ? "Event" : item.label}
+          {item.completed ? " · Completed" : ""}
+        </small>
+      </span>
+    </Button>
+  );
+  const days =
+    route.view === "month"
+      ? monthDays(route.date)
+      : Array.from({ length: route.view === "week" ? 7 : 1 }, (_, i) =>
+          addDays(from, i),
+        );
+  return (
+    <section className="schedule-panel" data-view={route.view}>
+      <div className="schedule-scroll">
+        <SectionHeading
+          title="Calendar"
+          description="Your plans, deadlines and daily entries."
+          onNavigation={onNavigation}
+        />
+        <div className="schedule-toolbar">
+          <div className="schedule-period">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Previous period"
+              onClick={() => shift(-1)}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next period"
+              onClick={() => shift(1)}
+            >
+              <ChevronRight size={18} />
+            </Button>
+            <h2>
+              {dayLabel(
+                route.date,
+                route.view === "year"
+                  ? { year: "numeric" }
+                  : route.view === "day"
+                    ? { month: "long", day: "numeric", year: "numeric" }
+                    : { month: "long", year: "numeric" },
+              )}
+            </h2>
+          </div>
+          <div className="schedule-actions">
+            <Button
+              variant="outline"
+              onClick={() => navigate({ date: localDate() })}
+            >
+              Today
+            </Button>
+            <DatePicker
+              label="Go to date"
+              value={route.date}
+              onChange={(date) => date && navigate({ date })}
+            />
+            <CalendarSelect
+              label="Calendar view"
+              value={route.view}
+              onChange={(view) => navigate({ view: view as View })}
+              options={[
+                ["month", "Month"],
+                ["week", "Week"],
+                ["day", "Day"],
+                ["year", "Year"],
+              ]}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Reminders"
+              onClick={() => setNotifications(!notifications)}
+            >
+              <Bell size={18} />
+            </Button>
+            <Button onClick={() => setEditor({ event: null })}>
+              <Plus size={16} />
+              New event
+            </Button>
+          </div>
+        </div>
+        <div className="schedule-filters">
+          <CalendarSelect
+            label="Calendar content"
+            value={route.mode}
+            onChange={(mode) => navigate({ mode })}
+            options={[
+              ["planning", "Planning"],
+              ["activity", "Activity"],
+            ]}
+          />
+          <label className="check-row">
+            <Checkbox
+              checked={completed}
+              onCheckedChange={(value) => setCompleted(value === true)}
+            />
+            Show completed
+          </label>
+          {loading && data && (
+            <span role="status">
+              <Loader2 size={14} className="animate-spin" />
+              Updating
+            </span>
+          )}
+        </div>
+        {error && (
+          <div className="schedule-error" role="alert">
+            <p>{error}</p>
+            <Button
+              variant="outline"
+              onClick={() => setRefresh((value) => value + 1)}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+        {notifications && <CalendarNotifications />}
+        {loading && !data ? (
+          <div
+            className={`schedule-skeleton schedule-skeleton-${route.view}`}
+            role="status"
+            aria-label="Loading calendar"
+          >
+            {Array.from(
+              {
+                length:
+                  route.view === "year"
+                    ? 12
+                    : route.view === "week"
+                      ? 7
+                      : route.view === "day"
+                        ? 1
+                        : 42,
+              },
+              (_, i) => (
+                <div key={i} />
+              ),
+            )}
+          </div>
+        ) : route.view === "year" ? (
+          <div className="schedule-year">
+            {Array.from({ length: 12 }, (_, i) => {
+              const month = Temporal.PlainDate.from(route.date)
+                .with({ month: i + 1, day: 1 })
+                .toString();
+              return (
+                <section key={month}>
+                  <Button
+                    variant="ghost"
+                    className="schedule-month-heading"
+                    onClick={() => navigate({ date: month, view: "month" })}
+                  >
+                    {dayLabel(month, { month: "long" })}
+                  </Button>
+                  <div className="schedule-mini-grid">
+                    {weekdays.map((day) => (
+                      <span key={day}>{day[0]}</span>
+                    ))}
+                    {monthDays(month).map((day) => (
+                      <Button
+                        key={day}
+                        variant="ghost"
+                        data-outside={day.slice(0, 7) !== month.slice(0, 7)}
+                        data-today={day === localDate()}
+                        aria-label={`${dayLabel(day)}, ${data?.counts[day] ?? 0} items`}
+                        onClick={() => navigate({ date: day, view: "day" })}
+                      >
+                        <span>{Number(day.slice(-2))}</span>
+                        {!!data?.counts[day] && <i aria-hidden="true" />}
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <div
+            className={`schedule-layout schedule-${route.view === "month" ? "month-layout" : route.view}`}
+          >
+            {route.view === "month" && (
+              <div className="schedule-month">
+                <div className="schedule-week-heading">
+                  {weekdays.map((day) => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+                <div
+                  className="schedule-month-grid"
+                  ref={monthGrid}
+                  role="grid"
+                  aria-label="Month"
+                >
+                  {days.map((day) => {
+                    const entries = itemsOn(day),
+                      count = data?.counts[day] ?? 0;
+                    return (
+                      <div
+                        role="gridcell"
+                        key={day}
+                        className="schedule-day-cell"
+                        data-outside={
+                          day.slice(0, 7) !== route.date.slice(0, 7)
+                        }
+                        data-selected={day === route.date}
+                        onClick={(event) => {
+                          if (!(event.target as HTMLElement).closest("button"))
+                            navigate({ date: day });
+                        }}
+                      >
+                        <Button
+                          className="schedule-day-number"
+                          variant="ghost"
+                          data-today={day === localDate()}
+                          aria-label={dayLabel(day)}
+                          aria-pressed={day === route.date}
+                          onClick={() => navigate({ date: day })}
+                          onKeyDown={(event) => {
+                            const delta = (
+                              {
+                                ArrowLeft: -1,
+                                ArrowRight: 1,
+                                ArrowUp: -7,
+                                ArrowDown: 7,
+                              } as Record<string, number>
+                            )[event.key];
+                            if (delta) {
+                              event.preventDefault();
+                              navigate({ date: addDays(day, delta) });
+                              requestAnimationFrame(() =>
+                                document
+                                  .querySelector<HTMLButtonElement>(
+                                    `.schedule-day-number[aria-pressed="true"]`,
+                                  )
+                                  ?.focus(),
+                              );
+                            }
+                          }}
+                        >
+                          {Number(day.slice(-2))}
+                        </Button>
+                        <div
+                          className="schedule-cell-events"
+                          data-compact={monthPreview === 0}
+                        >
+                          {entries.slice(0, monthPreview).map((item) => (
+                            <Button
+                              key={item.id}
+                              variant="ghost"
+                              className="schedule-cell-event"
+                              onClick={() => void open(item)}
+                            >
+                              {item.title}
+                            </Button>
+                          ))}
+                          {count > Math.min(monthPreview, entries.length) && (
+                            <Button
+                              variant="ghost"
+                              className="schedule-more"
+                              aria-label={`${count - Math.min(monthPreview, entries.length)} more items on ${dayLabel(day)}`}
+                              onClick={() => navigate({ date: day })}
+                            >
+                              {monthPreview === 0
+                                ? count
+                                : `+${count - Math.min(monthPreview, entries.length)}`}
+                            </Button>
+                          )}
+                        </div>
+                        <span
+                          className="schedule-mobile-count"
+                          aria-hidden="true"
+                        >
+                          {count || ""}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {["week", "day"].includes(route.view) &&
+              route.mode === "planning" && (
+                <CalendarTimeGrid
+                  days={days}
+                  items={(data?.items ?? []).filter(visible)}
+                  onOpen={(item) => void open(item)}
+                />
+              )}
+            <section
+              className={`schedule-agenda ${["week", "day"].includes(route.view) && route.mode === "planning" ? "schedule-mobile-agenda" : ""}`}
+              aria-label="Calendar agenda"
+            >
+              <h3>
+                {taskMode === "unscheduled"
+                  ? "Unscheduled tasks"
+                  : taskMode === "overdue"
+                    ? "Overdue tasks"
+                    : route.view === "week"
+                      ? "This week"
+                      : dayLabel(route.date)}
+              </h3>
+              {taskMode && (
+                <Button variant="ghost" onClick={() => setTaskMode(null)}>
+                  Back to selected day
+                </Button>
+              )}
+              {taskMode && !taskPage && <p role="status">Loading tasks…</p>}
+              {(route.view === "week" ? days : [route.date]).map((day) => {
+                const entries = taskMode
+                  ? (taskPage?.items ?? []).map((task) => ({
+                      id: task.id,
+                      sourceId: task.id,
+                      type: "task" as const,
+                      title: task.title,
+                      date: task.dueDate ?? day,
+                      label: taskMode === "unscheduled" ? "Undated" : "Overdue",
+                      revision: task.revision,
+                    }))
+                  : itemsOn(
+                      day,
+                      route.view === "week" ? data?.items : agenda?.items,
+                    );
+                return (
+                  <div key={day} className="schedule-agenda-day">
+                    {route.view === "week" && (
+                      <h4>
+                        {dayLabel(day, {
+                          weekday: "long",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </h4>
+                    )}
+                    {entries.map(entry)}
+                    {!entries.length && !taskMode && (
+                      <div className="schedule-day-empty">
+                        <CalendarDays size={24} />
+                        <p>
+                          No {route.mode === "activity" ? "activity" : "plans"}{" "}
+                          for this day.
+                        </p>
+                        {!taskMode && route.mode === "planning" && (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              navigate({ date: day });
+                              setEditor({ event: null });
+                            }}
+                          >
+                            Add event
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {route.mode === "planning" &&
+                route.view !== "week" &&
+                !agenda?.items.some((item) => item.type === "journal") && (
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      void onWriteJournal(route.date)
+                        .catch((e) => setError((e as Error).message))
+                        .finally(() => setBusy(false));
+                    }}
+                  >
+                    Write journal
+                  </Button>
+                )}
+              {!taskMode &&
+                agenda?.nextOffset !== null &&
+                agenda?.nextOffset !== undefined &&
+                route.view !== "week" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void api<CalendarRange>(
+                        `calendar/range?${new URLSearchParams({
+                          from: route.date,
+                          to: addDays(route.date, 1),
+                          timezone: zone,
+                          mode: route.mode,
+                          limit: "50",
+                          includeCompleted: completed ? "1" : "0",
+                          offset: String(agenda.nextOffset),
+                        })}`,
+                      )
+                        .then((value) =>
+                          setAgenda((current) =>
+                            current
+                              ? {
+                                  ...value,
+                                  items: [...current.items, ...value.items],
+                                }
+                              : value,
+                          ),
+                        )
+                        .catch((e) => setError((e as Error).message));
+                    }}
+                  >
+                    Load more
+                  </Button>
+                )}
+              {taskMode &&
+                taskPage?.nextOffset !== null &&
+                taskPage?.nextOffset !== undefined && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void api<TaskPage>(
+                        `calendar/tasks?mode=${taskMode}&date=${localDate()}&offset=${taskPage.nextOffset}`,
+                      )
+                        .then((value) =>
+                          setTaskPage((current) =>
+                            current
+                              ? {
+                                  ...value,
+                                  items: [...current.items, ...value.items],
+                                }
+                              : value,
+                          ),
+                        )
+                        .catch((e) => setError((e as Error).message));
+                    }}
+                  >
+                    Load more tasks
+                  </Button>
+                )}
+            </section>
+          </div>
+        )}
+        {data && route.mode === "planning" && (
+          <footer className="schedule-summary">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                navigate({ view: "month" });
+                setTaskMode("unscheduled");
+              }}
+            >
+              {data.unscheduled} unscheduled tasks
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                navigate({ view: "month" });
+                setTaskMode("overdue");
+              }}
+            >
+              {data.overdue} overdue tasks
+            </Button>
+          </footer>
+        )}
+      </div>
+      {editor && (
+        <CalendarEventEditor
+          key={editor.event?.id ?? "new"}
+          event={editor.event}
+          occurrence={editor.occurrence}
+          date={route.date}
+          zone={zone}
+          onDirty={setDirty}
+          onClose={closeEditor}
+          onSaved={() => {
+            closeEditor();
+            setRefresh((value) => value + 1);
+          }}
+        />
+      )}
+    </section>
+  );
+}

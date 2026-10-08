@@ -4,6 +4,7 @@ export const workspaceRoutes = {
   favorites: "/favorites",
   journal: "/journal",
   tasks: "/tasks",
+  calendar: "/calendar",
   bookmarks: "/bookmarks",
   artifacts: "/artifacts",
   trash: "/trash",

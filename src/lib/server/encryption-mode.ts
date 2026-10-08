@@ -1,6 +1,5 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { historicalDatabaseName } from "../compatibility";
 import { environment } from "./environment";
 import { runtimeFs as fs } from "./runtime-fs";
 import { syncDirectory } from "./encryption";
@@ -61,7 +60,7 @@ export function encryptionEnabled(
     return mode.encrypted;
   }
   if (fs.existsSync(file)) return read();
-  const databases = ["nivra.sqlite", historicalDatabaseName];
+  const databases = ["nivra.sqlite"];
   const existing =
     databases.some((name) => {
       const file = path.join(/* turbopackIgnore: true */ directory, name);

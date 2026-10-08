@@ -195,7 +195,9 @@ export function ItemCollection({
                       ? "Task"
                       : item.type === "bookmark"
                         ? "Bookmark"
-                        : "Artifact";
+                        : item.type === "event"
+                          ? "Event"
+                          : "Artifact";
                 return (
                   <li key={`${item.type}:${item.id}`}>
                     <button

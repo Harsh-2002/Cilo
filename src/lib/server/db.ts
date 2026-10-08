@@ -1,4 +1,3 @@
-import { historicalDatabaseName } from "../compatibility";
 import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import Database from "better-sqlite3";
@@ -22,14 +21,7 @@ import { encryptionEnabled } from "./encryption-mode";
 export const dataDir = path.resolve(
   /* turbopackIgnore: true */ environment().NIVRA_DATA_DIR || "./data",
 );
-export const databaseFile = path.join(
-  dataDir,
-  existsSync(path.join(dataDir, "nivra.sqlite"))
-    ? "nivra.sqlite"
-    : existsSync(path.join(dataDir, historicalDatabaseName))
-      ? historicalDatabaseName
-      : "nivra.sqlite",
-);
+export const databaseFile = path.join(dataDir, "nivra.sqlite");
 const globalDb = globalThis as unknown as { nivraSqlite?: Database.Database };
 export function sqlite() {
   if (!globalDb.nivraSqlite) {

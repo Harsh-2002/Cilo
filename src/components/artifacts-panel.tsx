@@ -1,4 +1,6 @@
 "use client";
+import { CalendarDays as ScheduleIcon } from "lucide-react";
+import { scheduleItem } from "@/lib/schedule";
 import { ArtifactPreview } from "./artifact-preview";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
@@ -653,6 +655,18 @@ export function ArtifactsPanel({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              scheduleItem(
+                                "artifact",
+                                item.id,
+                                item.name || item.title,
+                              )
+                            }
+                          >
+                            <ScheduleIcon size={15} />
+                            Schedule
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onSelect={() => setViewing(item.id)}
                           >

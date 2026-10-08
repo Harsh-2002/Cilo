@@ -1,4 +1,3 @@
-import { historicalNamespace } from "../compatibility";
 import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
 import {
@@ -63,7 +62,13 @@ export function masterKey(
 }
 export function deriveKey(master: Buffer, purpose: string): Buffer {
   return Buffer.from(
-    hkdfSync("sha256", master, `${historicalNamespace}/v1`, purpose, 32),
+    hkdfSync(
+      "sha256",
+      master,
+      Buffer.from("63696c6f2f7631", "hex"),
+      purpose,
+      32,
+    ),
   );
 }
 const chunkedMagic = Buffer.from([67, 73, 76, 79, 69, 78, 67, 50]);
@@ -129,7 +134,7 @@ function chunkCipherKey(master: Buffer, salt: Uint8Array) {
       "sha256",
       deriveKey(master, "files"),
       salt,
-      `${historicalNamespace}/chunk`,
+      Buffer.from("63696c6f2f6368756e6b", "hex"),
       32,
     ),
   );

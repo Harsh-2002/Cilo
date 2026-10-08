@@ -6,6 +6,7 @@ export const calendarDate = z
   .refine(validDate, "Choose a valid calendar date (YYYY-MM-DD).");
 export const taskSchedule = {
   dueDate: calendarDate.nullable().optional(),
+  plannedDate: calendarDate.nullable().optional(),
   recurrence: z.enum(["daily", "weekly", "monthly"]).nullable().optional(),
   noteId: z.string().uuid().nullable().optional(),
 };

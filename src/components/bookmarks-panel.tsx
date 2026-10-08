@@ -1,4 +1,6 @@
 "use client";
+import { CalendarDays as ScheduleIcon } from "lucide-react";
+import { scheduleItem } from "@/lib/schedule";
 import { ItemTagPicker } from "./item-tag-picker";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
@@ -631,6 +633,14 @@ export function BookmarksPanel({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                scheduleItem("bookmark", item.id, item.title)
+                              }
+                            >
+                              <ScheduleIcon size={15} />
+                              Schedule
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setEditing(item)}>
                               <Pencil size={15} />
                               Edit details

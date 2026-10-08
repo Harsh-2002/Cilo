@@ -9,10 +9,12 @@ export function DatePicker({
   value,
   onChange,
   disabled = false,
+  label = "Due date",
 }: {
   value: string | null;
   onChange: (date: string | null) => void;
   disabled?: boolean;
+  label?: string;
 }) {
   const dateAt = (year: number, month: number, day: number) => {
     const date = new Date(0);
@@ -52,17 +54,17 @@ export function DatePicker({
           type="button"
           variant="outline"
           disabled={disabled}
-          aria-label="Due date"
+          aria-label={label}
           className="date-picker-trigger"
         >
           <CalendarDays size={15} />
-          {value ? formatDate(value) : "Due date"}
+          {value ? formatDate(value) : label}
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
         className="date-picker-popover"
-        aria-label="Choose a due date"
+        aria-label={`Choose ${label.toLowerCase()}`}
       >
         <div className="calendar-heading">
           <Button
@@ -134,7 +136,7 @@ export function DatePicker({
         </div>
         <div className="calendar-entry">
           <Input
-            aria-label="Enter due date"
+            aria-label={`Enter ${label.toLowerCase()}`}
             placeholder="YYYY-MM-DD"
             value={draft}
             maxLength={10}

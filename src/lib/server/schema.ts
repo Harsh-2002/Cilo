@@ -21,6 +21,7 @@ export const tasks = sqliteTable(
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     dueDate: text("due_date"),
+    plannedDate: text("planned_date"),
     recurrence: text("recurrence").$type<import("../dates").Recurrence>(),
     recurrenceDay: integer("recurrence_day"),
     parentTaskId: text("parent_task_id"),
@@ -555,4 +556,23 @@ export const jwks = sqliteTable("jwks", {
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
   alg: text("alg"),
   crv: text("crv"),
+});
+
+export const calendarEvents = sqliteTable("calendar_events", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  recurring: integer("recurring", { mode: "boolean" }).notNull().default(false),
+  data: text("data", { mode: "json" })
+    .$type<import("../calendar").EventInput>()
+    .notNull(),
+  revision: integer("revision").notNull().default(1),
+  trashedAt: integer("trashed_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });

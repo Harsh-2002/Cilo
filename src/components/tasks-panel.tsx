@@ -1,4 +1,6 @@
 "use client";
+import { CalendarDays as ScheduleIcon } from "lucide-react";
+import { scheduleItem } from "@/lib/schedule";
 import { ItemTagPicker } from "./item-tag-picker";
 import { LoadingState } from "./loading-state";
 import { useCompletion } from "@/lib/completion-client";
@@ -20,6 +22,7 @@ import { api, ApiError } from "@/lib/client";
 import type { Page, Task } from "@/lib/types";
 import { sectionCache } from "@/lib/section-cache";
 import { formatDate, localDate, type Recurrence } from "@/lib/dates";
+import { TaskReminders } from "./task-reminders";
 import { DatePicker } from "./date-picker";
 import { NotePicker } from "./note-picker";
 import {
@@ -64,6 +67,7 @@ export function TasksPanel({
   onNavigation,
   registerGuard,
   initialQuery = "",
+  initialTaskId,
   initialFilter = "open",
   focusCreate = false,
   onOpenNote,
@@ -71,6 +75,7 @@ export function TasksPanel({
   onNavigation: () => void;
   registerGuard: (guard: () => Promise<boolean>) => void;
   initialQuery?: string;
+  initialTaskId?: string;
   initialFilter?: "open" | "completed";
   focusCreate?: boolean;
   onOpenNote: (id: string) => Promise<boolean>;
@@ -87,7 +92,11 @@ export function TasksPanel({
   const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<"open" | "completed">(initialFilter);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [reminderDirty, setReminderDirty] = useState(false);
   const [editTitle, setEditTitle] = useState("");
+  const [createDate, setCreateDate] = useState<string | null>(null);
+  const [createPlanned, setCreatePlanned] = useState<string | null>(null);
+  const [editPlanned, setEditPlanned] = useState<string | null>(null);
   const [editDate, setEditDate] = useState<string | null>(null);
   const [editRepeat, setEditRepeat] = useState<Recurrence | null>(null);
   const [editNote, setEditNote] = useState<{
@@ -98,6 +107,23 @@ export function TasksPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!initialTaskId) return;
+    const abort = new AbortController();
+    void api<Task>(`tasks/${initialTaskId}`, { signal: abort.signal })
+      .then((task) => {
+        setEditing(task);
+        setEditTitle(task.title);
+        setEditPlanned(task.plannedDate);
+        setEditDate(task.dueDate);
+        setEditRepeat(task.recurrence);
+        setEditNote({ id: task.noteId, title: task.noteTitle });
+      })
+      .catch((e) => {
+        if (!abort.signal.aborted) setError((e as Error).message);
+      });
+    return () => abort.abort();
+  }, [initialTaskId]);
   const invalidate = () => sectionCache.clear("tasks:list:", "overview");
   const confirm = useConfirm();
   const refreshCounts = useCallback(async () => {
@@ -118,8 +144,10 @@ export function TasksPanel({
   }, [filter, query, next, refreshCounts]);
   const editDirty =
     !!editing &&
-    (editTitle !== editing.title ||
+    (reminderDirty ||
+      editTitle !== editing.title ||
       editDate !== editing.dueDate ||
+      editPlanned !== editing.plannedDate ||
       editRepeat !== editing.recurrence ||
       editNote.id !== editing.noteId);
   useEffect(() => {
@@ -230,12 +258,18 @@ export function TasksPanel({
     await mutate(async () => {
       const task = await api<Task>("tasks", {
         method: "POST",
-        body: JSON.stringify({ title: title.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          dueDate: createDate,
+          plannedDate: createPlanned,
+        }),
       });
       invalidate();
       if (filter === "open" && !query.trim())
         setTasks((items) => mergeTasks(items, [task]));
       setTitle("");
+      setCreateDate(null);
+      setCreatePlanned(null);
       setFilter("open");
       setQuery("");
       void refreshCounts();
@@ -248,11 +282,14 @@ export function TasksPanel({
       title?: string;
       completed?: boolean;
       dueDate?: string | null;
+      plannedDate?: string | null;
       recurrence?: Recurrence | null;
       noteId?: string | null;
     },
   ) {
     await mutate(async () => {
+      if (editing?.id === task.id && reminderDirty)
+        throw Error("Save your reminder changes before saving the task.");
       const updated = await api<Task>(`tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ revision: task.revision, ...change }),
@@ -271,7 +308,13 @@ export function TasksPanel({
   const ready = listFilter === filter;
   const rows = ready ? tasks : cached?.items;
   const hasMore = ready ? next !== null : !!cached?.next;
-  const visible = (rows ?? [])
+  const displayedRows =
+    editing &&
+    editing.id === initialTaskId &&
+    !(rows ?? []).some((task) => task.id === editing.id)
+      ? [editing, ...(rows ?? [])]
+      : (rows ?? []);
+  const visible = displayedRows
     .filter(
       (t) =>
         (filter === "completed"
@@ -317,6 +360,19 @@ export function TasksPanel({
               {busy ? "Adding…" : "Add task"}
             </Button>
           </form>
+          <div className="task-create-dates">
+            <DatePicker
+              label="Planned date"
+              value={createPlanned}
+              onChange={setCreatePlanned}
+              disabled={busy || !!editing}
+            />
+            <DatePicker
+              value={createDate}
+              onChange={setCreateDate}
+              disabled={busy || !!editing}
+            />
+          </div>
           <div className="tasks-toolbar section-toolbar">
             <div className="task-filters" role="group" aria-label="Task status">
               <Button
@@ -410,6 +466,7 @@ export function TasksPanel({
                           void update(task, {
                             title: editTitle.trim(),
                             dueDate: editDate,
+                            plannedDate: editPlanned,
                             recurrence: editRepeat,
                             noteId: editNote.id,
                           });
@@ -427,6 +484,12 @@ export function TasksPanel({
                         }}
                       />
                       <div className="task-schedule-controls">
+                        <DatePicker
+                          label="Planned date"
+                          value={editPlanned}
+                          onChange={setEditPlanned}
+                          disabled={busy}
+                        />
                         <DatePicker
                           value={editDate}
                           disabled={busy}
@@ -464,6 +527,11 @@ export function TasksPanel({
                           onChange={(id, title) => setEditNote({ id, title })}
                         />
                       </div>
+                      <TaskReminders
+                        id={task.id}
+                        revision={task.revision}
+                        onDirty={setReminderDirty}
+                      />
                       <div className="task-edit-actions">
                         <Button
                           type="submit"
@@ -485,6 +553,11 @@ export function TasksPanel({
                     <div className="task-copy">
                       <span className="task-title">{task.title}</span>
                       <div className="task-metadata">
+                        {task.plannedDate && (
+                          <span className="task-date">
+                            Planned {formatDate(task.plannedDate)}
+                          </span>
+                        )}
                         {task.dueDate && (
                           <span
                             className={
@@ -549,10 +622,19 @@ export function TasksPanel({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
+                        onSelect={() =>
+                          scheduleItem("task", task.id, task.title)
+                        }
+                      >
+                        <ScheduleIcon size={15} />
+                        Schedule
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onSelect={() => {
                           setEditing(task);
                           setEditTitle(task.title);
                           setEditDate(task.dueDate);
+                          setEditPlanned(task.plannedDate);
                           setEditRepeat(task.recurrence);
                           setEditNote({
                             id: task.noteId,

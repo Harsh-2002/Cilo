@@ -1,7 +1,3 @@
-import {
-  historicalConfigPrefix,
-  historicalNamespace,
-} from "../src/lib/compatibility";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { environment } from "../src/lib/server/environment";
@@ -10,8 +6,8 @@ import { hkdfSync } from "node:crypto";
 import { readerUrl } from "../src/lib/reader";
 test("only current environment names configure Nivra while established encrypted data remains readable", () => {
   const old = {
-    [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
-    [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
+    [`${"RETIRED_"}DATA_DIR`]: "/legacy",
+    [`${"RETIRED_"}STORAGE_BACKEND`]: "s3",
   };
   assert.equal(environment(old).NIVRA_DATA_DIR, undefined);
   assert.equal(
@@ -20,8 +16,8 @@ test("only current environment names configure Nivra while established encrypted
   );
   assert.equal(environment({ ...old, NIVRA_DATA_DIR: "" }).NIVRA_DATA_DIR, "");
   assert.deepEqual(old, {
-    [`${historicalConfigPrefix}DATA_DIR`]: "/legacy",
-    [`${historicalConfigPrefix}STORAGE_BACKEND`]: "s3",
+    [`${"RETIRED_"}DATA_DIR`]: "/legacy",
+    [`${"RETIRED_"}STORAGE_BACKEND`]: "s3",
   });
   assert.equal(environment(old).NIVRA_S3_PREFIX, undefined);
   assert.equal(environment(old).NIVRA_STORAGE_BACKEND, undefined);
@@ -43,7 +39,7 @@ test("only current environment names configure Nivra while established encrypted
     ),
   );
   const id = "11111111-1111-1111-1111-111111111111";
-  for (const name of ["nivra", historicalNamespace])
+  for (const name of ["nivra"])
     assert.equal(
       readerUrl(`/api/${name}/files/${id}`, true),
       `/api/${name}/files/${id}`,

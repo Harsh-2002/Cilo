@@ -12,6 +12,7 @@ import {
 import {
   Bookmark,
   FileText,
+  CalendarDays,
   Image as ImageIcon,
   Layers,
   ListTodo,
@@ -212,7 +213,9 @@ export function GlobalSearch({
                         ? result.artifactKind === "image"
                           ? ImageIcon
                           : Layers
-                        : Bookmark;
+                        : result.type === "event"
+                          ? CalendarDays
+                          : Bookmark;
                 return (
                   <CommandItem
                     disabled={busy || loading}
@@ -258,7 +261,9 @@ export function GlobalSearch({
                           ? "Task"
                           : result.type === "artifact"
                             ? "Artifact"
-                            : "Bookmark"}
+                            : result.type === "event"
+                              ? "Event"
+                              : "Bookmark"}
                       {result.completed ? " · done" : ""}
                     </span>
                   </CommandItem>

@@ -1,3 +1,4 @@
+import { invalidateCalendarReminders } from "./calendar-reminders";
 import { sqlite } from "./db";
 import { HttpError } from "./http";
 import { storage } from "./storage";
@@ -12,11 +13,13 @@ const tables = {
   task: "tasks",
   bookmark: "bookmarks",
   artifact: "artifacts",
+  event: "calendar_events",
 } as const;
 const union = `SELECT id,CASE WHEN daily_date IS NULL THEN 'note' ELSE 'journal' END AS kind,title,substr(text,1,180) AS excerpt,revision,trashed_at AS trashedAt FROM notes WHERE owner_id=? AND trashed_at IS NOT NULL AND kind='note'
 UNION ALL SELECT id,'task',title,title,revision,trashed_at FROM tasks WHERE owner_id=? AND trashed_at IS NOT NULL
 UNION ALL SELECT id,'bookmark',title,url,revision,trashed_at FROM bookmarks WHERE owner_id=? AND trashed_at IS NOT NULL
-UNION ALL SELECT id,'artifact',coalesce(nullif(title,''),nullif(name,''),'Untitled artifact'),substr(content,1,180),revision,trashed_at FROM artifacts WHERE owner_id=? AND trashed_at IS NOT NULL`;
+UNION ALL SELECT id,'artifact',coalesce(nullif(title,''),nullif(name,''),'Untitled artifact'),substr(content,1,180),revision,trashed_at FROM artifacts WHERE owner_id=? AND trashed_at IS NOT NULL
+UNION ALL SELECT id,'event',title,substr(description,1,180),revision,trashed_at FROM calendar_events WHERE owner_id=? AND trashed_at IS NOT NULL`;
 export function listTrash(
   owner: string,
   query: string,
@@ -25,7 +28,7 @@ export function listTrash(
   pageSize = 60,
 ): Page<TrashItem> {
   const where = ["1=1"];
-  const values: (string | number)[] = [owner, owner, owner, owner];
+  const values: (string | number)[] = [owner, owner, owner, owner, owner];
   if (query.trim()) {
     where.push("instr(nivra_fold(title || ' ' || excerpt),nivra_fold(?))>0");
     values.push(query.trim().slice(0, 300));
@@ -98,6 +101,26 @@ export function restoreTrash(
 ) {
   sqlite()
     .transaction(() => {
+      if (
+        kind === "event" &&
+        sqlite()
+          .prepare(
+            "SELECT 1 FROM calendar_exceptions x JOIN calendar_events e ON e.id=x.event_id WHERE x.override_id=? AND e.trashed_at IS NOT NULL",
+          )
+          .get(id)
+      )
+        throw new HttpError(
+          409,
+          "Restore the parent series before this occurrence.",
+        );
+      const previous =
+        kind === "event"
+          ? (sqlite()
+              .prepare(
+                "SELECT trashed_at FROM calendar_events WHERE id=? AND owner_id=? AND revision=?",
+              )
+              .get(id, owner, revision) as { trashed_at: number } | undefined)
+          : undefined;
       const changed = sqlite()
         .prepare(
           `UPDATE ${tables[kind]} SET trashed_at=NULL,updated_at=?,revision=revision+1 WHERE id=? AND owner_id=? AND revision=? AND trashed_at IS NOT NULL`,
@@ -108,6 +131,12 @@ export function restoreTrash(
           409,
           "This item changed or is no longer in Trash. Reload Trash and try again.",
         );
+      if (kind === "event" && previous)
+        sqlite()
+          .prepare(
+            "UPDATE calendar_events SET trashed_at=NULL,updated_at=?,revision=revision+1 WHERE owner_id=? AND trashed_at=? AND id IN (SELECT override_id FROM calendar_exceptions WHERE event_id=?)",
+          )
+          .run(Date.now(), owner, previous.trashed_at, id);
       if (kind === "artifact" || kind === "bookmark") {
         const field = kind === "artifact" ? "extraction" : "metadata_status";
         if (
@@ -131,6 +160,10 @@ export function restoreTrash(
       }
     })
     .immediate();
+  if (kind === "event" || kind === "task") {
+    invalidateCalendarReminders();
+    completionEvent(owner, "content", id, "restored");
+  }
   startJobWorker();
 }
 export async function deleteTrash(
@@ -199,5 +232,9 @@ export async function deleteTrash(
       return keys;
     })
     .immediate();
+  if (kind === "event" || kind === "task") {
+    invalidateCalendarReminders();
+    completionEvent(owner, "content", id, "deleted");
+  }
   await Promise.allSettled(keys.map((key) => storage.delete(key)));
 }

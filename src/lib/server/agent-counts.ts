@@ -35,6 +35,7 @@ export function agentCounts(owner: string, options: CountOptions) {
       ["tasks", "tasks", "task_tags", "task_id", "1=1", false],
       ["bookmarks", "bookmarks", "bookmark_tags", "bookmark_id", "1=1", true],
       ["artifacts", "artifacts", "artifact_tags", "artifact_id", "1=1", false],
+      ["events", "calendar_events", "event_tags", "event_id", "1=1", false],
     ] as const) {
       const where = [
         "owner_id=?",

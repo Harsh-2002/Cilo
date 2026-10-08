@@ -548,7 +548,7 @@ test("connected workspace retains private search, recovery, journal and schedule
       },
     );
     await t.test(
-      "version-two bundles remap note links, task series and history",
+      "portable bundles remap note links, task series, artifacts and history",
       async () => {
         const tag = await value<{ id: string }>("tags", "POST", {
           name: "Universal organization",
@@ -629,7 +629,12 @@ test("connected workspace retains private search, recovery, journal and schedule
         const manifest = JSON.parse(
           strFromU8(unzipSync(bytes)["manifest.json"]),
         );
-        assert.equal(manifest.version, 2);
+        assert.equal(manifest.version, 3);
+        assert.ok(
+          manifest.calendar.artifacts.some(
+            (item: { id: string }) => item.id === artifact.id,
+          ),
+        );
         assert.ok(
           manifest.tasks.some((item: { tags: { name: string }[] }) =>
             item.tags.some((tag) => tag.name === "Universal organization"),

@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { historicalNamespace } from "./src/lib/compatibility";
 import { environment } from "./src/lib/server/environment";
 import type { NextConfig } from "next";
 const offlineStyle = readFileSync("public/offline.html", "utf8").match(
@@ -20,14 +19,6 @@ const config: NextConfig = {
     .split(",")
     .map((host) => host.trim())
     .filter(Boolean),
-  async rewrites() {
-    return [
-      {
-        source: `/api/${historicalNamespace}/:path*`,
-        destination: "/api/nivra/:path*",
-      },
-    ];
-  },
   output: "standalone",
   agentRules: false,
   serverExternalPackages: [

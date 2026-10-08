@@ -19,6 +19,7 @@ import type { Overview } from "@/lib/types";
 import { notify } from "@/lib/feedback";
 import { Button } from "./ui/button";
 import { SectionHeading } from "./section-heading";
+import { NotificationSetup } from "./notification-setup";
 import { Checkbox } from "./ui/checkbox";
 import { sectionCache } from "@/lib/section-cache";
 
@@ -187,6 +188,7 @@ export function OverviewPanel({
               </div>
             </div>
           </div>
+          <NotificationSetup />
           <div className="overview-actions" aria-label="Quick actions">
             <Button onClick={() => onCreate("note")}>
               <Plus size={16} />
@@ -310,7 +312,7 @@ export function OverviewPanel({
                       <span className="overview-mobile-count">
                         {Math.min(5, data.tasks.length)}
                       </span>{" "}
-                      of {data.counts.open} open tasks, earliest due first.
+                      of {data.counts.open} open tasks, newest first.
                     </p>
                   )}
                 </section>

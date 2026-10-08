@@ -14,7 +14,9 @@ export function parseSearch(input: string) {
         const value = quoted || plain;
         if (
           key.toLowerCase() === "type" &&
-          /^(notes?|journals?|tasks?|bookmarks?|artifacts?)$/i.test(value)
+          /^(notes?|journals?|tasks?|bookmarks?|artifacts?|events?)$/i.test(
+            value,
+          )
         ) {
           type = value.toLowerCase().replace(/s$/, "");
           return "";
@@ -38,7 +40,13 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     SearchResult["type"],
     (rows: Candidate[]) => SearchResult[]
   >();
-  for (const area of ["note", "task", "bookmark", "artifact"] as const) {
+  for (const area of [
+    "note",
+    "task",
+    "bookmark",
+    "artifact",
+    "event",
+  ] as const) {
     if (type && type !== area && !(type === "journal" && area === "note"))
       continue;
     const table =
@@ -48,7 +56,10 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
           ? "tasks"
           : area === "bookmark"
             ? "bookmarks"
-            : "artifacts";
+            : area === "event"
+              ? "calendar_events"
+              : "artifacts";
+    const fts = area === "event" ? "events_fts" : `${table}_fts`;
     const conditions = ["owner_id=?", "trashed_at IS NULL"];
     const params: (string | number)[] = [owner];
     if (area === "note") conditions.push("trashed_at IS NULL AND kind='note'");
@@ -66,9 +77,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
       const where = [...conditions];
       const values = [...params];
       if (query) {
-        where.push(
-          `rowid IN(SELECT rowid FROM ${table}_fts WHERE ${table}_fts MATCH ?)`,
-        );
+        where.push(`rowid IN(SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)`);
         values.push(query);
       }
       const excerpt =
@@ -107,7 +116,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
       // Keep one FTS cursor so snippet's phrase cache survives across selected rows.
       const marked = database
         .prepare(
-          `SELECT rowid AS searchRow,highlight(${table}_fts,0,?,?) AS title,snippet(${table}_fts,-1,?,?,'…',24) AS excerpt FROM ${table}_fts WHERE (rowid+0) IN (${rows.map(() => "?").join(",")}) AND ${table}_fts MATCH ?`,
+          `SELECT rowid AS searchRow,highlight(${fts},0,?,?) AS title,snippet(${fts},-1,?,?,'…',24) AS excerpt FROM ${fts} WHERE (rowid+0) IN (${rows.map(() => "?").join(",")}) AND ${fts} MATCH ?`,
         )
         .all(
           start,
@@ -141,7 +150,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     if (text && !query) continue;
     let usedQuery = query;
     let found = run(query);
-    if (!found.length && query) {
+    if (!found.length && query && area !== "event") {
       const fuzzy = fuzzyQuery(
         text,
         table as "notes" | "tasks" | "bookmarks" | "artifacts",

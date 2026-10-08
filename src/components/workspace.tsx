@@ -20,6 +20,7 @@ import {
   Grid2X2,
   Heart,
   NotebookPen,
+  CalendarDays,
   StickyNote,
   SquareCheckBig,
   LibraryBig,
@@ -70,6 +71,7 @@ import { OverviewPanel } from "./overview-panel";
 import { ItemCollection } from "./item-collection";
 import { FeedbackOutlet } from "./inline-feedback";
 import { TrashPanel } from "./trash-panel";
+import { CalendarPanel } from "./calendar-panel";
 import { TasksPanel } from "./tasks-panel";
 import { ArtifactsPanel } from "./artifacts-panel";
 import { useCompletion, useCompletionStream } from "@/lib/completion-client";
@@ -170,6 +172,31 @@ export function Workspace({
   const registerGuard = useCallback((value: () => Promise<boolean>) => {
     guard.current = value;
   }, []);
+  useEffect(() => {
+    const handler = async (event: Event) => {
+      const item = (
+        event as CustomEvent<{ type: string; id: string; title: string }>
+      ).detail;
+      if (!(await guard.current())) return;
+      setView("calendar");
+      setTag("");
+      setActive(null);
+      setDrawer(false);
+      guard.current = async () => true;
+      const url = new URL(window.location.href);
+      for (const key of ["note", "tag", "event", "occurrence"])
+        url.searchParams.delete(key);
+      url.searchParams.set("new", "1");
+      url.searchParams.set("link", item.id);
+      url.searchParams.set("linkType", item.type);
+      url.searchParams.set("linkTitle", item.title);
+      window.history.replaceState(null, "", url);
+      acceptedUrl.current = url.href;
+      setGeneration((n) => n + 1);
+    };
+    window.addEventListener("nivra:schedule", handler);
+    return () => window.removeEventListener("nivra:schedule", handler);
+  }, [setView]);
   useEffect(() => {
     const timer = setTimeout(() => setSearch(query), 180);
     return () => clearTimeout(timer);
@@ -415,6 +442,13 @@ export function Workspace({
     acceptedUrl.current = url.href;
   }, [active, view, tag]);
   useEffect(() => {
+    const updated = () => {
+      acceptedUrl.current = window.location.href;
+    };
+    window.addEventListener("nivra:route-updated", updated);
+    return () => window.removeEventListener("nivra:route-updated", updated);
+  }, []);
+  useEffect(() => {
     const restore = () => {
       const target = new URL(window.location.href);
       if (
@@ -435,6 +469,8 @@ export function Workspace({
         acceptedUrl.current = target.href;
         notify.dismiss();
         setViewState(workspaceView(target.pathname) ?? "overview");
+        if (workspaceView(target.pathname) === "calendar")
+          setGeneration((n) => n + 1);
         setTag(target.searchParams.get("tag") || "");
         setQuery("");
         setSectionTarget({ query: "" });
@@ -471,6 +507,14 @@ export function Workspace({
   async function selectResult(result: SearchResult) {
     if (result.type === "note")
       return navigateNote(result.id, result.matchTerms);
+    if (result.type === "event") {
+      if (!(await filter("calendar"))) return false;
+      const url = new URL(window.location.href);
+      url.searchParams.set("event", result.id);
+      window.history.replaceState(null, "", url);
+      setGeneration((n) => n + 1);
+      return true;
+    }
     if (result.type === "artifact") {
       if (!(await filter("artifacts"))) return false;
       setSectionTarget({ query: "", openId: result.id });
@@ -599,6 +643,7 @@ export function Workspace({
             { id: "all", label: "Notes", Icon: StickyNote },
             { id: "journal", label: "Journal", Icon: NotebookPen },
             { id: "tasks", label: "Tasks", Icon: SquareCheckBig },
+            { id: "calendar", label: "Calendar", Icon: CalendarDays },
             { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
             { id: "artifacts", label: "Artifacts", Icon: Layers },
             { id: "trash", label: "Trash", Icon: Trash },
@@ -765,11 +810,54 @@ export function Workspace({
           }}
           onCreate={(kind) => void searchCommand(kind)}
         />
+      ) : view === "calendar" ? (
+        <CalendarPanel
+          key={generation}
+          registerGuard={registerGuard}
+          onWriteJournal={async (date) => {
+            if (!(await guard.current())) return;
+            adopt(
+              await api<Note>("notes/daily", {
+                method: "POST",
+                body: JSON.stringify({ date }),
+              }),
+            );
+          }}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
+          onOpenItem={(item) => {
+            if (item.type === "note" || item.type === "journal")
+              void navigateNote(
+                item.sourceId,
+                [],
+                item.type === "journal" ? "journal" : "all",
+              );
+            else
+              void filter(
+                item.type === "task"
+                  ? "tasks"
+                  : item.type === "bookmark"
+                    ? "bookmarks"
+                    : "artifacts",
+              ).then((changed) => {
+                if (changed) {
+                  setSectionTarget({
+                    query: item.title,
+                    completed: item.completed,
+                    openId: item.sourceId,
+                  });
+                  setGeneration((n) => n + 1);
+                }
+              });
+          }}
+        />
       ) : view === "tasks" ? (
         <TasksPanel
           key={generation}
           registerGuard={registerGuard}
           initialQuery={sectionTarget.query}
+          initialTaskId={sectionTarget.openId}
           initialFilter={sectionTarget.completed ? "completed" : "open"}
           focusCreate={sectionTarget.focusCreate}
           onOpenNote={navigateNote}

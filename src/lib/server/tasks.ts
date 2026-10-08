@@ -1,3 +1,4 @@
+import { invalidateCalendarReminders } from "./calendar-reminders";
 import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -17,6 +18,7 @@ const fields = {
   createdAt: tasks.createdAt,
   updatedAt: tasks.updatedAt,
   dueDate: tasks.dueDate,
+  plannedDate: tasks.plannedDate,
   recurrence: tasks.recurrence,
   recurrenceDay: tasks.recurrenceDay,
   parentTaskId: tasks.parentTaskId,
@@ -26,6 +28,7 @@ export type TaskChanges = {
   title?: string;
   completed?: boolean;
   dueDate?: string | null;
+  plannedDate?: string | null;
   recurrence?: Recurrence | null;
   noteId?: string | null;
 };
@@ -54,7 +57,7 @@ export function listTasks(owner: string, includeTrash = false): Task[] {
     .all();
 }
 const taskColumns =
-  "t.id,t.title,t.completed_at AS completedAt,t.revision,t.created_at AS createdAt,t.updated_at AS updatedAt,t.due_date AS dueDate,t.recurrence,t.recurrence_day AS recurrenceDay,t.parent_task_id AS parentTaskId,t.note_id AS noteId,n.title AS noteTitle";
+  "t.id,t.title,t.completed_at AS completedAt,t.revision,t.created_at AS createdAt,t.updated_at AS updatedAt,t.due_date AS dueDate,t.planned_date AS plannedDate,t.recurrence,t.recurrence_day AS recurrenceDay,t.parent_task_id AS parentTaskId,t.note_id AS noteId,n.title AS noteTitle";
 const taskOrder = "t.created_at DESC,t.id DESC";
 export function listTaskPage(
   owner: string,
@@ -108,6 +111,7 @@ export function createTask(
   title: string,
   options: Omit<TaskChanges, "title" | "completed"> = {},
 ): Task {
+  invalidateCalendarReminders();
   const now = Date.now();
   requireLinkedNote(owner, options.noteId);
   if (options.recurrence && !options.dueDate)
@@ -122,6 +126,7 @@ export function createTask(
         createdAt: now,
         updatedAt: now,
         dueDate: options.dueDate,
+        plannedDate: options.plannedDate,
         recurrence: options.recurrence,
         recurrenceDay: options.dueDate
           ? Number(options.dueDate.slice(8))
@@ -137,6 +142,7 @@ export function updateTask(
   id: string,
   input: TaskChanges & { revision: number },
 ): Task {
+  invalidateCalendarReminders();
   return sqlite()
     .transaction(() => {
       const previous = db()
@@ -177,6 +183,9 @@ export function updateTask(
             ? { completedAt: input.completed ? Date.now() : null }
             : {}),
           revision: input.revision + 1,
+          ...(input.plannedDate !== undefined
+            ? { plannedDate: input.plannedDate }
+            : {}),
           updatedAt: Date.now(),
           ...(input.dueDate !== undefined
             ? { dueDate: input.dueDate, recurrenceDay: anchor }
@@ -240,6 +249,16 @@ export function updateTask(
             ownerId: owner,
             title: task.title,
             dueDate: following,
+            plannedDate:
+              task.plannedDate && task.dueDate
+                ? new Date(
+                    Date.parse(task.plannedDate + "T12:00:00Z") +
+                      Date.parse(following + "T12:00:00Z") -
+                      Date.parse(task.dueDate + "T12:00:00Z"),
+                  )
+                    .toISOString()
+                    .slice(0, 10)
+                : null,
             recurrence: repeat,
             recurrenceDay: anchor,
             parentTaskId: id,
@@ -253,6 +272,11 @@ export function updateTask(
             "INSERT INTO task_tags(task_id,tag_id) SELECT ?,tag_id FROM task_tags WHERE task_id=?",
           )
           .run(occurrenceId, id);
+        sqlite()
+          .prepare(
+            "INSERT INTO calendar_task_reminders(task_id,timezone,field,offsets) SELECT ?,timezone,field,offsets FROM calendar_task_reminders WHERE task_id=?",
+          )
+          .run(occurrenceId, id);
       }
       return enrich(task);
     })
@@ -260,4 +284,5 @@ export function updateTask(
 }
 export function deleteTask(owner: string, id: string, revision: number) {
   moveToTrash(owner, "task", id, revision);
+  invalidateCalendarReminders();
 }

@@ -16,5 +16,11 @@ export async function register() {
     resumeThumbnails();
     const { startJobWorker } = await import("./lib/server/jobs");
     startJobWorker();
+    const { startReminderWorker } =
+      await import("./lib/server/calendar-reminders");
+    const { environment } = await import("./lib/server/environment");
+    startReminderWorker(
+      environment().NIVRA_PUBLIC_URL || "http://localhost:3000",
+    );
   }
 }

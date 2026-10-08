@@ -1,4 +1,3 @@
-import { historicalBundleFormat } from "../src/lib/compatibility";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -120,7 +119,7 @@ test("existing templates move to trash instead of being deleted, and old bundles
       new Uint8Array(await (await call("export/bundle")).arrayBuffer()),
     );
     const manifest = JSON.parse(strFromU8(exported["manifest.json"]));
-    manifest.format = historicalBundleFormat;
+    manifest.format = "nivra";
     manifest.notes.find((n: { id: string }) => n.id === made.id).kind =
       "template";
     exported["manifest.json"] = strToU8(JSON.stringify(manifest));

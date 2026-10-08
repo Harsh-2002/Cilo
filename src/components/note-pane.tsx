@@ -1,4 +1,6 @@
 "use client";
+import { CalendarDays as ScheduleIcon } from "lucide-react";
+import { scheduleItem } from "@/lib/schedule";
 import { useCompletion } from "@/lib/completion-client";
 import { LoadingState } from "./loading-state";
 import {
@@ -522,6 +524,18 @@ export function NotePane({
                         </DropdownMenuRadioItem>
                       </DropdownMenuRadioGroup>
                       <DropdownMenuSeparator className="note-width-control" />
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          scheduleItem(
+                            note.dailyDate ? "journal" : "note",
+                            note.id,
+                            note.title,
+                          )
+                        }
+                      >
+                        <ScheduleIcon size={15} />
+                        Schedule
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() =>
                           void action(async () => setHistory(true))

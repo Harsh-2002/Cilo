@@ -1,5 +1,4 @@
 import { completionEvent } from "./jobs";
-import { historicalBackupFormat } from "../compatibility";
 import { environment } from "./environment";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
@@ -38,10 +37,7 @@ const object = z
   .strict();
 const manifestSchema = z
   .object({
-    format: z.union([
-      z.literal("nivra-backup"),
-      z.literal(historicalBackupFormat),
-    ]),
+    format: z.literal("nivra-backup"),
     version: z.literal(1),
     id: z.string().regex(backupId),
     createdAt: z.number().int().positive(),
@@ -468,6 +464,7 @@ export async function restoreBackup(
         "bookmarks_fts",
         "tasks_fts",
         "artifacts_fts",
+        "events_fts",
       ]) {
         if (
           database
@@ -481,6 +478,20 @@ export async function restoreBackup(
               `INSERT INTO ${table}(${table},rank) VALUES('integrity-check',1)`,
             )
             .run();
+      }
+      if (
+        database
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE name='push_subscriptions'",
+          )
+          .get()
+      ) {
+        database.prepare("DELETE FROM push_subscriptions").run();
+        database
+          .prepare(
+            "UPDATE calendar_reminders SET state='missed' WHERE state IN ('queued','accepted')",
+          )
+          .run();
       }
     } finally {
       database.close();

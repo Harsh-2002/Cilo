@@ -1,4 +1,4 @@
-import { apiNamespacePattern } from "./compatibility";
+import { apiNamespacePattern } from "./paths";
 import type { Document } from "./types";
 
 export function readerUrl(value: unknown, media = false): string | undefined {

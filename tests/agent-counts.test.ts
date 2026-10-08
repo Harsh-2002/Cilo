@@ -97,6 +97,7 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
       tasks: 2,
       bookmarks: 1,
       artifacts: 1,
+      events: 0,
     });
     assert.equal(active.total, 70);
     assert.deepEqual(active.taskStatus, { open: 1, completed: 1 });
@@ -140,7 +141,14 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
     );
     assert.deepEqual(
       agentCounts(owner, { state: "trash", favoritesOnly: false }).counts,
-      { notes: 1, journals: 0, tasks: 1, bookmarks: 0, artifacts: 0 },
+      {
+        notes: 1,
+        journals: 0,
+        tasks: 1,
+        bookmarks: 0,
+        artifacts: 0,
+        events: 0,
+      },
     );
     assert.equal(
       agentCounts(owner, { state: "active", favoritesOnly: true }).total,
@@ -149,7 +157,14 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
     assert.deepEqual(
       agentCounts(owner, { state: "active", favoritesOnly: false, tagId: tag })
         .counts,
-      { notes: 2, journals: 0, tasks: 1, bookmarks: 0, artifacts: 1 },
+      {
+        notes: 2,
+        journals: 0,
+        tasks: 1,
+        bookmarks: 0,
+        artifacts: 1,
+        events: 0,
+      },
     );
     assert.equal(
       agentCounts("another-owner", { state: "active", favoritesOnly: false })

@@ -227,6 +227,72 @@ test("MCP shares content while isolating agent credentials and account administr
       assert.equal((await writeOnly.json()).error, "invalid_scope");
     });
     await t.test(
+      "calendar tools validate events, return canonical links and enforce revisions",
+      async () => {
+        const input = {
+          title: "MCP calendar fixture",
+          start: "2026-10-08",
+          end: "2026-10-09",
+          timezone: "UTC",
+          recurrence: { frequency: "daily", count: 3 },
+        };
+        const created = await call<{
+          id: string;
+          revision: number;
+          url: string;
+        }>(client, "create_event", { input });
+        assert.equal(created.url, `${base}/calendar?event=${created.id}`);
+        const loaded = await call<{ title: string; linkedItems: unknown[] }>(
+          client,
+          "get_event",
+          { id: created.id },
+        );
+        assert.equal(loaded.title, input.title);
+        assert.deepEqual(loaded.linkedItems, []);
+        const range = await call<{
+          items: { sourceId: string }[];
+          total: number;
+        }>(client, "list_calendar", {
+          from: "2026-10-08",
+          to: "2026-10-12",
+          timezone: "UTC",
+          limit: 1,
+        });
+        assert.ok(range.total >= 3);
+        assert.equal(range.items.length, 1);
+        const invalid = await client.callTool({
+          name: "create_event",
+          arguments: { input: { ...input, start: "2026-02-30" } },
+        });
+        assert.equal(invalid.isError, true);
+        const edited = await call<{ revision: number }>(
+          client,
+          "update_event",
+          {
+            id: created.id,
+            revision: created.revision,
+            input: { ...input, title: "Updated calendar fixture" },
+          },
+        );
+        const stale = await client.callTool({
+          name: "update_event",
+          arguments: { id: created.id, revision: created.revision, input },
+        });
+        assert.equal(stale.isError, true);
+        await call(client, "trash_event", {
+          id: created.id,
+          revision: edited.revision,
+        });
+        assert.ok(
+          sqlite()
+            .prepare(
+              "SELECT 1 FROM calendar_events WHERE id=? AND trashed_at IS NOT NULL",
+            )
+            .get(created.id),
+        );
+      },
+    );
+    await t.test(
       "agents receive the instance origin and ready canonical public links",
       async () => {
         assert.ok(

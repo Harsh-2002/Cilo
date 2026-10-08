@@ -19,6 +19,7 @@ export function agentSearch(
     ["task", "tasks", "task_tags", "task_id"],
     ["bookmark", "bookmarks", "bookmark_tags", "bookmark_id"],
     ["artifact", "artifacts", "artifact_tags", "artifact_id"],
+    ["event", "calendar_events", "event_tags", "event_id"],
   ] as const) {
     if (type && type !== area && !(type === "journal" && area === "note"))
       continue;
@@ -35,10 +36,9 @@ export function agentSearch(
       );
       values.push(tag);
     }
+    const fts = area === "event" ? "events_fts" : `${table}_fts`;
     if (search) {
-      where.push(
-        `i.rowid IN(SELECT rowid FROM ${table}_fts WHERE ${table}_fts MATCH ?)`,
-      );
+      where.push(`i.rowid IN(SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)`);
       values.push(search);
     }
     const kind =
@@ -52,7 +52,9 @@ export function agentSearch(
           ? "i.title"
           : area === "bookmark"
             ? "i.description"
-            : "i.content";
+            : area === "event"
+              ? "i.description"
+              : "i.content";
     branches.push(
       `SELECT i.id,${kind} AS type,i.title,substr(replace(${excerpt},char(10),' '),1,180) AS excerpt,i.revision,i.updated_at AS updatedAt,${area === "note" ? "i.daily_date" : "NULL"} AS dailyDate FROM ${table} i WHERE ${where.join(" AND ")}`,
     );

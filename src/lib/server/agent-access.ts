@@ -28,6 +28,7 @@ export function authorizeContentPath(
       "files",
       "search",
       "overview",
+      "calendar",
       "export",
       "import",
     ].includes(path[0])
@@ -43,6 +44,8 @@ export function authorizeContentPath(
       403,
       "This connection does not have permission to change content.",
     );
+  if (path[0] === "calendar" && path[1] === "subscriptions")
+    throw new HttpError(403, "Enable device notifications in the app.");
   if (method !== "GET") {
     if (
       path[0] === "trash" ||

@@ -1,3 +1,4 @@
+import { eventInput, dateSchema, zoneSchema } from "../calendar";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -30,7 +31,14 @@ const noteContent = z
     "Provide Markdown or blocks, not both.",
   );
 const creationKey = { idempotencyKey: z.string().min(8).max(128).optional() };
-const kind = z.enum(["note", "journal", "task", "bookmark", "artifact"]);
+const kind = z.enum([
+  "note",
+  "journal",
+  "task",
+  "bookmark",
+  "artifact",
+  "event",
+]);
 export const writeTools = new Set<string>();
 type Tool = {
   name: string;
@@ -102,6 +110,7 @@ add(
       notes: workspaceRoutes.all,
       journals: workspaceRoutes.journal,
       tasks: workspaceRoutes.tasks,
+      calendar: workspaceRoutes.calendar,
       bookmarks: workspaceRoutes.bookmarks,
       artifacts: workspaceRoutes.artifacts,
       favorites: workspaceRoutes.favorites,
@@ -461,7 +470,7 @@ add(
   async (i, c) => {
     const row = sqlite()
       .prepare(
-        "SELECT id,title,revision,completed_at AS completedAt,due_date AS dueDate,recurrence,note_id AS noteId,created_at AS createdAt,updated_at AS updatedAt,trashed_at AS trashedAt FROM tasks WHERE id=? AND owner_id=?",
+        "SELECT id,title,revision,completed_at AS completedAt,due_date AS dueDate,planned_date AS plannedDate,recurrence,note_id AS noteId,created_at AS createdAt,updated_at AS updatedAt,trashed_at AS trashedAt FROM tasks WHERE id=? AND owner_id=?",
       )
       .get(i.id, c.principal.ownerId);
     if (!row) throw new HttpError(404, "This task was not found.");
@@ -484,6 +493,7 @@ add(
     c.call("tasks", "POST", {
       title: i.title,
       dueDate: i.dueDate,
+      plannedDate: i.plannedDate,
       recurrence: i.recurrence,
       noteId: i.noteId,
     }),
@@ -754,12 +764,14 @@ add(
   z.object({ id, kind, revision }),
   true,
   async (i, c) =>
-    ["note", "journal"].includes(String(i.kind))
-      ? c.call(`notes/${i.id}`, "PATCH", {
-          revision: i.revision,
-          trashed: true,
-        })
-      : c.call(`${i.kind}s/${i.id}`, "DELETE", { revision: i.revision }),
+    i.kind === "event"
+      ? c.call(`calendar/events/${i.id}`, "DELETE", { revision: i.revision })
+      : ["note", "journal"].includes(String(i.kind))
+        ? c.call(`notes/${i.id}`, "PATCH", {
+            revision: i.revision,
+            trashed: true,
+          })
+        : c.call(`${i.kind}s/${i.id}`, "DELETE", { revision: i.revision }),
   { destructive: true },
 );
 add(
@@ -1130,3 +1142,102 @@ export function createAgentServer(principal: AgentPrincipal, origin: string) {
     );
   return server;
 }
+
+add(
+  "list_calendar",
+  "List scheduled items and exact day counts for a date range.",
+  z.object({
+    from: dateSchema,
+    to: dateSchema,
+    timezone: zoneSchema,
+    mode: z.enum(["planning", "activity"]).default("planning"),
+    query: z.string().max(300).default(""),
+    tag: z.string().uuid().optional(),
+    offset: z.number().int().min(0).max(100000).default(0),
+    limit: z.number().int().min(1).max(100).default(50),
+  }),
+  false,
+  async (i, c) =>
+    c.call(
+      `calendar/range?${new URLSearchParams(
+        Object.entries(i)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)]),
+      )}`,
+    ),
+);
+add(
+  "get_event",
+  "Read an event and its linked items.",
+  z.object({ id }),
+  false,
+  async (i, c) => ({
+    ...((await c.call(`calendar/events/${i.id}`)) as Record<string, unknown>),
+    url: `${c.origin}/calendar?event=${i.id}`,
+  }),
+);
+add(
+  "create_event",
+  "Create an all-day or timed event.",
+  z.object({ input: eventInput, ...creationKey }),
+  true,
+  async (i, c) => {
+    const event = (await c.call("calendar/events", "POST", i.input)) as {
+      id: string;
+    };
+    return { ...event, url: `${c.origin}/calendar?event=${event.id}` };
+  },
+);
+add(
+  "update_event",
+  "Edit an event or recurring occurrences.",
+  z.object({
+    id,
+    revision,
+    input: eventInput,
+    scope: z.enum(["series", "occurrence", "following"]).default("series"),
+    occurrence: z.string().max(40).optional(),
+  }),
+  true,
+  async ({ id, ...i }, c) => c.call(`calendar/events/${id}`, "PATCH", i),
+);
+add(
+  "trash_event",
+  "Move an event or recurring occurrences to Trash.",
+  z.object({
+    id,
+    revision,
+    scope: z.enum(["series", "occurrence", "following"]).default("series"),
+    occurrence: z.string().max(40).optional(),
+  }),
+  true,
+  async ({ id, ...i }, c) => c.call(`calendar/events/${id}`, "DELETE", i),
+  { destructive: true },
+);
+add(
+  "list_reminders",
+  "List recent and missed calendar reminders.",
+  z.object({ offset: z.number().int().min(0).max(100000).default(0) }),
+  false,
+  async (i, c) => c.call(`calendar/reminders?offset=${i.offset}`),
+);
+add(
+  "dismiss_reminder",
+  "Dismiss a calendar reminder.",
+  z.object({ id: z.string().regex(/^[a-f0-9]{64}$/) }),
+  true,
+  async (i, c) => c.call(`calendar/reminders/${i.id}`, "PATCH"),
+);
+add(
+  "set_task_reminders",
+  "Set reminders for a task’s planned or due date.",
+  z.object({
+    id,
+    revision,
+    timezone: zoneSchema,
+    field: z.enum(["planned", "due"]),
+    offsets: z.array(z.number().int().min(0).max(10080)).max(3),
+  }),
+  true,
+  async ({ id, ...i }, c) => c.call(`calendar/task-reminders/${id}`, "PUT", i),
+);

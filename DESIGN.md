@@ -374,3 +374,9 @@ Selecting a sidebar tag opens a full-width collection of matching notes, journal
 Favorites uses the same collection layout for starred notes, journal entries and bookmarks, with no creation controls. Notes invites writing a note; Journal uses journal-specific descriptions, search labels and a Create journal entry action that opens today's entry. Back controls name the originating collection.
 
 Settings uses a fixed desktop dialog height with internal scrolling across Account and Import & export. Action confirmations stay beside their action; other feedback has clear spacing from fields. Search is a wider, taller results-only surface, showing recent items for an empty query and retaining the last query and results while reopening and refreshing. Mobile search and settings remain full-screen pages.
+
+## Calendar
+
+Calendar follows the workspace's monochrome controls and gutters. Desktop Month fills the remaining viewport height with six equal week rows; the page and month grid do not scroll. Shorter cells show fewer previews with an exact remaining-item count. The selected day's agenda scrolls independently. Year uses a four-column, three-row grid on desktop; Day and Week keep timed schedules within the content viewport. Mobile uses 44px date targets, a compact month grid followed by the selected day's agenda, and chronological lists for Day and Week. Event editors keep a stable desktop dialog height and become full-screen on mobile, with protected unsaved changes and safe-area controls.
+
+Device reminder setup uses one optional, inline Overview callout with Enable notifications and Not now. It follows the content gutter, wraps actions on small screens, and keeps mobile targets at least 44px high. Dismissal is remembered per browser; permission prompts require an explicit click, and successful registration hides the callout.

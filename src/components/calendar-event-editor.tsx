@@ -1,0 +1,695 @@
+"use client";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Temporal } from "@js-temporal/polyfill";
+import { api } from "@/lib/client";
+import {
+  addDays,
+  eventInput,
+  eventPayload,
+  type CalendarEvent,
+  type EventInput,
+} from "@/lib/calendar";
+import type { SearchResult } from "@/lib/types";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Checkbox } from "./ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { DatePicker } from "./date-picker";
+import { ItemTagPicker } from "./item-tag-picker";
+import { useConfirm } from "./confirm-provider";
+
+export function CalendarSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([id, text]) => (
+          <SelectItem key={id} value={id}>
+            {text}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+export function CalendarEventEditor({
+  event,
+  date,
+  zone,
+  occurrence,
+  onClose,
+  onSaved,
+  onDirty,
+}: {
+  event: CalendarEvent | null;
+  date: string;
+  zone: string;
+  occurrence?: string;
+  onClose: () => void;
+  onSaved: () => void;
+  onDirty: (dirty: boolean) => void;
+}) {
+  const confirm = useConfirm();
+  const [revision, setRevision] = useState(event?.revision ?? 1);
+  const [linkNames, setLinkNames] = useState<Record<string, string>>(() => {
+    const names = Object.fromEntries(
+      (
+        (
+          event as CalendarEvent & {
+            linkedItems?: { id: string; title: string }[];
+          }
+        )?.linkedItems ?? []
+      ).map((item) => [item.id, item.title]),
+    );
+    if (typeof window !== "undefined") {
+      const p = new URL(window.location.href).searchParams;
+      if (p.get("link"))
+        names[p.get("link")!] = p.get("linkTitle") ?? "Linked item";
+    }
+    return names;
+  });
+  const [draft, setDraft] = useState<EventInput>(() =>
+    event
+      ? eventPayload(event)
+      : {
+          title: "",
+          description: "",
+          location: "",
+          allDay: true,
+          start: date,
+          end: addDays(date, 1),
+          timezone: zone,
+          disambiguation: "reject",
+          recurrence: null,
+          links: (() => {
+            const p = new URL(window.location.href).searchParams,
+              type = p.get("linkType"),
+              id = p.get("link");
+            return id &&
+              ["note", "journal", "task", "bookmark", "artifact"].includes(
+                type ?? "",
+              )
+              ? [{ type: type as EventInput["links"][number]["type"], id }]
+              : [];
+          })(),
+          reminders: [],
+        },
+  );
+  const [initial] = useState(() => JSON.stringify(draft));
+  const [initialOffsets] = useState(draft.reminders.join(", "));
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [scope, setScope] = useState("series"),
+    [query, setQuery] = useState(""),
+    [results, setResults] = useState<SearchResult[]>([]),
+    [offsets, setOffsets] = useState(draft.reminders.join(", "));
+  const dirty = JSON.stringify(draft) !== initial || offsets !== initialOffsets;
+  useEffect(() => {
+    onDirty(dirty || busy);
+    return () => onDirty(false);
+  }, [dirty, busy, onDirty]);
+  useEffect(() => {
+    if (!query.trim()) return;
+    const abort = new AbortController();
+    const timer = setTimeout(() => {
+      void api<SearchResult[]>(`search?q=${encodeURIComponent(query)}`, {
+        signal: abort.signal,
+      })
+        .then(setResults)
+        .catch(() => {
+          if (!abort.signal.aborted) setResults([]);
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      abort.abort();
+    };
+  }, [query]);
+  const change = (value: Partial<EventInput>) =>
+    setDraft((current) => ({ ...current, ...value }));
+  async function close() {
+    if (
+      !busy &&
+      (!dirty ||
+        (await confirm({
+          title: "Discard event changes?",
+          description: "Your unsaved changes will be lost.",
+          action: "Discard changes",
+        })))
+    )
+      onClose();
+  }
+  async function save() {
+    setError("");
+    const reminders = offsets.trim()
+      ? offsets.split(",").map((value) => Number(value.trim()))
+      : [];
+    const parsed = eventInput.safeParse({ ...draft, reminders });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
+      return;
+    }
+    setBusy(true);
+    try {
+      await api(event ? `calendar/events/${event.id}` : "calendar/events", {
+        method: event ? "PATCH" : "POST",
+        body: JSON.stringify(
+          event
+            ? {
+                input: parsed.data,
+                revision,
+                scope,
+                occurrence,
+              }
+            : parsed.data,
+        ),
+      });
+      onSaved();
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "The event could not be saved. Try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function trash() {
+    if (
+      !event ||
+      !(await confirm({
+        title: "Move event to Trash?",
+        description: "You can restore it from Trash.",
+        action: "Move to Trash",
+      }))
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(`calendar/events/${event.id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ revision, scope, occurrence }),
+      });
+      onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function chooseScope(value: string) {
+    setScope(value);
+    if (event && occurrence && value !== "series") {
+      const duration = event.allDay
+        ? Temporal.PlainDate.from(event.end).since(
+            Temporal.PlainDate.from(event.start),
+          )
+        : Temporal.PlainDateTime.from(event.end).since(
+            Temporal.PlainDateTime.from(event.start),
+          );
+      change({
+        start: occurrence,
+        end: event.allDay
+          ? Temporal.PlainDate.from(occurrence).add(duration).toString()
+          : Temporal.PlainDateTime.from(occurrence)
+              .add(duration)
+              .toString({ smallestUnit: "minute" }),
+      });
+    } else if (event) change({ start: event.start, end: event.end });
+  }
+  const repeat = draft.recurrence;
+  const recurrence = (value: Partial<NonNullable<EventInput["recurrence"]>>) =>
+    change({
+      recurrence: {
+        frequency: "weekly",
+        interval: 1,
+        weekdays: [],
+        ordinal: null,
+        monthDay: null,
+        until: null,
+        count: null,
+        ...repeat,
+        ...value,
+      },
+    });
+  const dateField = (which: "start" | "end", label: string) => (
+    <label className="schedule-field">
+      <span>{label}</span>
+      <DatePicker
+        label={label}
+        value={
+          draft.allDay && which === "end"
+            ? addDays(draft.end, -1)
+            : draft[which].slice(0, 10)
+        }
+        onChange={(value) => {
+          if (!value) return;
+          change({
+            [which]: draft.allDay
+              ? which === "end"
+                ? addDays(value, 1)
+                : value
+              : value + "T" + draft[which].slice(11),
+          });
+        }}
+      />
+      {!draft.allDay && (
+        <Input
+          type="time"
+          aria-label={`${label} time`}
+          value={draft[which].slice(11, 16)}
+          onChange={(e) =>
+            change({
+              [which]: draft[which].slice(0, 10) + "T" + e.target.value,
+            })
+          }
+        />
+      )}
+    </label>
+  );
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) void close();
+      }}
+    >
+      <DialogContent
+        className="schedule-editor"
+        showCloseButton={false}
+        overlayClassName="schedule-editor-overlay"
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          void close();
+        }}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <header className="schedule-editor-heading">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Back to calendar"
+            onClick={() => void close()}
+            disabled={busy}
+          >
+            <ArrowLeft size={18} />
+          </Button>
+          <div>
+            <DialogTitle>{event ? "Edit event" : "New event"}</DialogTitle>
+            <DialogDescription>
+              Schedule time and link your content.
+            </DialogDescription>
+          </div>
+        </header>
+        <div className="schedule-editor-body">
+          {event?.recurrence && occurrence && (
+            <label className="schedule-field">
+              <span>Apply changes to</span>
+              <CalendarSelect
+                label="Apply changes to"
+                value={scope}
+                onChange={chooseScope}
+                options={[
+                  ["occurrence", "This occurrence"],
+                  ["following", "This and following"],
+                  ["series", "Entire series"],
+                ]}
+              />
+            </label>
+          )}
+          <label className="schedule-field">
+            <span>Title</span>
+            <Input
+              autoFocus
+              value={draft.title}
+              maxLength={300}
+              onChange={(e) => change({ title: e.target.value })}
+              placeholder="What’s happening?"
+            />
+          </label>
+          <label className="check-row">
+            <Checkbox
+              checked={draft.allDay}
+              onCheckedChange={(value) => {
+                const allDay = value === true;
+                change({
+                  allDay,
+                  start: allDay
+                    ? draft.start.slice(0, 10)
+                    : draft.start.slice(0, 10) + "T09:00",
+                  end: allDay
+                    ? addDays(draft.end.slice(0, 10), 1)
+                    : draft.start.slice(0, 10) + "T10:00",
+                });
+              }}
+            />
+            All day
+          </label>
+          <div className="schedule-field-pair">
+            {dateField("start", "Starts")}
+            {dateField("end", "Ends")}
+          </div>
+          {!draft.allDay && (
+            <label className="schedule-field">
+              <span>Timezone</span>
+              <Input
+                value={draft.timezone}
+                maxLength={100}
+                onChange={(e) => change({ timezone: e.target.value })}
+              />
+            </label>
+          )}
+          <label className="schedule-field">
+            <span>
+              Location <small>optional</small>
+            </span>
+            <Input
+              value={draft.location}
+              maxLength={500}
+              onChange={(e) => change({ location: e.target.value })}
+            />
+          </label>
+          <label className="schedule-field">
+            <span>
+              Description <small>optional</small>
+            </span>
+            <textarea
+              value={draft.description}
+              maxLength={10000}
+              onChange={(e) => change({ description: e.target.value })}
+            />
+          </label>
+          <details className="schedule-details">
+            <summary>Repeat and reminders</summary>
+            <label className="schedule-field">
+              <span>Repeat</span>
+              <CalendarSelect
+                label="Repeat"
+                value={repeat?.frequency ?? "none"}
+                onChange={(value) =>
+                  value === "none"
+                    ? change({ recurrence: null })
+                    : recurrence({
+                        frequency: value as NonNullable<
+                          EventInput["recurrence"]
+                        >["frequency"],
+                      })
+                }
+                options={[
+                  ["none", "Does not repeat"],
+                  ["daily", "Daily"],
+                  ["weekly", "Weekly"],
+                  ["monthly", "Monthly"],
+                  ["yearly", "Yearly"],
+                ]}
+              />
+            </label>
+            {repeat && (
+              <>
+                <label className="schedule-field">
+                  <span>Every</span>
+                  <Input
+                    aria-label="Repeat interval"
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={repeat.interval}
+                    onChange={(e) =>
+                      recurrence({ interval: Number(e.target.value) })
+                    }
+                  />
+                </label>
+                <div className="schedule-weekdays" aria-label="Repeat weekdays">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (day, i) => (
+                      <Button
+                        key={day}
+                        type="button"
+                        variant="ghost"
+                        aria-pressed={repeat.weekdays.includes(i)}
+                        onClick={() =>
+                          recurrence({
+                            weekdays: repeat.weekdays.includes(i)
+                              ? repeat.weekdays.filter((v) => v !== i)
+                              : [...repeat.weekdays, i],
+                          })
+                        }
+                      >
+                        {day}
+                      </Button>
+                    ),
+                  )}
+                </div>
+                {["monthly", "yearly"].includes(repeat.frequency) && (
+                  <div className="schedule-field-pair">
+                    <label className="schedule-field">
+                      <span>Week</span>
+                      <CalendarSelect
+                        label="Week of month"
+                        value={String(repeat.ordinal ?? "any")}
+                        onChange={(v) =>
+                          recurrence({
+                            ordinal: v === "any" ? null : Number(v),
+                            monthDay: null,
+                          })
+                        }
+                        options={[
+                          ["any", "Any week"],
+                          ["1", "First"],
+                          ["2", "Second"],
+                          ["3", "Third"],
+                          ["4", "Fourth"],
+                          ["5", "Fifth"],
+                          ["-1", "Last"],
+                        ]}
+                      />
+                    </label>
+                    <label className="schedule-field">
+                      <span>Day of month</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={repeat.monthDay ?? ""}
+                        onChange={(e) =>
+                          recurrence({
+                            monthDay: e.target.value
+                              ? Number(e.target.value)
+                              : null,
+                            ordinal: null,
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
+                <div className="schedule-field-pair">
+                  <label className="schedule-field">
+                    <span>
+                      Until <small>optional</small>
+                    </span>
+                    <DatePicker
+                      label="Repeat until"
+                      value={repeat.until}
+                      onChange={(until) => recurrence({ until, count: null })}
+                    />
+                  </label>
+                  <label className="schedule-field">
+                    <span>
+                      Occurrences <small>optional</small>
+                    </span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={repeat.count ?? ""}
+                      onChange={(e) =>
+                        recurrence({
+                          count: e.target.value ? Number(e.target.value) : null,
+                          until: null,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              </>
+            )}
+            <label className="schedule-field">
+              <span>
+                Remind me before <small>minutes</small>
+              </span>
+              <Input
+                value={offsets}
+                maxLength={60}
+                onChange={(e) => {
+                  setOffsets(e.target.value);
+                  onDirty(true);
+                }}
+                placeholder="e.g. 0, 15, 60"
+              />
+              <small>
+                Up to three reminders. All-day reminders use 09:00 in{" "}
+                {draft.timezone}.
+              </small>
+            </label>
+            {!draft.allDay && (
+              <label className="schedule-field">
+                <span>Repeated clock time</span>
+                <CalendarSelect
+                  label="Repeated clock time"
+                  value={draft.disambiguation}
+                  onChange={(v) =>
+                    change({
+                      disambiguation: v as EventInput["disambiguation"],
+                    })
+                  }
+                  options={[
+                    ["reject", "Ask me to choose"],
+                    ["earlier", "Earlier offset"],
+                    ["later", "Later offset"],
+                  ]}
+                />
+              </label>
+            )}
+          </details>
+          <details className="schedule-details">
+            <summary>Linked items ({draft.links.length})</summary>
+            <Input
+              aria-label="Find items to link"
+              placeholder="Search notes, tasks and files…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {draft.links.map((link) => (
+              <div className="schedule-link" key={link.type + link.id}>
+                <span>{linkNames[link.id] ?? `Linked ${link.type}`}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remove linked item"
+                  onClick={() =>
+                    change({
+                      links: draft.links.filter(
+                        (v) => v.id !== link.id || v.type !== link.type,
+                      ),
+                    })
+                  }
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+            ))}
+            {query &&
+              results
+                .filter((item) =>
+                  ["note", "journal", "task", "bookmark", "artifact"].includes(
+                    item.type,
+                  ),
+                )
+                .slice(0, 10)
+                .map((item) => (
+                  <Button
+                    key={item.id}
+                    className="schedule-link-result"
+                    variant="ghost"
+                    disabled={draft.links.some((link) => link.id === item.id)}
+                    onClick={() => {
+                      change({
+                        links: [
+                          ...draft.links,
+                          {
+                            type: (item.type === "note" && item.dailyDate
+                              ? "journal"
+                              : item.type) as EventInput["links"][number]["type"],
+                            id: item.id,
+                          },
+                        ],
+                      });
+                      setLinkNames((names) => ({
+                        ...names,
+                        [item.id]: item.title,
+                      }));
+                      setQuery("");
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>{item.title}</span>
+                  </Button>
+                ))}
+          </details>
+          {event && (
+            <ItemTagPicker
+              type="event"
+              id={event.id}
+              title={event.title}
+              compact={false}
+              disabled={busy || dirty}
+              onChanged={async () => {
+                const state = await api<{ revision: number }>(
+                  `item-tags/event/${event.id}`,
+                );
+                setRevision(state.revision);
+              }}
+            />
+          )}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+        <footer className="schedule-editor-footer">
+          {event && (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void trash()}
+            >
+              <Trash2 size={16} />
+              Trash
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => void close()}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={busy || !draft.title.trim()}
+            onClick={() => void save()}
+          >
+            {busy && <Loader2 className="animate-spin" size={16} />}Save event
+          </Button>
+        </footer>
+      </DialogContent>
+    </Dialog>
+  );
+}

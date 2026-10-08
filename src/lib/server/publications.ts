@@ -1,4 +1,4 @@
-import { apiNamespacePattern } from "../compatibility";
+import { apiNamespacePattern } from "../paths";
 import { randomBytes, randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 import { storage } from "./storage";

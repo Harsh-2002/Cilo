@@ -1,5 +1,5 @@
 "use client";
-import { apiNamespacePattern } from "@/lib/compatibility";
+import { apiNamespacePattern } from "@/lib/paths";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import {
   FileAudio,

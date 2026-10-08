@@ -16,7 +16,7 @@ By default, Docker persists the database, files, generated authentication secret
 
 Nivra encrypts its database and stored files at rest by default. New installations can opt out before first startup; authentication secrets and backups remain encrypted. See [key custody and encrypted backups](docs/self-hosting.md#encryption-and-key-custody) before moving or restoring an instance.
 
-Existing installations keep their database, keys and encrypted object formats. `NIVRA_*` is the configuration namespace. Upgrade handling preserves existing encrypted data and saved links. See [upgrade compatibility](docs/self-hosting.md#rename-compatibility).
+Existing installations keep their database, keys and encrypted object formats. `NIVRA_*` is the configuration namespace. Upgrade handling preserves existing encrypted data and saved links. See [storage identity](docs/self-hosting.md#storage-identity).
 
 ## Development
 

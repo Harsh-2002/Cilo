@@ -1,3 +1,10 @@
+import {
+  portableCalendar,
+  exportCalendarBundle,
+  stageCalendarFiles,
+  importCalendarBundle,
+} from "./calendar-bundle";
+import { calendarApi } from "./calendar-api";
 import { agentManagement } from "./agent-management";
 import {
   authorizeContentPath,
@@ -12,10 +19,6 @@ import {
 } from "@/lib/server/passkey-setup";
 import { passkeyFreshSeconds } from "@/lib/server/passkeys";
 import { listTrash, restoreTrash, deleteTrash } from "@/lib/server/trash";
-import {
-  historicalBundleFormat,
-  historicalNamespace,
-} from "@/lib/compatibility";
 import { fileResponse, safeName } from "@/lib/server/file-response";
 import { pageLimit } from "@/lib/server/pagination";
 import { bookmarkUrl, imageMime } from "@/lib/server/link-metadata";
@@ -379,6 +382,13 @@ export async function handleWorkspace(
         : !session || session.user.id !== owner.id)
     )
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "calendar")
+      return await calendarApi(
+        request,
+        owner.id,
+        session?.session.id ?? null,
+        path,
+      );
     if (area === "ai-consent" && method === "GET" && !id) {
       const client = z
         .string()
@@ -487,7 +497,14 @@ export async function handleWorkspace(
       }
     }
     if (area === "trash") {
-      const kinds = z.enum(["note", "journal", "task", "bookmark", "artifact"]);
+      const kinds = z.enum([
+        "note",
+        "journal",
+        "task",
+        "bookmark",
+        "artifact",
+        "event",
+      ]);
       if (method === "GET" && !id) {
         const kind = url.searchParams.get("kind");
         return response(
@@ -1057,12 +1074,15 @@ export async function handleWorkspace(
         .prepare("SELECT * FROM attachments")
         .all() as Attachment[];
       const bookmarkExport = await exportBookmarkBundle(owner.id);
+      const calendarExport = await exportCalendarBundle(owner.id);
       const files: Record<string, Uint8Array> = {
         ...bookmarkExport.files,
+        ...calendarExport.files,
         "manifest.json": strToU8(
           JSON.stringify({
             format: "nivra",
-            version: 2,
+            version: 3,
+            calendar: calendarExport.data,
             notes,
             tasks: listTasks(owner.id, true).map((task) => ({
               ...task,
@@ -1103,9 +1123,7 @@ export async function handleWorkspace(
       for (const file of filesFor(action)) {
         const name = `files/${file.id}-${safeName(file.name)}`;
         files[name] = await storage.read(file.storage_key);
-        markdown = markdown
-          .replaceAll(`/api/nivra/files/${file.id}`, name)
-          .replaceAll(`/api/${historicalNamespace}/files/${file.id}`, name);
+        markdown = markdown.replaceAll(`/api/nivra/files/${file.id}`, name);
       }
       const visit = async (blocks: Record<string, unknown>[]) => {
         for (const block of blocks) {
@@ -1174,11 +1192,9 @@ export async function handleWorkspace(
         throw new HttpError(400, "Choose a Nivra export bundle.");
       const manifest = z
         .object({
-          format: z.union([
-            z.literal("nivra"),
-            z.literal(historicalBundleFormat),
-          ]),
-          version: z.union([z.literal(1), z.literal(2)]),
+          format: z.literal("nivra"),
+          version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+          calendar: portableCalendar.optional(),
           history: z
             .array(
               z.object({
@@ -1194,6 +1210,7 @@ export async function handleWorkspace(
           bookmarks: z
             .array(
               z.object({
+                id: z.string().uuid().optional(),
                 tags: z
                   .array(
                     z.object({
@@ -1255,6 +1272,7 @@ export async function handleWorkspace(
                 createdAt: z.number().int().nonnegative(),
                 updatedAt: z.number().int().nonnegative(),
                 dueDate: calendarDate.nullable().default(null),
+                plannedDate: calendarDate.nullable().default(null),
                 recurrence: z
                   .enum(["daily", "weekly", "monthly"])
                   .nullable()
@@ -1375,6 +1393,8 @@ export async function handleWorkspace(
       )
         throw new HttpError(400, "The bundle contains duplicate identifiers.");
       const created: string[] = [];
+      let calendarKeys = new Map<string, string>();
+      const bookmarkIds = new Map<string, string>();
       const importedBookmarks: {
         item: (typeof manifest.bookmarks)[number];
         thumbnail: string | null;
@@ -1386,13 +1406,20 @@ export async function handleWorkspace(
       )
         throw new HttpError(400, "The bundle contains duplicate bookmarks.");
       try {
+        if (manifest.calendar)
+          calendarKeys = await stageCalendarFiles(
+            manifest.calendar,
+            entries,
+            created,
+          );
         for (const item of manifest.bookmarks) {
-          if (
-            database
-              .prepare("SELECT 1 FROM bookmarks WHERE owner_id=? AND url=?")
-              .get(owner.id, item.url)
-          )
+          const existing = database
+            .prepare("SELECT id FROM bookmarks WHERE owner_id=? AND url=?")
+            .get(owner.id, item.url) as { id: string } | undefined;
+          if (existing) {
+            if (item.id) bookmarkIds.set(item.id, existing.id);
             continue;
+          }
           const assets: { thumbnail: string | null; icon: string | null } = {
             thumbnail: null,
             icon: null,
@@ -1497,6 +1524,7 @@ export async function handleWorkspace(
                 );
             for (const { item, thumbnail, icon } of importedBookmarks) {
               const bookmarkId = randomUUID();
+              if (item.id) bookmarkIds.set(item.id, bookmarkId);
               database
                 .prepare(
                   `INSERT INTO bookmarks(id,owner_id,url,title,description,site_name,collection,favorite,metadata_status,thumbnail_key,thumbnail_mime,icon_key,icon_mime,created_at,updated_at,note_id,title_edited,description_edited,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -1532,7 +1560,7 @@ export async function handleWorkspace(
                 : [...taskIds.values()][index];
               database
                 .prepare(
-                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,recurrence,recurrence_day,note_id,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,planned_date,recurrence,recurrence_day,note_id,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                 )
                 .run(
                   assigned,
@@ -1542,6 +1570,7 @@ export async function handleWorkspace(
                   task.createdAt,
                   task.updatedAt,
                   task.dueDate,
+                  task.plannedDate,
                   task.recurrence,
                   task.recurrenceDay ||
                     (task.dueDate ? Number(task.dueDate.slice(8)) : null),
@@ -1573,6 +1602,13 @@ export async function handleWorkspace(
                   fileIds.get(file.id),
                   Date.now(),
                 );
+            if (manifest.calendar)
+              importCalendarBundle(
+                owner.id,
+                manifest.calendar,
+                { notes: noteIds, tasks: taskIds, bookmarks: bookmarkIds },
+                calendarKeys,
+              );
           })
           .immediate();
       } catch (error) {

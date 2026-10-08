@@ -4,13 +4,20 @@ import { HttpError } from "./http";
 import { ftsQuery } from "./validation";
 import type { Tag, TaggedItem } from "../types";
 
-export const taggedTypes = ["note", "task", "bookmark", "artifact"] as const;
+export const taggedTypes = [
+  "note",
+  "task",
+  "bookmark",
+  "artifact",
+  "event",
+] as const;
 export type TaggedType = (typeof taggedTypes)[number];
 const tables = {
   note: "notes",
   task: "tasks",
   bookmark: "bookmarks",
   artifact: "artifacts",
+  event: "calendar_events",
 } as const;
 export function itemTags(type: TaggedType, id: string): Tag[] {
   return sqlite()
@@ -113,6 +120,7 @@ function collectionItems(
   const types = tag ? taggedTypes : (["note", "bookmark"] as const);
   const unions = types.map((type) => {
     const table = tables[type];
+    const fts = type === "event" ? "events_fts" : `${table}_fts`;
     const excerpt =
       type === "note"
         ? "substr(i.text,1,180)"
@@ -126,7 +134,7 @@ function collectionItems(
     if (tag) values.push(tag);
     values.push(owner);
     if (search) values.push(search);
-    return `SELECT '${type}' AS type,i.id,${title} AS title,${excerpt} AS excerpt,i.updated_at AS updatedAt,${type === "note" ? "i.daily_date" : "NULL"} AS dailyDate,${type === "note" || type === "bookmark" ? "i.favorite" : "0"} AS favorite,${type === "task" ? "i.completed_at IS NOT NULL" : "0"} AS completed FROM ${tag ? `${type}_tags it JOIN ${table} i ON i.id=it.${type}_id` : `${table} i`} WHERE ${tag ? "it.tag_id=? AND" : "i.favorite=1 AND"} i.owner_id=? AND i.trashed_at IS NULL ${type === "note" ? "AND i.kind='note'" : ""} ${search ? `AND i.rowid IN (SELECT rowid FROM ${table}_fts WHERE ${table}_fts MATCH ?)` : ""}`;
+    return `SELECT '${type}' AS type,i.id,${title} AS title,${excerpt} AS excerpt,i.updated_at AS updatedAt,${type === "note" ? "i.daily_date" : "NULL"} AS dailyDate,${type === "note" || type === "bookmark" ? "i.favorite" : "0"} AS favorite,${type === "task" ? "i.completed_at IS NOT NULL" : "0"} AS completed FROM ${tag ? `${type}_tags it JOIN ${table} i ON i.id=it.${type}_id` : `${table} i`} WHERE ${tag ? "it.tag_id=? AND" : "i.favorite=1 AND"} i.owner_id=? AND i.trashed_at IS NULL ${type === "note" ? "AND i.kind='note'" : ""} ${search ? `AND i.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)` : ""}`;
   });
   const rows = d
     .prepare(

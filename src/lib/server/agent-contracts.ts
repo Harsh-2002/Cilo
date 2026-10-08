@@ -1,3 +1,4 @@
+import { eventInput } from "../calendar";
 import { z } from "zod";
 import { documentInput } from "./validation";
 const count = z.number().int().nonnegative();
@@ -41,7 +42,7 @@ const item = z
   .object({
     id: z.string().uuid(),
     title: z.string(),
-    type: z.enum(["note", "journal", "task", "bookmark", "artifact"]),
+    type: z.enum(["note", "journal", "task", "bookmark", "artifact", "event"]),
   })
   .passthrough();
 const cursorPage = (row: z.ZodType) =>
@@ -58,7 +59,70 @@ const publication = z.object({
   publishedAt: z.number(),
   url: z.string().url(),
 });
+const calendarEventOutput = eventInput.safeExtend({
+  id: z.string().uuid(),
+  ownerId: z.string(),
+  revision: z.number().int().positive(),
+  trashedAt: z.number().nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  url: z.string().url().optional(),
+  linkedItems: z
+    .array(
+      z
+        .object({
+          type: z.string(),
+          id: z.string(),
+          title: z.string(),
+          available: z.boolean(),
+        })
+        .passthrough(),
+    )
+    .optional(),
+});
 const schemas: Record<string, z.ZodType> = {
+  list_calendar: z.object({
+    items: z.array(
+      z
+        .object({
+          id: z.string(),
+          sourceId: z.string().uuid(),
+          type: z.enum([
+            "event",
+            "task",
+            "journal",
+            "note",
+            "bookmark",
+            "artifact",
+          ]),
+          title: z.string(),
+          date: z.string(),
+          revision: count,
+        })
+        .passthrough(),
+    ),
+    counts: z.record(z.string(), count),
+    total: count,
+    nextOffset: count.nullable(),
+    unscheduled: count,
+    overdue: count,
+  }),
+  get_event: calendarEventOutput,
+  create_event: calendarEventOutput,
+  update_event: calendarEventOutput,
+  trash_event: z.object({ ok: z.literal(true) }),
+  dismiss_reminder: z.object({ ok: z.literal(true) }),
+  set_task_reminders: z.object({ ok: z.literal(true) }),
+  list_reminders: offsetPage(
+    z
+      .object({
+        id: z.string(),
+        title: z.string(),
+        scheduledAt: z.number(),
+        state: z.string(),
+      })
+      .passthrough(),
+  ),
   get_instance: z.object({
     url: z.string().url(),
     mcpUrl: z.string().url(),
@@ -67,6 +131,7 @@ const schemas: Record<string, z.ZodType> = {
       notes: z.literal("/notes"),
       journals: z.literal("/journal"),
       tasks: z.literal("/tasks"),
+      calendar: z.literal("/calendar"),
       bookmarks: z.literal("/bookmarks"),
       artifacts: z.literal("/artifacts"),
       favorites: z.literal("/favorites"),
@@ -89,6 +154,7 @@ const schemas: Record<string, z.ZodType> = {
       tasks: count,
       bookmarks: count,
       artifacts: count,
+      events: count,
     }),
     total: count,
     taskStatus: z.object({ open: count, completed: count }),
@@ -129,7 +195,14 @@ const schemas: Record<string, z.ZodType> = {
     z
       .object({
         id: z.string().uuid(),
-        kind: z.enum(["note", "journal", "task", "bookmark", "artifact"]),
+        kind: z.enum([
+          "note",
+          "journal",
+          "task",
+          "bookmark",
+          "artifact",
+          "event",
+        ]),
         title: z.string(),
         revision: z.number().int().positive(),
         trashedAt: z.number(),
