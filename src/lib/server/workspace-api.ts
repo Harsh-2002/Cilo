@@ -442,6 +442,9 @@ export async function handleWorkspace(
             .string()
             .max(300)
             .parse(url.searchParams.get("q") || ""),
+          z
+            .enum(["workspace", "link"])
+            .parse(url.searchParams.get("purpose") || "workspace"),
         ),
       );
     if (area === "settings") {

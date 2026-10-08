@@ -5,11 +5,16 @@ const cached = new WeakMap<
 >();
 export function editDistance(a: string, b: string, max: number) {
   if (Math.abs(a.length - b.length) > max) return max + 1;
-  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
-  let beforePrevious = previous;
+  const unreachable = max + 1;
+  let previous = new Uint16Array(b.length + 1).fill(unreachable);
+  let beforePrevious = new Uint16Array(b.length + 1).fill(unreachable);
+  let row = new Uint16Array(b.length + 1).fill(unreachable);
+  for (let j = 0; j <= Math.min(b.length, max); j++) previous[j] = j;
   for (let i = 1; i <= a.length; i++) {
-    const row = [i];
-    for (let j = 1; j <= b.length; j++) {
+    row.fill(unreachable);
+    row[0] = Math.min(i, unreachable);
+    let best = row[0];
+    for (let j = Math.max(1, i - max); j <= Math.min(b.length, i + max); j++) {
       row[j] = Math.min(
         row[j - 1] + 1,
         previous[j] + 1,
@@ -17,10 +22,13 @@ export function editDistance(a: string, b: string, max: number) {
       );
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
         row[j] = Math.min(row[j], beforePrevious[j - 2] + 1);
+      best = Math.min(best, row[j]);
     }
-    if (Math.min(...row) > max) return max + 1;
+    if (best > max) return unreachable;
+    const spare = beforePrevious;
     beforePrevious = previous;
     previous = row;
+    row = spare;
   }
   return previous[b.length];
 }
@@ -52,6 +60,12 @@ export function fuzzyQuery(
   const groups = words.map((word) => {
     const max = word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0;
     if (!max) return `"${word}"*`;
+    if (
+      database
+        .prepare(`SELECT 1 FROM ${vocabulary}_fts_vocab WHERE term=? LIMIT 1`)
+        .get(word)
+    )
+      return `"${word}"*`;
     const candidates = database
       .prepare(
         `SELECT term FROM ${vocabulary}_fts_vocab WHERE length(term) BETWEEN ? AND ?`,

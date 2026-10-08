@@ -116,14 +116,25 @@ function enqueue(
   start: number = at,
   now: number = Date.now(),
 ) {
-  const key = createHash("sha256")
-    .update([type, id, occurrence, revision, at].join(":"))
-    .digest("hex");
-  sqlite()
-    .prepare(
-      "INSERT INTO calendar_reminders(id,owner_id,source_type,source_id,occurrence,revision,title,starts_at,scheduled_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state='queued' WHERE calendar_reminders.state='cancelled' AND calendar_reminders.scheduled_at>? AND calendar_reminders.dismissed=0",
-    )
-    .run(
+  const d = sqlite();
+  d.transaction(() => {
+    const existing = d
+      .prepare(
+        "SELECT id FROM calendar_reminders WHERE owner_id=? AND source_type=? AND source_id=? AND occurrence=? AND scheduled_at=? ORDER BY revision DESC,id LIMIT 1",
+      )
+      .get(owner, type, id, occurrence, at) as { id: string } | undefined;
+    if (existing) {
+      d.prepare(
+        "UPDATE calendar_reminders SET revision=?,title=?,starts_at=?,state=CASE WHEN state='cancelled' AND dismissed=0 AND (scheduled_at>? OR (expires_at>? AND EXISTS(SELECT 1 FROM calendar_deliveries WHERE reminder_id=calendar_reminders.id AND state IN ('queued','running') AND attempts<4))) THEN 'queued' ELSE state END WHERE id=?",
+      ).run(revision, title, start, now, now, existing.id);
+      return;
+    }
+    const key = createHash("sha256")
+      .update([type, id, occurrence, at].join(":"))
+      .digest("hex");
+    d.prepare(
+      "INSERT INTO calendar_reminders(id,owner_id,source_type,source_id,occurrence,revision,title,starts_at,scheduled_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+    ).run(
       key,
       owner,
       type,
@@ -134,8 +145,8 @@ function enqueue(
       start,
       at,
       at + 3600000,
-      now,
     );
+  }).immediate();
 }
 export function prepareReminders(now = Date.now()) {
   const owners = sqlite().prepare("SELECT id FROM user").all() as {
@@ -293,6 +304,27 @@ export async function dispatchReminders(
       d.prepare(
         "INSERT OR IGNORE INTO calendar_deliveries(reminder_id,subscription_id,available_at) VALUES(?,?,?)",
       ).run(reminder.id, sub.id, now);
+      const accepted = d
+        .prepare(
+          "SELECT 1 FROM calendar_deliveries delivery JOIN calendar_reminders previous ON previous.id=delivery.reminder_id WHERE previous.owner_id=? AND previous.source_type=? AND previous.source_id=? AND previous.occurrence=? AND previous.scheduled_at=? AND delivery.subscription_id=? AND delivery.state='accepted' LIMIT 1",
+        )
+        .get(
+          reminder.owner_id,
+          reminder.source_type,
+          reminder.source_id,
+          reminder.occurrence,
+          reminder.scheduled_at,
+          sub.id,
+        );
+      if (accepted) {
+        d.prepare(
+          "UPDATE calendar_deliveries SET state='accepted',lease_until=NULL WHERE reminder_id=? AND subscription_id=?",
+        ).run(reminder.id, sub.id);
+        d.prepare(
+          "UPDATE calendar_reminders SET state='accepted' WHERE id=?",
+        ).run(reminder.id);
+        continue;
+      }
       const claimed = d
         .prepare(
           "UPDATE calendar_deliveries SET state='running',lease_until=?,attempts=attempts+1 WHERE reminder_id=? AND subscription_id=? AND available_at<=? AND attempts<4 AND (state='queued' OR (state='running' AND lease_until<?)) RETURNING attempts",

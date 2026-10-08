@@ -91,6 +91,42 @@ test("bounded unified search preserves order, matched context, tags and owner is
       assert.ok(result.matchTerms?.some((t) => t === "discoveryterm"));
       assert.ok(result.excerpt.length < 500);
     }
+    const originalPrepare = d.prepare.bind(d);
+    let fuzzyReads = 0;
+    d.prepare = ((sql: string) => {
+      if (sql.includes("_fts_vocab")) fuzzyReads++;
+      return originalPrepare(sql);
+    }) as typeof d.prepare;
+    try {
+      const compact = searchWorkspace("owner", "discoveryterm", "link");
+      assert.equal(compact.length, 10);
+      assert.ok(
+        compact.every(
+          (row) => !row.excerpt && !row.excerptMatches && row.type !== "event",
+        ),
+      );
+      searchWorkspace("owner", "type:note résuméneedle999");
+      assert.equal(
+        fuzzyReads,
+        0,
+        "Exact matches must not scan unrelated fuzzy vocabularies",
+      );
+    } finally {
+      d.prepare = originalPrepare;
+    }
+    const fullTextPlan = d
+      .prepare(
+        "EXPLAIN QUERY PLAN SELECT id,title FROM notes NOT INDEXED WHERE owner_id=? AND kind='note' AND trashed_at IS NULL AND rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?) ORDER BY updated_at DESC,id LIMIT 12",
+      )
+      .all("owner", '"résuméneedle999"*') as { detail: string }[];
+    assert.ok(
+      fullTextPlan.some((row) => row.detail.includes("INTEGER PRIMARY KEY")),
+    );
+    assert.ok(
+      !fullTextPlan.some((row) =>
+        row.detail.includes("notes_search_order_idx"),
+      ),
+    );
     const deep = searchWorkspace("owner", "type:note résuméneedle999");
     assert.equal(deep[0].id, "note-999");
     assert.ok(deep[0].excerpt.includes("résuméneedle999"));
@@ -112,6 +148,19 @@ test("bounded unified search preserves order, matched context, tags and owner is
       !searchWorkspace("owner", "discoveryterm").some(
         (r) => r.id === "artifact-999",
       ),
+    );
+    d.transaction(() => {
+      for (let i = 0; i < 150; i++)
+        d.prepare(
+          "INSERT INTO notes(id,owner_id,title,document,text,created_at,updated_at) VALUES(?,'owner','Recent unrelated','{}','Different content',1,?)",
+        ).run(`unrelated-${i}`, 100000 + i);
+    }).immediate();
+    const older = searchWorkspace("owner", "type:note discoveryterm");
+    assert.equal(older.length, 12);
+    assert.equal(
+      older[0].id,
+      "note-999",
+      "Broad searches must find matches beyond the recent candidate window",
     );
     assert.equal(d.pragma("integrity_check", { simple: true }), "ok");
   } finally {

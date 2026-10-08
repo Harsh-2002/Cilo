@@ -127,7 +127,7 @@ test("durable reminders deduplicate, cancel completed tasks, reject private prov
           )
           .get(changed.revision) as { state: string }
       ).state,
-      "missed",
+      "listed",
     );
     assert.deepEqual(pushKeys(), pushKeys());
     await assert.rejects(validatedPushEndpoint("http://example.com/push"));
@@ -213,6 +213,15 @@ test("durable reminders deduplicate, cancel completed tasks, reject private prov
       resolve,
     );
     assert.equal(attempts, 1);
+    const retryEdited = updateEvent(owner, pushEvent.id, pushEvent.revision, {
+      title: "Private reminder updated",
+      allDay: false,
+      start: "2026-10-08T09:00",
+      end: "2026-10-08T10:00",
+      timezone: "UTC",
+      reminders: [0],
+    });
+    prepareReminders(now + 30000);
     await dispatchReminders(
       "https://example.com",
       now + 30000,
@@ -250,6 +259,146 @@ test("durable reminders deduplicate, cancel completed tasks, reject private prov
           .get(pushEvent.id) as { state: string }
       ).state,
       "accepted",
+    );
+    let edited = retryEdited;
+    for (let i = 0; i < 3; i++) {
+      edited = updateEvent(owner, edited.id, edited.revision, {
+        title: `Edited reminder ${i}`,
+        allDay: false,
+        start: "2026-10-08T09:00",
+        end: "2026-10-08T10:00",
+        timezone: "UTC",
+        reminders: [0],
+      });
+      prepareReminders(now + 120000);
+      await dispatchReminders(
+        "https://example.com",
+        now + 120000,
+        async () => {
+          attempts++;
+          return { statusCode: 201, headers: {}, body: "" };
+        },
+        resolve,
+      );
+    }
+    assert.equal(
+      attempts,
+      2,
+      "Editing a delivered event must not send it again",
+    );
+    assert.equal(
+      (
+        d
+          .prepare(
+            "SELECT count(*) AS n FROM calendar_reminders WHERE source_id=?",
+          )
+          .get(pushEvent.id) as { n: number }
+      ).n,
+      1,
+    );
+    edited = updateEvent(owner, edited.id, edited.revision, {
+      title: "Legacy queue",
+      allDay: false,
+      start: "2026-10-08T09:00",
+      end: "2026-10-08T10:00",
+      timezone: "UTC",
+      reminders: [0],
+    });
+    d.prepare(
+      "INSERT INTO calendar_reminders(id,owner_id,source_type,source_id,occurrence,revision,title,starts_at,scheduled_at,expires_at) SELECT ?,owner_id,source_type,source_id,occurrence,?,title,starts_at,scheduled_at,expires_at FROM calendar_reminders WHERE source_id=? LIMIT 1",
+    ).run(randomUUID(), edited.revision, edited.id);
+    prepareReminders(now + 180000);
+    await dispatchReminders(
+      "https://example.com",
+      now + 180000,
+      async () => {
+        attempts++;
+        return { statusCode: 201, headers: {}, body: "" };
+      },
+      resolve,
+    );
+    assert.equal(
+      attempts,
+      2,
+      "Legacy revision queues must reuse accepted device deliveries",
+    );
+    const secondEndpoint = "https://push.example.test/send/second";
+    const secondHash = createHash("sha256")
+      .update(secondEndpoint)
+      .digest("hex");
+    d.prepare(
+      "INSERT INTO push_subscriptions(id,owner_id,session_id,endpoint_hash,data,created_at) VALUES(?,?,?,?,?,?)",
+    ).run(
+      randomUUID(),
+      owner,
+      session,
+      secondHash,
+      seal(
+        Buffer.from(
+          JSON.stringify({
+            endpoint: secondEndpoint,
+            keys: { auth: "fixture", p256dh: "fixture" },
+          }),
+        ),
+        masterKey(directory),
+        "push:" + secondHash,
+      ),
+      now - 1,
+    );
+    const multi = createEvent(owner, {
+      title: "Two devices",
+      allDay: false,
+      start: "2026-10-08T10:00",
+      end: "2026-10-08T11:00",
+      timezone: "UTC",
+      reminders: [0],
+    });
+    prepareReminders(now + 3600000);
+    const perDevice = new Map<string, number>();
+    const send = async (
+      subscription: { endpoint: string },
+      payload: unknown,
+    ) => {
+      const count = (perDevice.get(subscription.endpoint) ?? 0) + 1;
+      perDevice.set(subscription.endpoint, count);
+      if (subscription.endpoint === secondEndpoint && count === 1)
+        throw Object.assign(new Error("Retry second device"), {
+          statusCode: 503,
+        });
+      if (count === 2)
+        assert.equal(JSON.parse(String(payload)).title, "Two devices edited");
+      return { statusCode: 201, headers: {}, body: "" };
+    };
+    await dispatchReminders(
+      "https://example.com",
+      now + 3600000,
+      send,
+      resolve,
+    );
+    updateEvent(owner, multi.id, multi.revision, {
+      title: "Two devices edited",
+      allDay: false,
+      start: "2026-10-08T10:00",
+      end: "2026-10-08T11:00",
+      timezone: "UTC",
+      reminders: [0],
+    });
+    prepareReminders(now + 3630000);
+    await dispatchReminders(
+      "https://example.com",
+      now + 3660000,
+      send,
+      resolve,
+    );
+    assert.equal(
+      perDevice.get(endpoint),
+      1,
+      "The accepted device must not receive a retry",
+    );
+    assert.equal(
+      perDevice.get(secondEndpoint),
+      2,
+      "The failed device must retain its retry after an edit",
     );
     d.prepare("DELETE FROM session WHERE id=?").run(session);
     assert.equal(

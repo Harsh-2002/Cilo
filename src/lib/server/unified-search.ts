@@ -31,7 +31,11 @@ export function parseSearch(input: string) {
     .trim();
   return { type, tag, text };
 }
-export function searchWorkspace(owner: string, input: string): SearchResult[] {
+export function searchWorkspace(
+  owner: string,
+  input: string,
+  purpose: "workspace" | "link" = "workspace",
+): SearchResult[] {
   const { type, tag, text } = parseSearch(input);
   const database = sqlite();
   type Candidate = SearchResult & { searchRow: number };
@@ -40,6 +44,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     SearchResult["type"],
     (rows: Candidate[]) => SearchResult[]
   >();
+  const fallbacks: (() => void)[] = [];
   for (const area of [
     "note",
     "task",
@@ -47,6 +52,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     "artifact",
     "event",
   ] as const) {
+    if (purpose === "link" && area === "event") continue;
     if (type && type !== area && !(type === "journal" && area === "note"))
       continue;
     const table =
@@ -74,12 +80,6 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
       params.push(tag);
     }
     const run = (query: string) => {
-      const where = [...conditions];
-      const values = [...params];
-      if (query) {
-        where.push(`rowid IN(SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)`);
-        values.push(query);
-      }
       const excerpt =
         area === "note"
           ? "text"
@@ -94,13 +94,37 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
           : area === "artifact"
             ? ",kind AS artifactKind"
             : "";
-      return database
-        .prepare(
-          `SELECT rowid AS searchRow,id,title,${query ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed}${area === "note" ? ",daily_date AS dailyDate" : ""} FROM ${table} INDEXED BY ${table}_search_order_idx WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT 12`,
-        )
-        .all(...values) as (Omit<SearchResult, "type"> & {
-        searchRow: number;
-      })[];
+      const read = (
+        where: string[],
+        values: (string | number)[],
+        index: string,
+        limit = 12,
+      ) =>
+        database
+          .prepare(
+            `SELECT rowid AS searchRow,id,title,${query || purpose === "link" ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed}${area === "note" ? ",daily_date AS dailyDate" : ""} FROM ${table}${index} WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT ?`,
+          )
+          .all(...values, limit) as (Omit<SearchResult, "type"> & {
+          searchRow: number;
+        })[];
+      const where = [...conditions];
+      const values = [...params];
+      let index = ` INDEXED BY ${table}_search_order_idx`;
+      if (query) {
+        const matches = database
+          .prepare(`SELECT rowid FROM ${fts} WHERE ${fts} MATCH ? LIMIT 513`)
+          .all(query) as { rowid: number }[];
+        if (!matches.length) return [];
+        if (matches.length <= 512) {
+          index = " NOT INDEXED";
+          where.push(`rowid IN (${matches.map(() => "?").join(",")})`);
+          values.push(...matches.map((match) => match.rowid));
+        } else {
+          where.push(`rowid IN(SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)`);
+          values.push(query);
+        }
+      }
+      return read(where, values, index);
     };
     const context = (
       rows: (Omit<SearchResult, "type"> & { searchRow: number })[],
@@ -108,7 +132,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     ) => {
       const start = `[[${randomUUID()}]]`;
       const end = `[[/${randomUUID()}]]`;
-      if (!query || !rows.length)
+      if (purpose === "link" || !query || !rows.length)
         return rows.map(({ searchRow, ...row }) => {
           void searchRow;
           return row;
@@ -116,13 +140,15 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
       // Keep one FTS cursor so snippet's phrase cache survives across selected rows.
       const marked = database
         .prepare(
-          `SELECT rowid AS searchRow,highlight(${fts},0,?,?) AS title,snippet(${fts},-1,?,?,'…',24) AS excerpt FROM ${fts} WHERE (rowid+0) IN (${rows.map(() => "?").join(",")}) AND ${fts} MATCH ?`,
+          `SELECT rowid AS searchRow,highlight(${fts},0,?,?) AS title,snippet(${fts},-1,?,?,'…',24) AS excerpt FROM ${fts} WHERE rowid BETWEEN ? AND ? AND (rowid+0) IN (${rows.map(() => "?").join(",")}) AND ${fts} MATCH ?`,
         )
         .all(
           start,
           end,
           start,
           end,
+          Math.min(...rows.map((row) => row.searchRow)),
+          Math.max(...rows.map((row) => row.searchRow)),
           ...rows.map((row) => row.searchRow),
           query,
         ) as { searchRow: number; title: string; excerpt: string }[];
@@ -148,32 +174,33 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     };
     const query = ftsQuery(text);
     if (text && !query) continue;
-    let usedQuery = query;
-    let found = run(query);
-    if (!found.length && query && area !== "event") {
-      const fuzzy = fuzzyQuery(
-        text,
-        table as "notes" | "tasks" | "bookmarks" | "artifacts",
+    const collect = (usedQuery: string) => {
+      const found = run(usedQuery);
+      enrichers.set(area, (rows) =>
+        context(rows, usedQuery).map((row) => ({ ...row, type: area })),
       );
-      if (fuzzy) {
-        found = run(fuzzy);
-        usedQuery = fuzzy;
-      }
-    }
-    enrichers.set(area, (rows) =>
-      context(rows, usedQuery).map((row) => ({ ...row, type: area })),
-    );
-    results.push(
-      ...found.map((r) => ({
-        ...r,
-        type: area,
-        ...(area === "task" ? { completed: Boolean(r.completed) } : {}),
-      })),
-    );
+      results.push(
+        ...found.map((r) => ({
+          ...r,
+          type: area,
+          ...(area === "task" ? { completed: Boolean(r.completed) } : {}),
+        })),
+      );
+    };
+    collect(query);
+    if (purpose === "workspace" && query && area !== "event")
+      fallbacks.push(() => {
+        const fuzzy = fuzzyQuery(
+          text,
+          table as "notes" | "tasks" | "bookmarks" | "artifacts",
+        );
+        if (fuzzy) collect(fuzzy);
+      });
   }
+  if (!results.length) for (const fallback of fallbacks) fallback();
   const selected = results
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 30);
+    .slice(0, purpose === "link" ? 10 : 30);
   const enriched = new Map<string, SearchResult>();
   for (const [area, enrich] of enrichers) {
     for (const row of enrich(selected.filter((row) => row.type === area)))

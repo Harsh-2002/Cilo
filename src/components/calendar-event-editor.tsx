@@ -128,6 +128,7 @@ export function CalendarEventEditor({
     [scope, setScope] = useState("series"),
     [query, setQuery] = useState(""),
     [results, setResults] = useState<SearchResult[]>([]),
+    [searchState, setSearchState] = useState("idle"),
     [offsets, setOffsets] = useState(draft.reminders.join(", "));
   const dirty = JSON.stringify(draft) !== initial || offsets !== initialOffsets;
   useEffect(() => {
@@ -138,14 +139,21 @@ export function CalendarEventEditor({
     if (!query.trim()) return;
     const abort = new AbortController();
     const timer = setTimeout(() => {
-      void api<SearchResult[]>(`search?q=${encodeURIComponent(query)}`, {
-        signal: abort.signal,
-      })
-        .then(setResults)
+      void api<SearchResult[]>(
+        `search?purpose=link&q=${encodeURIComponent(query)}`,
+        {
+          signal: abort.signal,
+        },
+      )
+        .then((items) => {
+          if (abort.signal.aborted) return;
+          setResults(items);
+          setSearchState("ready");
+        })
         .catch(() => {
-          if (!abort.signal.aborted) setResults([]);
+          if (!abort.signal.aborted) setSearchState("error");
         });
-    }, 250);
+    }, 150);
     return () => {
       clearTimeout(timer);
       abort.abort();
@@ -621,10 +629,26 @@ export function CalendarEventEditor({
                 <summary>Linked items ({draft.links.length})</summary>
                 <Input
                   aria-label="Find items to link"
-                  placeholder="Search notes, tasks and files…"
+                  placeholder="Search saved items…"
+                  maxLength={300}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setResults([]);
+                    setSearchState(e.target.value.trim() ? "loading" : "idle");
+                  }}
                 />
+                {query.trim() && (
+                  <p className="muted" role="status">
+                    {searchState === "loading"
+                      ? "Searching…"
+                      : searchState === "error"
+                        ? "Search could not load. Try searching again."
+                        : searchState === "ready" && !results.length
+                          ? "No matching items."
+                          : ""}
+                  </p>
+                )}
                 {draft.links.map((link) => (
                   <div className="schedule-link" key={link.type + link.id}>
                     <span>{linkNames[link.id] ?? `Linked ${link.type}`}</span>
