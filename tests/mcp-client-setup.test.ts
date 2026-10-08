@@ -11,7 +11,7 @@ test("MCP client setup uses the supplied origin and inline credentials", () => {
       assert.ok(setup.snippets[0].value.includes(endpoint));
       assert.equal(setup.snippets[0].value.includes(token), mode === "key");
       assert.equal(setup.snippets[0].value.includes("NIVRA_API_KEY"), false);
-      if (["cursor", "opencode"].includes(client.id))
+      if (["cursor", "opencode", "openclaw"].includes(client.id))
         assert.doesNotThrow(() => JSON.parse(setup.snippets[0].value));
     }
   assert.match(
@@ -67,4 +67,35 @@ test("CLI quoting keeps endpoints and inline credentials literal", () => {
     token,
   ).snippets[0].value;
   assert.ok(config.includes(JSON.stringify(`Bearer ${token}`)));
+});
+
+test("OpenClaw and Hermes setup selects native HTTP auth formats", () => {
+  const endpoint = "https://example.com/mcp",
+    token = "test-only-token";
+  const key = JSON.parse(
+    mcpClientSetup("openclaw", "key", endpoint, token).snippets[0].value,
+  );
+  assert.equal(key.mcp.servers.nivra.transport, "streamable-http");
+  assert.equal(key.mcp.servers.nivra.headers.Authorization, `Bearer ${token}`);
+  const oauth = JSON.parse(
+    mcpClientSetup("openclaw", "oauth", endpoint).snippets[0].value,
+  );
+  assert.equal(oauth.mcp.servers.nivra.auth, "oauth");
+  assert.equal(oauth.mcp.servers.nivra.headers, undefined);
+  assert.equal(
+    mcpClientSetup("openclaw", "oauth", endpoint).snippets[1].value,
+    "openclaw mcp login nivra",
+  );
+  assert.equal(
+    mcpClientSetup("hermes", "key", endpoint, token).snippets[0].value,
+    `mcp_servers:\n  nivra:\n    url: "${endpoint}"\n    headers:\n      Authorization: "Bearer ${token}"`,
+  );
+  assert.match(
+    mcpClientSetup("hermes", "oauth", endpoint).snippets[0].value,
+    /auth: oauth/,
+  );
+  assert.equal(
+    mcpClientSetup("hermes", "oauth", endpoint).snippets[1].value,
+    "hermes mcp login nivra",
+  );
 });

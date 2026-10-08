@@ -1,5 +1,22 @@
 export type Document = { schemaVersion: 1; blocks: Record<string, unknown>[] };
+export type Board = {
+  id: string;
+  name: string;
+  archivedAt: number | null;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+};
+export type BoardDetail = Board & {
+  counts: Record<import("./boards").TaskStage, number>;
+  url?: string;
+};
 export type Task = {
+  boardId: string | null;
+  boardPosition: number;
+  status: import("./boards").TaskStage;
+  boardName?: string | null;
+  tags?: Tag[];
   id: string;
   title: string;
   completedAt: number | null;

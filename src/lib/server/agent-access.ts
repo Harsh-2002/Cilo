@@ -19,6 +19,7 @@ export function authorizeContentPath(
     ![
       "notes",
       "tasks",
+      "boards",
       "bookmarks",
       "artifacts",
       "tags",

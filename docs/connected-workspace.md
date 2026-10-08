@@ -46,7 +46,7 @@ Templates were removed. Migration 0013 moves any existing template notes to Tras
 
 ## Portability
 
-Version-two Nivra bundles preserve histories, journal dates, internal links, task dates/series and note associations and task/bookmark tags. Import remaps note, task and attachment IDs; version-one bundles remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
+Version-four Nivra bundles preserve boards, archive state, task membership/stages/positions, histories, journal dates, internal links, task dates/series and note associations and task/bookmark tags. Import remaps note, task and attachment IDs; versions one through three remain accepted. If a daily date already exists, its imported content becomes a regular note and the UI reports that adjustment. Existing bookmark URLs remain deduplicated without overwriting their local details.
 
 Bundles import content into an existing owner account. Full encrypted instance backups also preserve account state, publications and instance preferences, and recover only into a new or empty directory with the original key. See [self-hosting and recovery](self-hosting.md).
 

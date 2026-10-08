@@ -1,3 +1,10 @@
+import {
+  taskBoardFields,
+  boardInput,
+  boardChanges,
+  taskMoveInput,
+  taskStages,
+} from "../boards";
 import { eventInput, dateSchema, zoneSchema } from "../calendar";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
@@ -68,6 +75,7 @@ function add(
     [
       "update_note",
       "update_task",
+      "update_board",
       "update_bookmark",
       "update_artifact",
       "update_tag",
@@ -456,29 +464,70 @@ add(
   { destructive: true },
 );
 add(
+  "list_boards",
+  "List active or archived task boards.",
+  z.object({ ...page, archived: z.boolean().default(false) }),
+  false,
+  async (i, c) =>
+    c.call(`boards?${params(i, { archived: i.archived ? "1" : "0" })}`),
+);
+add(
+  "get_board",
+  "Read a board and exact stage counts.",
+  z.object({ id, query: z.string().max(300).default("") }),
+  false,
+  async (i, c) =>
+    c.call(`boards/${i.id}?q=${encodeURIComponent(String(i.query))}`),
+);
+add(
+  "create_board",
+  "Create a task board.",
+  boardInput.extend(creationKey),
+  true,
+  async (i, c) => c.call("boards", "POST", { name: i.name }),
+);
+add(
+  "update_board",
+  "Rename, archive or reopen a board.",
+  z.object({
+    id,
+    name: z.string().trim().min(1).max(80).optional(),
+    revision,
+    archived: z.boolean().optional(),
+  }),
+  true,
+  async ({ id, ...i }, c) =>
+    c.call(`boards/${id}`, "PATCH", boardChanges.parse(i)),
+);
+add(
+  "move_task",
+  "Move or reorder a task in a board.",
+  taskMoveInput.extend({ id }),
+  true,
+  async ({ id, ...i }, c) => c.call(`tasks/${id}/move`, "POST", i),
+);
+add(
   "list_tasks",
   "List paginated tasks, newest first.",
-  z.object({ ...page, filter: z.enum(["open", "completed"]).default("open") }),
+  z.object({
+    ...page,
+    filter: z.enum(["open", "completed"]).default("open"),
+    boardId: z.string().uuid().optional(),
+    status: z.enum(taskStages).optional(),
+    order: z.enum(["recent", "board"]).default("recent"),
+  }),
   false,
-  async (i, c) => c.call(`tasks?${params(i, { filter: String(i.filter) })}`),
+  async (i, c) =>
+    c.call(
+      `tasks?${params(i, { filter: String(i.filter), order: String(i.order), ...(i.boardId ? { boardId: String(i.boardId) } : {}), ...(i.status ? { status: String(i.status) } : {}) })}`,
+    ),
 );
 add(
   "get_task",
-  "Read a task with its tags.",
+  "Read a task with its board, stage and tags.",
   z.object({ id }),
   false,
-  async (i, c) => {
-    const row = sqlite()
-      .prepare(
-        "SELECT id,title,revision,completed_at AS completedAt,due_date AS dueDate,planned_date AS plannedDate,recurrence,note_id AS noteId,created_at AS createdAt,updated_at AS updatedAt,trashed_at AS trashedAt FROM tasks WHERE id=? AND owner_id=?",
-      )
-      .get(i.id, c.principal.ownerId);
-    if (!row) throw new HttpError(404, "This task was not found.");
-    const assignments = (await c.call(`item-tags/task/${i.id}`)) as {
-      tags: unknown[];
-    };
-    return { ...row, tags: assignments.tags };
-  },
+  async (i, c) => c.call(`tasks/${i.id}`),
 );
 add(
   "create_task",
@@ -486,12 +535,16 @@ add(
   z.object({
     title: z.string().trim().min(1).max(300),
     ...taskSchedule,
+    ...taskBoardFields,
+    status: z.enum(["todo", "in_progress"]).optional(),
     ...creationKey,
   }),
   true,
   async (i, c) =>
     c.call("tasks", "POST", {
       title: i.title,
+      boardId: i.boardId,
+      status: i.status,
       dueDate: i.dueDate,
       plannedDate: i.plannedDate,
       recurrence: i.recurrence,
@@ -507,6 +560,7 @@ add(
     title: z.string().trim().min(1).max(300).optional(),
     completed: z.boolean().optional(),
     ...taskSchedule,
+    ...taskBoardFields,
   }),
   true,
   async ({ id, ...i }, c) => c.call(`tasks/${id}`, "PATCH", i),
@@ -1060,7 +1114,16 @@ export function createAgentServer(principal: AgentPrincipal, origin: string) {
               { type: "text" as const, text: JSON.stringify(data ?? null) },
             ],
           };
-          if (tool.write) {
+          if (
+            tool.write &&
+            ![
+              "create_board",
+              "update_board",
+              "move_task",
+              "create_task",
+              "update_task",
+            ].includes(tool.name)
+          ) {
             const target =
               data &&
               typeof data === "object" &&

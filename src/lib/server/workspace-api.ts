@@ -1,3 +1,13 @@
+import { completionEvent } from "./jobs";
+import {
+  boardInput,
+  boardChanges,
+  taskBoardFields,
+  taskMoveInput,
+  taskStages,
+} from "../boards";
+import { createBoard, getBoard, listBoards, updateBoard } from "./boards";
+import { getTask, moveTask } from "./tasks";
 import {
   portableCalendar,
   exportCalendarBundle,
@@ -693,11 +703,81 @@ export async function handleWorkspace(
         return response({ ok: true });
       }
     }
+    if (area === "boards") {
+      const boardUrl = (board: import("../types").Board) => ({
+        ...board,
+        url: `${requestOrigin(request)}/tasks?view=board&board=${board.id}`,
+      });
+      if (id) z.string().uuid().parse(id);
+      if (method === "GET" && !id) {
+        const archived =
+          z
+            .enum(["0", "1"])
+            .default("0")
+            .parse(url.searchParams.get("archived") ?? undefined) === "1";
+        const page = listBoards(
+          owner.id,
+          archived,
+          pageLimit(url.searchParams.get("limit")),
+          url.searchParams.get("after"),
+          url.searchParams.get("q") ?? "",
+        );
+        return response({ ...page, items: page.items.map(boardUrl) });
+      }
+      if (method === "GET" && id)
+        return response({
+          ...getBoard(owner.id, id, url.searchParams.get("q") ?? ""),
+          url: `${requestOrigin(request)}/tasks?view=board&board=${id}`,
+        });
+      if (method === "POST" && !id) {
+        const board = createBoard(
+          owner.id,
+          boardInput.parse(await json(request)).name,
+        );
+        completionEvent(owner.id, "content", board.id, "changed");
+        return response(boardUrl(board), 201);
+      }
+      if (method === "PATCH" && id) {
+        const board = updateBoard(
+          owner.id,
+          id,
+          boardChanges.parse(await json(request)),
+        );
+        completionEvent(owner.id, "content", board.id, "changed");
+        return response(boardUrl(board));
+      }
+    }
     if (area === "tasks") {
+      if (method === "GET" && id)
+        return response(getTask(owner.id, z.string().uuid().parse(id)));
+      if (method === "POST" && id && action === "move") {
+        const task = moveTask(
+          owner.id,
+          z.string().uuid().parse(id),
+          taskMoveInput.parse(await json(request)),
+        );
+        completionEvent(owner.id, "content", task.id, "changed");
+        return response(task);
+      }
       if (method === "GET" && !id) {
         const params = new URL(request.url).searchParams;
+        const boardValue = params.get("boardId");
+        const boardId =
+          boardValue === "unassigned"
+            ? null
+            : boardValue === null
+              ? undefined
+              : z.string().uuid().parse(boardValue);
+        const status = z
+          .enum(taskStages)
+          .optional()
+          .parse(params.get("status") ?? undefined);
+        const order = z
+          .enum(["recent", "board"])
+          .default("recent")
+          .parse(params.get("order") ?? undefined);
         if (params.get("summary") === "1")
-          return response(taskCounts(owner.id));
+          return response(taskCounts(owner.id, boardId));
         const filter = z
           .enum(["open", "completed"])
           .default("open")
@@ -705,6 +785,9 @@ export async function handleWorkspace(
         return response(
           listTaskPage(owner.id, {
             filter,
+            boardId,
+            status,
+            order,
             query: params.get("q") || "",
             limit: pageLimit(params.get("limit")),
             after: params.get("after"),
@@ -713,10 +796,17 @@ export async function handleWorkspace(
       }
       if (method === "POST" && !id) {
         const input = z
-          .object({ title: z.string().trim().min(1).max(300), ...taskSchedule })
+          .object({
+            title: z.string().trim().min(1).max(300),
+            ...taskSchedule,
+            ...taskBoardFields,
+            status: z.enum(["todo", "in_progress"]).optional(),
+          })
           .strict()
           .parse(await json(request));
-        return response(createTask(owner.id, input.title, input), 201);
+        const task = createTask(owner.id, input.title, input);
+        completionEvent(owner.id, "content", task.id, "changed");
+        return response(task, 201);
       }
       if (method === "PATCH" && id) {
         const input = z
@@ -725,11 +815,14 @@ export async function handleWorkspace(
             title: z.string().trim().min(1).max(300).optional(),
             completed: z.boolean().optional(),
             ...taskSchedule,
+            ...taskBoardFields,
           })
           .strict()
           .refine((v) => Object.keys(v).length > 1)
           .parse(await json(request));
-        return response(updateTask(owner.id, id, input));
+        const task = updateTask(owner.id, id, input);
+        completionEvent(owner.id, "content", task.id, "changed");
+        return response(task);
       }
       if (method === "DELETE" && id) {
         const input = z
@@ -737,6 +830,7 @@ export async function handleWorkspace(
           .strict()
           .parse(await json(request));
         deleteTask(owner.id, id, input.revision);
+        if (!principal) completionEvent(owner.id, "content", id, "trashed");
         return response({ ok: true });
       }
     }
@@ -1084,7 +1178,12 @@ export async function handleWorkspace(
         "manifest.json": strToU8(
           JSON.stringify({
             format: "nivra",
-            version: 3,
+            version: 4,
+            boards: database
+              .prepare(
+                "SELECT id,name,archived_at AS archivedAt,revision,created_at AS createdAt,updated_at AS updatedAt FROM task_boards WHERE owner_id=?",
+              )
+              .all(owner.id),
             calendar: calendarExport.data,
             notes,
             tasks: listTasks(owner.id, true).map((task) => ({
@@ -1196,7 +1295,12 @@ export async function handleWorkspace(
       const manifest = z
         .object({
           format: z.literal("nivra"),
-          version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+          version: z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3),
+            z.literal(4),
+          ]),
           calendar: portableCalendar.optional(),
           history: z
             .array(
@@ -1251,6 +1355,18 @@ export async function handleWorkspace(
             )
             .max(10000)
             .default([]),
+          boards: z
+            .array(
+              z.object({
+                id: z.string().uuid(),
+                name: z.string().trim().min(1).max(80),
+                archivedAt: z.number().int().nonnegative().nullable(),
+                createdAt: z.number().int().nonnegative(),
+                updatedAt: z.number().int().nonnegative(),
+              }),
+            )
+            .max(10000)
+            .default([]),
           tasks: z
             .array(
               z.object({
@@ -1266,6 +1382,10 @@ export async function handleWorkspace(
                 id: z.string().uuid().optional(),
                 title: z.string().trim().min(1).max(300),
                 completedAt: z.number().int().nonnegative().nullable(),
+                boardId: z.string().uuid().nullable().default(null),
+                status: z.enum(taskStages).optional(),
+                openStage: z.enum(["todo", "in_progress"]).default("todo"),
+                boardPosition: z.number().finite().default(0),
                 trashedAt: z
                   .number()
                   .int()
@@ -1334,6 +1454,23 @@ export async function handleWorkspace(
       const fileIds = new Map(
         manifest.attachments.map((f) => [f.id, randomUUID()]),
       );
+      const boardIds = new Map(
+        manifest.boards.map((board) => [board.id, randomUUID()]),
+      );
+      if (boardIds.size !== manifest.boards.length)
+        throw new HttpError(400, "The bundle contains duplicate boards.");
+      for (const task of manifest.tasks) {
+        if (task.boardId && !boardIds.has(task.boardId))
+          throw new HttpError(400, "The bundle contains an unavailable board.");
+        if (
+          task.status &&
+          (task.status === "done") !== (task.completedAt !== null)
+        )
+          throw new HttpError(
+            400,
+            "The bundle contains conflicting task states.",
+          );
+      }
       const taskIds = new Map(
         manifest.tasks.map((t) => [t.id || randomUUID(), randomUUID()]),
       );
@@ -1557,13 +1694,26 @@ export async function handleWorkspace(
                 enqueueJob(owner.id, "bookmark", bookmarkId);
               importItemTags("bookmark", bookmarkId, item.tags);
             }
+            for (const board of manifest.boards)
+              database
+                .prepare(
+                  "INSERT INTO task_boards(id,owner_id,name,archived_at,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+                )
+                .run(
+                  boardIds.get(board.id),
+                  owner.id,
+                  board.name,
+                  board.archivedAt,
+                  board.createdAt,
+                  board.updatedAt,
+                );
             for (const [index, task] of manifest.tasks.entries()) {
               const assigned = task.id
                 ? taskIds.get(task.id)
                 : [...taskIds.values()][index];
               database
                 .prepare(
-                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,planned_date,recurrence,recurrence_day,note_id,trashed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                  "INSERT INTO tasks(id,owner_id,title,completed_at,created_at,updated_at,due_date,planned_date,recurrence,recurrence_day,note_id,trashed_at,board_id,open_stage,board_position) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 )
                 .run(
                   assigned,
@@ -1579,6 +1729,11 @@ export async function handleWorkspace(
                     (task.dueDate ? Number(task.dueDate.slice(8)) : null),
                   task.noteId ? noteIds.get(task.noteId) : null,
                   task.trashedAt,
+                  task.boardId ? boardIds.get(task.boardId) : null,
+                  task.status === "in_progress"
+                    ? "in_progress"
+                    : task.openStage,
+                  task.boardPosition,
                 );
               importItemTags("task", assigned!, task.tags);
             }

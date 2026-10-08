@@ -15,3 +15,5 @@ See the LICENSE files in installed packages and upstream distributions for full 
 - `@napi-rs/canvas`: MIT. Local PDF thumbnail rendering uses its packaged native Canvas implementation; retain upstream notices. FFmpeg is provided by the runtime distribution for video thumbnails; its license depends on that distribution’s build and bundled codecs.
 
 - Official Model Context Protocol TypeScript server/client SDKs and `jose`: MIT. Better Auth MCP, client-metadata and API-key plugins retain Better Auth’s package licenses. `y-prosemirror` is MIT licensed and supplies the headless Markdown parser’s ProseMirror peer integration.
+
+- `@dnd-kit/react` and `@dnd-kit/dom`: MIT. Task boards use their pointer and keyboard drag controls; the pinned packages retain their upstream notices.

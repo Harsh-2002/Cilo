@@ -2,10 +2,23 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
   primaryKey,
 } from "drizzle-orm/sqlite-core";
 import type { Document } from "../types";
+
+export const taskBoards = sqliteTable("task_boards", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  archivedAt: integer("archived_at"),
+  revision: integer("revision").notNull().default(1),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
 
 export const tasks = sqliteTable(
   "tasks",
@@ -16,6 +29,14 @@ export const tasks = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     completedAt: integer("completed_at"),
+    boardId: text("board_id").references(() => taskBoards.id, {
+      onDelete: "set null",
+    }),
+    openStage: text("open_stage")
+      .$type<"todo" | "in_progress">()
+      .notNull()
+      .default("todo"),
+    boardPosition: real("board_position").notNull().default(0),
     trashedAt: integer("trashed_at"),
     revision: integer("revision").notNull().default(1),
     createdAt: integer("created_at").notNull(),

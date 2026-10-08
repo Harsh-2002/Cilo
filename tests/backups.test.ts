@@ -116,6 +116,27 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
       1,
       Date.now(),
     );
+  const boardId = randomUUID();
+  database
+    .prepare(
+      "INSERT INTO task_boards(id,owner_id,name,archived_at,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+    )
+    .run(boardId, owner, "Archived project", 123, 1, 1);
+  const boardTask = randomUUID();
+  database
+    .prepare(
+      "INSERT INTO tasks(id,owner_id,title,board_id,open_stage,board_position,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+    )
+    .run(
+      boardTask,
+      owner,
+      "Board recovery",
+      boardId,
+      "in_progress",
+      -1024,
+      1,
+      1,
+    );
   const originalSecret = authSecret();
   const passkeyId = randomUUID();
   database
@@ -248,6 +269,44 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
             1,
           );
         } finally {
+          assert.equal(
+            (
+              restored
+                .prepare(
+                  "SELECT board_id,open_stage,board_position FROM tasks WHERE id=?",
+                )
+                .get(boardTask) as {
+                board_id: string;
+                open_stage: string;
+                board_position: number;
+              }
+            ).board_id,
+            boardId,
+          );
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT board_position FROM tasks WHERE id=?")
+                .get(boardTask) as { board_position: number }
+            ).board_position,
+            -1024,
+          );
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT open_stage FROM tasks WHERE id=?")
+                .get(boardTask) as { open_stage: string }
+            ).open_stage,
+            "in_progress",
+          );
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT archived_at FROM task_boards WHERE id=?")
+                .get(boardId) as { archived_at: number }
+            ).archived_at,
+            123,
+          );
           restored.close();
         }
         const local = createStorage({ NIVRA_DATA_DIR: target });

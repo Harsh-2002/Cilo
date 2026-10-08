@@ -23,9 +23,20 @@ const note = summary
 const task = summary
   .extend({
     completedAt: z.number().nullable(),
+    boardId: z.string().uuid().nullable(),
+    status: z.enum(["todo", "in_progress", "done"]),
     dueDate: z.string().nullable(),
   })
   .passthrough();
+const board = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  revision: z.number().int().positive(),
+  archivedAt: z.number().nullable(),
+  createdAt: count,
+  updatedAt: count,
+  url: z.string().url(),
+});
 const bookmark = summary
   .extend({ url: z.string(), description: z.string(), favorite: z.boolean() })
   .passthrough();
@@ -178,6 +189,13 @@ const schemas: Record<string, z.ZodType> = {
   list_journals: offsetPage(summary),
   list_tags: offsetPage(tag),
   list_tasks: cursorPage(task),
+  list_boards: cursorPage(board),
+  get_board: board.extend({
+    counts: z.object({ todo: count, in_progress: count, done: count }),
+  }),
+  create_board: board,
+  update_board: board,
+  move_task: task,
   list_bookmarks: cursorPage(bookmark),
   list_artifacts: cursorPage(artifact),
   list_favorites: offsetPage(item),

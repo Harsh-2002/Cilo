@@ -62,3 +62,7 @@ First-run setup offers password or verified passkey authentication after choosin
 Calendar integrates planned and due task dates, daily journals, standalone events and schedules linked to saved content. Month, Week, Day and Year views retain date and view in the URL. Timed events use persistent IANA timezones; all-day dates remain stable. Recurrence supports editing one occurrence, following occurrences or the series. Reminders are listed in Calendar, with optional per-device Web Push over HTTPS. External calendar sync and drag-to-reschedule are deferred.
 
 Device notifications are managed in Settings → Account, with an optional setup offer after first sign-in. Calendar keeps task and event scheduling controls without a notification bell or device settings panel.
+
+## Task boards
+
+Tasks supports optional named boards with To do, In progress and Done stages. Cards are existing tasks: dates, recurrence, tags, reminders and linked notes remain shared with List, Calendar and Overview. List stays newest-first; boards save manual positions and place new cards first. Archiving a board preserves its tasks and reminders. Boards and task membership are included in lossless bundles and full-instance backups. MCP exposes board listing, creation, updates and revision-checked task moves using the existing read/write permissions.

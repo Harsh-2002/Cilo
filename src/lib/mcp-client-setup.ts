@@ -3,6 +3,8 @@ export const mcpClients = [
   { id: "claude", name: "Claude Code" },
   { id: "opencode", name: "OpenCode" },
   { id: "cursor", name: "Cursor" },
+  { id: "openclaw", name: "OpenClaw" },
+  { id: "hermes", name: "Hermes" },
 ] as const;
 export type McpClient = (typeof mcpClients)[number]["id"];
 export type McpAuthentication = "oauth" | "key";
@@ -94,6 +96,54 @@ export function mcpClientSetup(
         },
         ...(oauth
           ? [{ label: "Command", value: "opencode mcp auth nivra" }]
+          : []),
+      ],
+    };
+  if (client === "openclaw")
+    return {
+      label: "~/.openclaw/openclaw.json",
+      hint: oauth
+        ? "Merge this into your config, then run the sign-in command."
+        : "Merge this into your config.",
+      snippets: [
+        {
+          label: "~/.openclaw/openclaw.json",
+          value: JSON.stringify(
+            {
+              mcp: {
+                servers: {
+                  nivra: {
+                    url: url.href,
+                    transport: "streamable-http",
+                    ...(oauth
+                      ? { auth: "oauth" }
+                      : { headers: { Authorization: bearer } }),
+                  },
+                },
+              },
+            },
+            null,
+            2,
+          ),
+        },
+        ...(oauth
+          ? [{ label: "Command", value: "openclaw mcp login nivra" }]
+          : []),
+      ],
+    };
+  if (client === "hermes")
+    return {
+      label: "~/.hermes/config.yaml",
+      hint: oauth
+        ? "Merge this into your config, then run the sign-in command."
+        : "Merge this into your config, then restart Hermes or use /reload-mcp.",
+      snippets: [
+        {
+          label: "~/.hermes/config.yaml",
+          value: `mcp_servers:\n  nivra:\n    url: ${JSON.stringify(url.href)}\n${oauth ? "    auth: oauth" : `    headers:\n      Authorization: ${JSON.stringify(bearer)}`}`,
+        },
+        ...(oauth
+          ? [{ label: "Command", value: "hermes mcp login nivra" }]
           : []),
       ],
     };

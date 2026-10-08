@@ -72,7 +72,7 @@ import { ItemCollection } from "./item-collection";
 import { FeedbackOutlet } from "./inline-feedback";
 import { TrashPanel } from "./trash-panel";
 import { CalendarPanel } from "./calendar-panel";
-import { TasksPanel } from "./tasks-panel";
+import { TasksWorkspace } from "./tasks-workspace";
 import { ArtifactsPanel } from "./artifacts-panel";
 import { useCompletion, useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
@@ -467,6 +467,13 @@ export function Workspace({
           return;
         }
         acceptedUrl.current = target.href;
+        if (
+          workspaceView(target.pathname) === "tasks" &&
+          workspaceView(new URL(previous).pathname) === "tasks"
+        ) {
+          window.dispatchEvent(new Event("nivra:tasks-route"));
+          return;
+        }
         notify.dismiss();
         setViewState(workspaceView(target.pathname) ?? "overview");
         if (workspaceView(target.pathname) === "calendar")
@@ -486,8 +493,15 @@ export function Workspace({
           );
       })();
     };
+    const tasksNavigation = () => {
+      acceptedUrl.current = window.location.href;
+    };
+    window.addEventListener("nivra:tasks-navigation", tasksNavigation);
     window.addEventListener("popstate", restore);
-    return () => window.removeEventListener("popstate", restore);
+    return () => {
+      window.removeEventListener("popstate", restore);
+      window.removeEventListener("nivra:tasks-navigation", tasksNavigation);
+    };
   }, [navigateNote]);
   async function today() {
     if (!(await guard.current())) return false;
@@ -853,7 +867,7 @@ export function Workspace({
           }}
         />
       ) : view === "tasks" ? (
-        <TasksPanel
+        <TasksWorkspace
           key={generation}
           registerGuard={registerGuard}
           initialQuery={sectionTarget.query}

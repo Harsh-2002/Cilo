@@ -1,4 +1,5 @@
 "use client";
+import { TaskEditFields } from "./task-edit-fields";
 import { CalendarDays as ScheduleIcon } from "lucide-react";
 import { scheduleItem } from "@/lib/schedule";
 import { ItemTagPicker } from "./item-tag-picker";
@@ -22,9 +23,7 @@ import { api, ApiError } from "@/lib/client";
 import type { Page, Task } from "@/lib/types";
 import { sectionCache } from "@/lib/section-cache";
 import { formatDate, localDate, type Recurrence } from "@/lib/dates";
-import { TaskReminders } from "./task-reminders";
 import { DatePicker } from "./date-picker";
-import { NotePicker } from "./note-picker";
 import {
   Select,
   SelectContent,
@@ -48,10 +47,12 @@ import type { CapturedItem } from "./quick-capture";
 
 type TaskCounts = { open: number; completed: number };
 type TaskList = { items: Task[]; next: string | null };
-const listKey = (filter: string) => `tasks:list:${filter}`;
-const taskParams = (filter: string, query: string) =>
+const listKey = (filter: string, boardId?: string) =>
+  `tasks:list:${boardId ?? "all"}:${filter}`;
+const taskParams = (filter: string, query: string, boardId?: string) =>
   new URLSearchParams({
     filter,
+    ...(boardId ? { boardId } : {}),
     limit: "60",
     ...(query.trim() ? { q: query.trim() } : {}),
   });
@@ -65,6 +66,9 @@ function mergeTasks(items: Task[], incoming: Task[]) {
 }
 export function TasksPanel({
   onNavigation,
+  controls,
+  creationDisabled = false,
+  boardId,
   registerGuard,
   initialQuery = "",
   initialTaskId,
@@ -73,6 +77,9 @@ export function TasksPanel({
   onOpenNote,
 }: {
   onNavigation: () => void;
+  controls?: React.ReactNode;
+  creationDisabled?: boolean;
+  boardId?: string;
   registerGuard: (guard: () => Promise<boolean>) => void;
   initialQuery?: string;
   initialTaskId?: string;
@@ -80,12 +87,13 @@ export function TasksPanel({
   focusCreate?: boolean;
   onOpenNote: (id: string) => Promise<boolean>;
 }) {
-  const warm = sectionCache.get<TaskList>(listKey(initialFilter));
+  const warm = sectionCache.get<TaskList>(listKey(initialFilter, boardId));
   const [tasks, setTasks] = useState<Task[]>(warm?.items ?? []);
   const [next, setNext] = useState<string | null>(warm?.next ?? null);
   const [listFilter, setListFilter] = useState(warm ? initialFilter : "");
   const [counts, setCounts] = useState<TaskCounts | null>(
-    () => sectionCache.get<TaskCounts>("tasks:counts") ?? null,
+    () =>
+      sectionCache.get<TaskCounts>(`tasks:counts:${boardId ?? "all"}`) ?? null,
   );
   const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState("");
@@ -128,20 +136,28 @@ export function TasksPanel({
   const confirm = useConfirm();
   const refreshCounts = useCallback(async () => {
     try {
-      setCounts(await api<TaskCounts>("tasks?summary=1"));
+      setCounts(
+        await api<TaskCounts>(
+          `tasks?summary=1${boardId ? `&boardId=${boardId}` : ""}`,
+        ),
+      );
     } catch {}
-  }, []);
+  }, [boardId]);
   useEffect(() => {
     const received = (event: Event) => {
       const result = (event as CustomEvent<CapturedItem>).detail;
       if (result.type !== "task") return;
       void refreshCounts();
-      if (filter === "open" && !query.trim())
+      if (
+        filter === "open" &&
+        !query.trim() &&
+        (!boardId || result.item.boardId === boardId)
+      )
         setTasks((items) => mergeTasks(items, [result.item]));
     };
     window.addEventListener("nivra:captured", received);
     return () => window.removeEventListener("nivra:captured", received);
-  }, [filter, query, next, refreshCounts]);
+  }, [filter, query, next, refreshCounts, boardId]);
   const editDirty =
     !!editing &&
     (reminderDirty ||
@@ -153,7 +169,7 @@ export function TasksPanel({
   useEffect(() => {
     if (focusCreate) input.current?.focus();
   }, [focusCreate]);
-  const view = `${filter}\n${query}`;
+  const view = `${boardId ?? "all"}\n${filter}\n${query}`;
   const currentView = useRef(view);
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -161,8 +177,13 @@ export function TasksPanel({
       setLoading(true);
       try {
         const [first, summary] = await Promise.all([
-          api<Page<Task>>(`tasks?${taskParams(filter, query)}`, { signal }),
-          api<TaskCounts>("tasks?summary=1", { signal }),
+          api<Page<Task>>(`tasks?${taskParams(filter, query, boardId)}`, {
+            signal,
+          }),
+          api<TaskCounts>(
+            `tasks?summary=1${boardId ? `&boardId=${boardId}` : ""}`,
+            { signal },
+          ),
         ]);
         if (signal?.aborted) return;
         setTasks(first.items);
@@ -176,7 +197,7 @@ export function TasksPanel({
         if (!signal?.aborted) setLoading(false);
       }
     },
-    [filter, query, view],
+    [filter, query, view, boardId],
   );
   useCompletion(undefined, () => {
     if (!editing) void load();
@@ -194,16 +215,16 @@ export function TasksPanel({
   }, [load, query]);
   useEffect(() => {
     if (listFilter === filter && !query.trim() && !loading)
-      sectionCache.set(listKey(filter), { items: tasks, next });
-    if (counts) sectionCache.set("tasks:counts", counts);
-  }, [tasks, next, counts, listFilter, filter, query, loading]);
+      sectionCache.set(listKey(filter, boardId), { items: tasks, next });
+    if (counts) sectionCache.set(`tasks:counts:${boardId ?? "all"}`, counts);
+  }, [tasks, next, counts, listFilter, filter, query, loading, boardId]);
   async function loadMore() {
     if (!next || loadingMore) return;
     const started = view;
     setLoadingMore(true);
     try {
       const more = await api<Page<Task>>(
-        `tasks?${taskParams(filter, query)}&after=${encodeURIComponent(next)}`,
+        `tasks?${taskParams(filter, query, boardId)}&after=${encodeURIComponent(next)}`,
       );
       if (currentView.current !== started) return;
       setTasks((items) => mergeTasks(items, more.items));
@@ -262,6 +283,7 @@ export function TasksPanel({
           title: title.trim(),
           dueDate: createDate,
           plannedDate: createPlanned,
+          boardId,
         }),
       });
       invalidate();
@@ -304,7 +326,7 @@ export function TasksPanel({
   const today = localDate();
   const cached = query.trim()
     ? undefined
-    : sectionCache.get<TaskList>(listKey(filter));
+    : sectionCache.get<TaskList>(listKey(filter, boardId));
   const ready = listFilter === filter;
   const rows = ready ? tasks : cached?.items;
   const hasMore = ready ? next !== null : !!cached?.next;
@@ -315,12 +337,8 @@ export function TasksPanel({
       ? [editing, ...(rows ?? [])]
       : (rows ?? []);
   const visible = displayedRows
-    .filter(
-      (t) =>
-        (filter === "completed"
-          ? t.completedAt !== null
-          : t.completedAt === null) &&
-        t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+    .filter((t) =>
+      filter === "completed" ? t.completedAt !== null : t.completedAt === null,
     )
     .sort(compareTasks);
   return (
@@ -337,6 +355,7 @@ export function TasksPanel({
             description="A place for what you want to get done."
             onNavigation={onNavigation}
           />
+          {controls}
           <form className="task-create section-create" onSubmit={add}>
             <div className="section-create-field">
               <Label htmlFor="task-title">Task</Label>
@@ -347,11 +366,14 @@ export function TasksPanel({
                 placeholder="What needs doing?"
                 value={title}
                 maxLength={300}
-                disabled={busy || !!editing}
+                disabled={busy || !!editing || creationDisabled}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
-            <Button type="submit" disabled={busy || !!editing || !title.trim()}>
+            <Button
+              type="submit"
+              disabled={busy || !!editing || creationDisabled || !title.trim()}
+            >
               {busy ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
@@ -365,12 +387,12 @@ export function TasksPanel({
               label="Planned date"
               value={createPlanned}
               onChange={setCreatePlanned}
-              disabled={busy || !!editing}
+              disabled={busy || !!editing || creationDisabled}
             />
             <DatePicker
               value={createDate}
               onChange={setCreateDate}
-              disabled={busy || !!editing}
+              disabled={busy || !!editing || creationDisabled}
             />
           </div>
           <div className="tasks-toolbar section-toolbar">
@@ -472,65 +494,20 @@ export function TasksPanel({
                           });
                       }}
                     >
-                      <Input
-                        autoFocus
-                        aria-label="Edit task"
-                        value={editTitle}
-                        maxLength={300}
+                      <TaskEditFields
+                        task={task}
+                        title={editTitle}
+                        setTitle={setEditTitle}
+                        dueDate={editDate}
+                        setDueDate={setEditDate}
+                        plannedDate={editPlanned}
+                        setPlannedDate={setEditPlanned}
+                        recurrence={editRepeat}
+                        setRecurrence={setEditRepeat}
+                        note={editNote}
+                        setNote={setEditNote}
                         disabled={busy}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") setEditing(null);
-                        }}
-                      />
-                      <div className="task-schedule-controls">
-                        <DatePicker
-                          label="Planned date"
-                          value={editPlanned}
-                          onChange={setEditPlanned}
-                          disabled={busy}
-                        />
-                        <DatePicker
-                          value={editDate}
-                          disabled={busy}
-                          onChange={(date) => {
-                            setEditDate(date);
-                            if (!date) setEditRepeat(null);
-                          }}
-                        />
-                        <Select
-                          value={editRepeat || "none"}
-                          disabled={busy || !editDate}
-                          onValueChange={(value) =>
-                            setEditRepeat(
-                              value === "none" ? null : (value as Recurrence),
-                            )
-                          }
-                        >
-                          <SelectTrigger aria-label="Task recurrence">
-                            <Repeat2 size={14} />
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">
-                              Does not repeat
-                            </SelectItem>
-                            <SelectItem value="daily">Every day</SelectItem>
-                            <SelectItem value="weekly">Every week</SelectItem>
-                            <SelectItem value="monthly">Every month</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <NotePicker
-                          value={editNote.id}
-                          title={editNote.title}
-                          disabled={busy}
-                          onChange={(id, title) => setEditNote({ id, title })}
-                        />
-                      </div>
-                      <TaskReminders
-                        id={task.id}
-                        revision={task.revision}
-                        onDirty={setReminderDirty}
+                        onReminderDirty={setReminderDirty}
                       />
                       <div className="task-edit-actions">
                         <Button

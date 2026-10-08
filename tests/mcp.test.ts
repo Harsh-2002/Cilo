@@ -227,6 +227,109 @@ test("MCP shares content while isolating agent credentials and account administr
       assert.equal((await writeOnly.json()).error, "invalid_scope");
     });
     await t.test(
+      "Kanban tools share tasks, exact counts, ordering and scoped permissions",
+      async () => {
+        const board = await call<
+          import("../src/lib/types").Board & { url: string }
+        >(client, "create_board", {
+          name: "MCP project",
+          idempotencyKey: "kanban-board-create",
+        });
+        assert.equal(board.url, `${base}/tasks?view=board&board=${board.id}`);
+        const repeated = await call<import("../src/lib/types").Board>(
+          client,
+          "create_board",
+          { name: "MCP project", idempotencyKey: "kanban-board-create" },
+        );
+        assert.equal(repeated.id, board.id);
+        const first = await call<import("../src/lib/types").Task>(
+          client,
+          "create_task",
+          { title: "Board first", boardId: board.id },
+        );
+        const second = await call<import("../src/lib/types").Task>(
+          client,
+          "create_task",
+          { title: "Board second", boardId: board.id },
+        );
+        const moved = await call<import("../src/lib/types").Task>(
+          client,
+          "move_task",
+          {
+            id: first.id,
+            revision: first.revision,
+            boardId: board.id,
+            status: "in_progress",
+          },
+        );
+        assert.equal(moved.status, "in_progress");
+        const summary = await call<import("../src/lib/types").BoardDetail>(
+          client,
+          "get_board",
+          { id: board.id },
+        );
+        assert.deepEqual(summary.counts, { todo: 1, in_progress: 1, done: 0 });
+        const listed = await call<
+          import("../src/lib/types").Page<import("../src/lib/types").Task>
+        >(client, "list_tasks", {
+          boardId: board.id,
+          status: "in_progress",
+          order: "board",
+          limit: 1,
+        });
+        assert.equal(listed.items[0].id, first.id);
+        const stale = await client.callTool({
+          name: "move_task",
+          arguments: {
+            id: first.id,
+            revision: first.revision,
+            boardId: board.id,
+            status: "done",
+          },
+        });
+        assert.equal(stale.isError, true);
+        const done = await call<import("../src/lib/types").Task>(
+          client,
+          "update_task",
+          { id: moved.id, revision: moved.revision, completed: true },
+        );
+        assert.equal(done.status, "done");
+        const archived = await call<import("../src/lib/types").Board>(
+          client,
+          "update_board",
+          { id: board.id, revision: board.revision, archived: true },
+        );
+        assert.ok(archived.archivedAt);
+        await call(client, "update_board", {
+          id: board.id,
+          revision: archived.revision,
+          archived: false,
+        });
+        const reader = await connect(readKey);
+        const catalog = (await reader.listTools()).tools.map((t) => t.name);
+        assert.ok(catalog.includes("get_board"));
+        assert.ok(
+          !catalog.includes("create_board") && !catalog.includes("move_task"),
+        );
+        assert.equal(
+          (await call(reader, "get_task", { id: second.id })).boardId,
+          board.id,
+        );
+        const invalid = await client.callTool({
+          name: "move_task",
+          arguments: {
+            id: second.id,
+            revision: second.revision,
+            boardId: board.id,
+            status: "blocked",
+          },
+        });
+        assert.equal(invalid.isError, true);
+        sqlite().prepare("DELETE FROM tasks WHERE board_id=?").run(board.id);
+        sqlite().prepare("DELETE FROM task_boards WHERE id=?").run(board.id);
+      },
+    );
+    await t.test(
       "calendar tools validate events, return canonical links and enforce revisions",
       async () => {
         const input = {
@@ -1350,6 +1453,15 @@ test("MCP shares content while isolating agent credentials and account administr
         );
 
         const oauth = await connect(token.access_token);
+        const oauthBoards = await call<{ items: unknown[] }>(
+          oauth,
+          "list_boards",
+          {},
+        );
+        assert.ok(Array.isArray(oauthBoards.items));
+        assert.ok(
+          !(await oauth.listTools()).tools.some((t) => t.name === "move_task"),
+        );
         assert.equal(
           (await call(oauth, "get_note", { id: note.id })).id,
           note.id,

@@ -624,12 +624,26 @@ test("connected workspace retains private search, recovery, journal and schedule
             (await value<{ items: unknown[] }>("favorites?limit=60")).items,
           ),
         );
+        const portableBoard = await value<import("../src/lib/types").Board>(
+          "boards",
+          "POST",
+          { name: "Portable project" },
+        );
+        const portableTask = await value<Task>("tasks", "POST", {
+          title: "Portable project task",
+          boardId: portableBoard.id,
+          status: "in_progress",
+        });
+        await value("boards/" + portableBoard.id, "PATCH", {
+          revision: portableBoard.revision,
+          archived: true,
+        });
         const exported = await call("export/bundle");
         const bytes = new Uint8Array(await exported.arrayBuffer());
         const manifest = JSON.parse(
           strFromU8(unzipSync(bytes)["manifest.json"]),
         );
-        assert.equal(manifest.version, 3);
+        assert.equal(manifest.version, 4);
         assert.ok(
           manifest.calendar.artifacts.some(
             (item: { id: string }) => item.id === artifact.id,
@@ -664,6 +678,20 @@ test("connected workspace retains private search, recovery, journal and schedule
           bytes,
         );
         assert.equal(imported.dailyConflicts, 1);
+        const portableRows = sqlite()
+          .prepare(
+            "SELECT t.id,t.open_stage,t.board_id,b.archived_at FROM tasks t JOIN task_boards b ON b.id=t.board_id WHERE t.title=? AND t.id<>?",
+          )
+          .all(portableTask.title, portableTask.id) as {
+          id: string;
+          open_stage: string;
+          board_id: string;
+          archived_at: number | null;
+        }[];
+        assert.equal(portableRows.length, 1);
+        assert.equal(portableRows[0].open_stage, "in_progress");
+        assert.notEqual(portableRows[0].board_id, portableBoard.id);
+        assert.ok(portableRows[0].archived_at);
         const after = await allTasks();
         const restored = after.filter(
           (r) => !before.some((b) => b.id === r.id),

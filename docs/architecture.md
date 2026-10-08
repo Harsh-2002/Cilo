@@ -92,7 +92,7 @@ Before changing a note's title or document, keep a checkpoint if the previous ch
 
 Recurring completion reads the expected revision and creates one successor in the same transaction. Calendar arithmetic preserves a monthly anchor across short months and title-only edits. The browser supplies local calendar dates; task completion remains independent of the calendar reminder scheduler. Template instantiation copies encrypted attachments before committing the new document and remaps file IDs. Concurrent daily creation converges on the existing unique note and removes losing copies.
 
-Lossless bundles now use version two and still accept version one. Import remaps note/file/task IDs, history documents and internal links, validates recurrence relationships, and preserves conflicting daily content as regular notes. Encrypted full-instance recovery includes the new schema and selected daily-template setting without a separate backup format.
+Lossless bundles use version four and accept versions one through three. Boards, archive state, task membership, stages and positions are preserved. Import remaps note/file/task IDs, history documents and internal links, validates recurrence relationships, and preserves conflicting daily content as regular notes. Encrypted full-instance recovery includes the new schema and selected daily-template setting without a separate backup format.
 
 ## Reader and application fallbacks
 
