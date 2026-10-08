@@ -227,17 +227,27 @@ export async function calendarApi(
         .min(0)
         .max(100000)
         .parse(url.searchParams.get("offset") ?? 0);
+    const condition =
+      "owner_id=? AND trashed_at IS NULL AND completed_at IS NULL AND " +
+      (mode === "unscheduled"
+        ? "due_date IS NULL AND planned_date IS NULL"
+        : "due_date<?");
+    const parameters = [owner, ...(mode === "overdue" ? [date] : [])];
+    const total = (
+      sqlite()
+        .prepare(`SELECT count(*) AS total FROM tasks WHERE ${condition}`)
+        .get(...parameters) as { total: number }
+    ).total;
     const rows = sqlite()
       .prepare(
-        "SELECT id,title,revision,due_date AS dueDate,planned_date AS plannedDate FROM tasks WHERE owner_id=? AND trashed_at IS NULL AND completed_at IS NULL AND " +
-          (mode === "unscheduled"
-            ? "due_date IS NULL AND planned_date IS NULL"
-            : "due_date<?") +
+        "SELECT id,title,revision,due_date AS dueDate,planned_date AS plannedDate FROM tasks WHERE " +
+          condition +
           " ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?",
       )
-      .all(owner, ...(mode === "overdue" ? [date] : []), offset);
+      .all(...parameters, offset);
     return response({
       items: rows.slice(0, 50),
+      total,
       nextOffset: rows.length > 50 ? offset + 50 : null,
     });
   }

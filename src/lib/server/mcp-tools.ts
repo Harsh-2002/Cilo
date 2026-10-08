@@ -1147,10 +1147,13 @@ add(
   "list_calendar",
   "List scheduled items and exact day counts for a date range.",
   z.object({
-    from: dateSchema,
-    to: dateSchema,
+    from: dateSchema.describe("Inclusive start date."),
+    to: dateSchema.describe(
+      "Exclusive end date; after from, at most 370 days away.",
+    ),
     timezone: zoneSchema,
     mode: z.enum(["planning", "activity"]).default("planning"),
+    includeCompleted: z.boolean().default(true),
     query: z.string().max(300).default(""),
     tag: z.string().uuid().optional(),
     offset: z.number().int().min(0).max(100000).default(0),
@@ -1162,7 +1165,10 @@ add(
       `calendar/range?${new URLSearchParams(
         Object.entries(i)
           .filter(([, v]) => v !== undefined)
-          .map(([k, v]) => [k, String(v)]),
+          .map(([k, v]) => [
+            k,
+            k === "includeCompleted" ? (v ? "1" : "0") : String(v),
+          ]),
       )}`,
     ),
 );
@@ -1227,6 +1233,29 @@ add(
   z.object({ id: z.string().regex(/^[a-f0-9]{64}$/) }),
   true,
   async (i, c) => c.call(`calendar/reminders/${i.id}`, "PATCH"),
+);
+add(
+  "list_calendar_tasks",
+  "List overdue or undated open tasks with an exact total.",
+  z.object({
+    mode: z.enum(["unscheduled", "overdue"]),
+    date: dateSchema.describe("Reference date in the user's timezone."),
+    offset: z.number().int().min(0).max(100000).default(0),
+  }),
+  false,
+  async (i, c) =>
+    c.call(
+      `calendar/tasks?${new URLSearchParams(Object.entries(i).map(([k, v]) => [k, String(v)]))}`,
+    ),
+);
+add(
+  "get_task_reminders",
+  "Read a task’s planned-date and due-date reminders.",
+  z.object({ id }),
+  false,
+  async (i, c) => ({
+    reminders: await c.call(`calendar/task-reminders/${i.id}`),
+  }),
 );
 add(
   "set_task_reminders",

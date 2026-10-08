@@ -1,4 +1,4 @@
-import { eventInput } from "../calendar";
+import { eventInput, dateSchema, zoneSchema } from "../calendar";
 import { z } from "zod";
 import { documentInput } from "./validation";
 const count = z.number().int().nonnegative();
@@ -113,6 +113,21 @@ const schemas: Record<string, z.ZodType> = {
   trash_event: z.object({ ok: z.literal(true) }),
   dismiss_reminder: z.object({ ok: z.literal(true) }),
   set_task_reminders: z.object({ ok: z.literal(true) }),
+  get_task_reminders: z.object({
+    reminders: z.array(
+      z.object({
+        field: z.enum(["planned", "due"]),
+        timezone: zoneSchema,
+        offsets: z.array(z.number().int().min(0).max(10080)).max(3),
+      }),
+    ),
+  }),
+  list_calendar_tasks: offsetPage(
+    summary.extend({
+      dueDate: dateSchema.nullable(),
+      plannedDate: dateSchema.nullable(),
+    }),
+  ).extend({ total: count }),
   list_reminders: offsetPage(
     z
       .object({

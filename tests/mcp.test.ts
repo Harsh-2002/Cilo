@@ -293,6 +293,176 @@ test("MCP shares content while isolating agent credentials and account administr
       },
     );
     await t.test(
+      "calendar task tools preserve totals, reminders and read-only access",
+      async () => {
+        const calendarKey = await human("ai-connections", {
+          action: "create-key",
+          name: "Calendar scenarios",
+          access: "full",
+        });
+        const calendarClient = await connect(calendarKey.key);
+        const reader = await connect(readKey);
+        const catalog = (await reader.listTools()).tools.map(
+          (tool) => tool.name,
+        );
+        assert.ok(catalog.includes("list_calendar_tasks"));
+        assert.ok(catalog.includes("get_task_reminders"));
+        for (const name of [
+          "create_event",
+          "update_event",
+          "trash_event",
+          "set_task_reminders",
+          "dismiss_reminder",
+        ])
+          assert.ok(!catalog.includes(name));
+        const task = await call<{ id: string; revision: number }>(
+          calendarClient,
+          "create_task",
+          {
+            title: "Calendar overdue fixture",
+            dueDate: "2026-10-07",
+            plannedDate: "2026-10-06",
+          },
+        );
+        assert.deepEqual(
+          await call(reader, "get_task_reminders", { id: task.id }),
+          { reminders: [] },
+        );
+        const settings = {
+          id: task.id,
+          revision: task.revision,
+          timezone: "UTC",
+          field: "due",
+          offsets: [0, 60],
+        };
+        await call(calendarClient, "set_task_reminders", settings);
+        assert.deepEqual(
+          await call(reader, "get_task_reminders", { id: task.id }),
+          {
+            reminders: [{ field: "due", timezone: "UTC", offsets: [0, 60] }],
+          },
+        );
+        for (const patch of [
+          { timezone: "Invalid/Zone" },
+          { offsets: [-1] },
+          { revision: task.revision + 1 },
+        ])
+          assert.equal(
+            (
+              await calendarClient.callTool({
+                name: "set_task_reminders",
+                arguments: { ...settings, ...patch },
+              })
+            ).isError,
+            true,
+          );
+        await call(calendarClient, "set_task_reminders", {
+          ...settings,
+          offsets: [],
+        });
+        assert.deepEqual(
+          (
+            await call<{ reminders: { offsets: number[] }[] }>(
+              reader,
+              "get_task_reminders",
+              { id: task.id },
+            )
+          ).reminders[0].offsets,
+          [],
+        );
+        assert.equal(
+          (
+            await call(reader, "list_calendar_tasks", {
+              mode: "overdue",
+              date: "2026-10-08",
+            })
+          ).total,
+          1,
+        );
+        await call(calendarClient, "update_task", {
+          id: task.id,
+          revision: task.revision,
+          completed: true,
+        });
+        assert.equal(
+          (
+            await call(reader, "list_calendar_tasks", {
+              mode: "overdue",
+              date: "2026-10-08",
+            })
+          ).total,
+          0,
+        );
+        const rangeInput = {
+          from: "2026-10-06",
+          to: "2026-10-09",
+          timezone: "UTC",
+        };
+        const included = await call<{ items: { sourceId: string }[] }>(
+          reader,
+          "list_calendar",
+          rangeInput,
+        );
+        const excluded = await call<{ items: { sourceId: string }[] }>(
+          reader,
+          "list_calendar",
+          { ...rangeInput, includeCompleted: false },
+        );
+        assert.ok(included.items.some((item) => item.sourceId === task.id));
+        assert.ok(!excluded.items.some((item) => item.sourceId === task.id));
+        for (let i = 0; i < 51; i++)
+          await call(calendarClient, "create_task", {
+            title: `Undated pagination fixture ${i}`,
+          });
+        const first = await call<{
+          items: { id: string }[];
+          total: number;
+          nextOffset: number;
+        }>(reader, "list_calendar_tasks", {
+          mode: "unscheduled",
+          date: "2026-10-08",
+        });
+        assert.equal(first.total, 51);
+        assert.equal(first.items.length, 50);
+        assert.equal(first.nextOffset, 50);
+        const second = await call<{
+          items: { id: string }[];
+          total: number;
+          nextOffset: null;
+        }>(reader, "list_calendar_tasks", {
+          mode: "unscheduled",
+          date: "2026-10-08",
+          offset: first.nextOffset,
+        });
+        assert.equal(second.total, 51);
+        assert.equal(second.items.length, 1);
+        assert.equal(second.nextOffset, null);
+        assert.ok(!first.items.some((item) => item.id === second.items[0].id));
+        assert.equal(
+          (
+            await calendarClient.callTool({
+              name: "list_calendar_tasks",
+              arguments: { mode: "overdue", date: "2026-02-30" },
+            })
+          ).isError,
+          true,
+        );
+        assert.equal(
+          (
+            await calendarClient.callTool({
+              name: "get_task_reminders",
+              arguments: { id: randomUUID() },
+            })
+          ).isError,
+          true,
+        );
+        await human("ai-connections", {
+          action: "revoke-key",
+          id: calendarKey.id,
+        });
+      },
+    );
+    await t.test(
       "agents receive the instance origin and ready canonical public links",
       async () => {
         assert.ok(
