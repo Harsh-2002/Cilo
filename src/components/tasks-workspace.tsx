@@ -12,7 +12,7 @@ import {
 import type { Board, BoardDetail, Page } from "@/lib/types";
 import type { TaskStage } from "@/lib/boards";
 import { taskStages } from "@/lib/boards";
-import { api } from "@/lib/client";
+import { api, ApiError } from "@/lib/client";
 import { TasksPanel } from "./tasks-panel";
 import { KanbanPanel } from "./kanban-panel";
 import { BoardPicker } from "./board-picker";
@@ -41,6 +41,8 @@ export function TasksWorkspace(props: Props) {
     [form, setForm] = useState<"new" | "rename" | null>(null),
     [name, setName] = useState(""),
     [busy, setBusy] = useState(false),
+    [boardLoading, setBoardLoading] = useState(false),
+    [boardFailed, setBoardFailed] = useState(false),
     [error, setError] = useState("");
   const guard = useRef<() => Promise<boolean>>(async () => true),
     boardRef = useRef(board);
@@ -99,8 +101,13 @@ export function TasksWorkspace(props: Props) {
     async (signal?: AbortSignal) => {
       if (!boardId) {
         setBoard(null);
+        setError("");
+        setBoardLoading(false);
+        setBoardFailed(false);
         return;
       }
+      setBoardLoading(true);
+      setBoardFailed(false);
       try {
         const b = await api<BoardDetail>(`boards/${boardId}`, { signal });
         if (!signal?.aborted) {
@@ -109,7 +116,23 @@ export function TasksWorkspace(props: Props) {
           setError("");
         }
       } catch (e) {
-        if (!signal?.aborted) setError((e as Error).message);
+        if (!signal?.aborted) {
+          if (e instanceof ApiError && e.status === 404) {
+            setBoard(null);
+            setBoardId(null);
+            setError("");
+            const target = new URL(location.href);
+            target.searchParams.delete("board");
+            target.searchParams.delete("task");
+            history.replaceState({}, "", target);
+            window.dispatchEvent(new Event("nivra:tasks-navigation"));
+          } else {
+            setBoardFailed(true);
+            setError((e as Error).message);
+          }
+        }
+      } finally {
+        if (!signal?.aborted) setBoardLoading(false);
       }
     },
     [boardId],
@@ -177,13 +200,14 @@ export function TasksWorkspace(props: Props) {
           }),
         },
       );
+      const nextView = form === "rename" ? view : "board";
       setForm(null);
       setName("");
       setArchived(b.archivedAt !== null);
-      setView("board");
+      setView(nextView);
       setBoardId(b.id);
       setBoard({ ...b, counts: { todo: 0, in_progress: 0, done: 0 } });
-      url("board", b.id, stage);
+      url(nextView, b.id, stage);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -328,7 +352,12 @@ export function TasksWorkspace(props: Props) {
       )}
       {error && (
         <p className="tasks-error" role="alert">
-          {error}
+          <span>{error}</span>
+          {boardFailed && (
+            <Button variant="outline" onClick={() => void loadBoard()}>
+              Retry
+            </Button>
+          )}
         </p>
       )}
     </>
@@ -347,7 +376,11 @@ export function TasksWorkspace(props: Props) {
   ) : (
     <KanbanPanel
       key={boardId ?? "empty"}
-      board={board}
+      board={board?.id === boardId ? board : null}
+      boardLoading={
+        !!boardId && (boardLoading || board?.id !== boardId) && !boardFailed
+      }
+      hideEmpty={!!form || boardFailed}
       controls={controls}
       stage={stage}
       onStage={(s) => {

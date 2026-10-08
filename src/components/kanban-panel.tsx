@@ -248,6 +248,8 @@ export function KanbanPanel({
   initialTaskId,
   onBoardChanged,
   onNewBoard,
+  boardLoading = false,
+  hideEmpty = false,
 }: {
   board: BoardDetail | null;
   controls: React.ReactNode;
@@ -259,6 +261,8 @@ export function KanbanPanel({
   initialTaskId?: string;
   onBoardChanged: () => void;
   onNewBoard: () => void;
+  boardLoading?: boolean;
+  hideEmpty?: boolean;
 }) {
   const confirm = useConfirm();
   const nonce = useCspNonce();
@@ -656,16 +660,23 @@ export function KanbanPanel({
           onNavigation={onNavigation}
         />
         {controls}
-        {!board ? (
-          <div className="tasks-empty">
-            <Columns3 size={30} />
-            <h3>Give your project a board.</h3>
-            <p>Organize existing tasks into To do, In progress and Done.</p>
-            <Button onClick={onNewBoard}>
-              <Plus size={16} />
-              Create board
-            </Button>
-          </div>
+        {boardLoading ? (
+          <LoadingState kind="tasks" label="Loading board" />
+        ) : !board ? (
+          !hideEmpty && (
+            <div className="tasks-empty kanban-empty">
+              <Columns3 size={30} />
+              <h3>Give your project a board.</h3>
+              <p>
+                Choose a board or create one to organize tasks into To do, In
+                progress and Done.
+              </p>
+              <Button onClick={onNewBoard}>
+                <Plus size={16} />
+                Create board
+              </Button>
+            </div>
+          )
         ) : (
           <>
             {board.archivedAt === null && (

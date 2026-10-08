@@ -6491,6 +6491,8 @@ button:disabled {
   color: var(--muted-foreground);
 }
 .board-name-form {
+  width: 100%;
+  max-width: 720px;
   display: flex;
   gap: 12px;
   align-items: end;
@@ -6499,6 +6501,16 @@ button:disabled {
 .board-name-form > div {
   flex: 1;
   min-width: 0;
+}
+.board-name-form input,
+.board-name-form button {
+  height: 40px;
+}
+.kanban-empty {
+  margin-block: auto;
+}
+.kanban-empty > button {
+  margin-top: 20px;
 }
 .board-name-form label {
   margin-bottom: 8px;
@@ -6757,6 +6769,10 @@ button:disabled {
   .board-name-form {
     flex-wrap: wrap;
   }
+  .board-name-form input,
+  .board-name-form button {
+    height: 44px;
+  }
   .board-name-form > div {
     flex-basis: 100%;
   }
@@ -6862,5 +6878,26 @@ button:disabled {
   }
   .task-finder-results {
     max-height: none;
+  }
+}
+@media (max-width: 380px) {
+  .tasks-view-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+  .tasks-view-toolbar > .tasks-view-switch {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .tasks-view-toolbar > button[aria-label="Board options"] {
+    grid-column: 2;
+    grid-row: 1;
+    width: 44px;
+  }
+  .tasks-view-toolbar .board-picker-trigger {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
   }
 }
