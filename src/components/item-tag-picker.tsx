@@ -84,7 +84,12 @@ export function ItemTagPicker({
           {!compact && "Tags"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="item-tag-picker" align="end">
+      <PopoverContent
+        className="item-tag-picker"
+        align="end"
+        collisionPadding={20}
+        sideOffset={8}
+      >
         <h3>Tags</h3>
         {error && <p role="alert">{error}</p>}
         {!revision ? (
