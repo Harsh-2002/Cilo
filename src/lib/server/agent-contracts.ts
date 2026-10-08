@@ -52,7 +52,30 @@ const transfer = z
   .object({ url: z.string().url(), method: z.enum(["GET", "POST"]) })
   .passthrough();
 const object = z.record(z.string(), z.unknown());
+const publication = z.object({
+  token: z.string().regex(/^[a-f0-9]{48}$/),
+  revision: z.number().int().positive(),
+  publishedAt: z.number(),
+  url: z.string().url(),
+});
 const schemas: Record<string, z.ZodType> = {
+  get_instance: z.object({
+    url: z.string().url(),
+    mcpUrl: z.string().url(),
+    routes: z.object({
+      overview: z.literal("/overview"),
+      notes: z.literal("/notes"),
+      journals: z.literal("/journal"),
+      tasks: z.literal("/tasks"),
+      bookmarks: z.literal("/bookmarks"),
+      artifacts: z.literal("/artifacts"),
+      favorites: z.literal("/favorites"),
+      trash: z.literal("/trash"),
+    }),
+    publicSharePath: z.literal("/share/{token}"),
+  }),
+  get_publication: publication.nullable(),
+  publish_note: publication,
   search: z.array(item),
   search_items: offsetPage(item).extend({ total: count }),
   count_items: z.object({

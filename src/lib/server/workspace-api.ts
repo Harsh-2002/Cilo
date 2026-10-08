@@ -106,6 +106,7 @@ import {
 } from "@/lib/server/validation";
 import {
   checkOrigin,
+  requestOrigin,
   HttpError,
   json,
   readLimited,
@@ -813,12 +814,22 @@ export async function handleWorkspace(
       }
       if (id && action === "publication") {
         const note = needNote(id);
-        if (method === "GET") return response(publicationFor(id));
+        const withUrl = (publication: ReturnType<typeof publicationFor>) =>
+          publication
+            ? {
+                ...publication,
+                url: new URL(
+                  `/share/${encodeURIComponent(publication.token)}`,
+                  requestOrigin(request),
+                ).href,
+              }
+            : null;
+        if (method === "GET") return response(withUrl(publicationFor(id)));
         if (method === "POST") {
           const input = z
             .object({ revision: z.number().int().positive() })
             .parse(await json(request));
-          return response(await publishNote(note, input.revision));
+          return response(withUrl(await publishNote(note, input.revision)));
         }
         if (method === "DELETE") {
           await revokePublication(id);

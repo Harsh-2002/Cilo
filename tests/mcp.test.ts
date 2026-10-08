@@ -49,11 +49,14 @@ test("MCP shares content while isolating agent credentials and account administr
   const mcp = await import("../src/app/mcp/route");
   const meta =
     await import("../src/app/.well-known/oauth-authorization-server/api/auth/route");
+  const share = await import("../src/app/share/[token]/route");
   const files = await import("../src/app/mcp/files/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { revokeOAuth } = await import("../src/lib/server/agent-access");
   const dispatch = async (r: Request) => {
     const p = new URL(r.url).pathname;
+    if (p.startsWith("/share/"))
+      return share.GET(r, { params: Promise.resolve({ token: p.slice(7) }) });
     if (p === "/mcp") return r.method === "POST" ? mcp.POST(r) : mcp.GET();
     if (p.startsWith("/mcp/files/"))
       return files.GET(r, {
@@ -217,7 +220,61 @@ test("MCP shares content while isolating agent credentials and account administr
         !tools.some((x) => /recovery|password|sql|backup/.test(x.name)),
       );
       assert.ok(tools.length > 35);
+      const writeOnly = await fetch(
+        `${base}/api/auth/oauth2/authorize?scope=nivra%3Awrite`,
+      );
+      assert.equal(writeOnly.status, 400);
+      assert.equal((await writeOnly.json()).error, "invalid_scope");
     });
+    await t.test(
+      "agents receive the instance origin and ready canonical public links",
+      async () => {
+        assert.ok(
+          client.getInstructions()?.includes(`This Nivra instance is ${base}.`),
+        );
+        const instance = await call<{
+          url: string;
+          mcpUrl: string;
+          routes: Record<string, string>;
+        }>(client, "get_instance", {});
+        assert.equal(instance.url, base);
+        assert.equal(instance.mcpUrl, `${base}/mcp`);
+        assert.equal(instance.routes.notes, "/notes");
+        assert.equal(instance.routes.overview, "/overview");
+        const note = await call<{ id: string; revision: number }>(
+          client,
+          "create_note",
+          { title: "Exact public link", markdown: "Published through MCP." },
+        );
+        assert.equal(
+          await call(client, "get_publication", { id: note.id }),
+          null,
+        );
+        const publication = await call<{ url: string; token: string }>(
+          client,
+          "publish_note",
+          { id: note.id, revision: note.revision },
+        );
+        assert.equal(publication.url, `${base}/share/${publication.token}`);
+        assert.deepEqual(
+          await call(client, "get_publication", { id: note.id }),
+          publication,
+        );
+        assert.deepEqual(
+          await human(`notes/${note.id}/publication`),
+          publication,
+        );
+        const opened = await fetch(publication.url);
+        assert.equal(opened.status, 200);
+        assert.match(await opened.text(), /Exact public link/);
+        await call(client, "revoke_publication", { id: note.id });
+        assert.equal((await fetch(publication.url)).status, 404);
+        assert.equal(
+          await call(client, "get_publication", { id: note.id }),
+          null,
+        );
+      },
+    );
     await t.test(
       "legacy Streamable HTTP clients initialize and list tools without a session",
       async () => {

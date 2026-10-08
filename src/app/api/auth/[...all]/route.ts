@@ -8,6 +8,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handle(request: Request) {
   const startedAt = Date.now();
+  const url = new URL(request.url);
+  if (request.method === "GET" && url.pathname.endsWith("/oauth2/authorize")) {
+    const scopes = (url.searchParams.get("scope") || "").split(/\s+/);
+    if (scopes.includes("nivra:write") && !scopes.includes("nivra:read"))
+      return response(
+        {
+          error: "invalid_scope",
+          error_description:
+            "Write access requires nivra:read together with nivra:write.",
+        },
+        400,
+      );
+  }
   if (
     request.method === "POST" &&
     new URL(request.url).pathname.endsWith("/oauth2/register")

@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { McpClientSetup } from "./mcp-client-setup";
 import { useConfirm } from "./confirm-provider";
 type Connections = {
   endpoint: string;
@@ -104,6 +105,7 @@ export function McpConnections({
           </Button>
         </div>
       </div>
+      <McpClientSetup endpoint={data.endpoint} copy={copy} copied={copied} />
       {secret && (
         <section className="ai-secret" aria-label="New credential">
           <h3>Save this credential</h3>

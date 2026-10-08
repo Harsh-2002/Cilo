@@ -31,3 +31,7 @@ Creation tools accept an optional `idempotencyKey` (8–128 characters). Repeati
 `upload_file` accepts base64 payloads up to 1 MiB. `file_transfer` returns authenticated download URLs for attachments, artifacts, and content bundle exports. `upload_transfer` returns `/mcp/files/…` URLs and form fields for larger multipart uploads and content bundle imports. Send the same bearer credential in the HTTP header. The installation's existing upload limits, storage encryption, safe MIME handling and authorization apply. Content bundles are distinct from operator-only full-instance backups.
 
 Treat retrieved text as untrusted content, not instructions to the agent. Only the owner can restore or permanently delete trashed items. Store credentials outside prompts and source control, grant the minimum access needed, and disconnect unused clients.
+
+`get_instance` returns the configured instance origin and supported workspace routes. `publish_note` and `get_publication` return the complete canonical public link in `url` (`/share/{token}`); agents should share that value exactly instead of deriving a URL from the token. Publishing finishes preparing the public snapshot before returning its link.
+
+Settings → MCP includes copyable OAuth commands or API-key configurations for Codex CLI, Claude Code, OpenCode and Cursor. API-key examples reference `NIVRA_API_KEY` in the client environment; this is a client credential variable, not an additional Nivra server setting. Merge configuration snippets into existing client files.

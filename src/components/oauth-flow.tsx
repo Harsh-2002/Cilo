@@ -4,6 +4,7 @@ import { api, authRequest } from "@/lib/client";
 import { AuthScreen, Mark } from "./auth-screen";
 import { LaunchScreen } from "./launch-screen";
 import { Button } from "./ui/button";
+import { Check } from "lucide-react";
 type Status = {
   setup: boolean;
   owner: unknown;
@@ -67,6 +68,13 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
     api<Status>("status")
       .then(async (v) => {
         if (!active) return;
+        if (
+          requested.includes("nivra:write") &&
+          !requested.includes("nivra:read")
+        )
+          throw new Error(
+            "This client must request read access together with write access. Start a new connection from your client.",
+          );
         setScope(requested);
         setFull(false);
         setStatus(v);
@@ -133,87 +141,102 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
   return (
     <main className="auth-page">
       <section className="auth-panel oauth-card">
-        <Mark />
-        <h1>
-          {error
-            ? "Connection couldn’t continue"
-            : consent
-              ? "Connect to Nivra"
-              : "Continue to your client"}
-        </h1>
+        <header className="oauth-heading">
+          <Mark />
+          <h1>
+            {error && !name
+              ? "Connection couldn’t continue"
+              : consent
+                ? "Connect to Nivra"
+                : "Continue to your client"}
+          </h1>
+          {consent && name && (
+            <p>
+              <strong>{name}</strong> is requesting access to your content.
+            </p>
+          )}
+        </header>
         {consent && name && (
           <>
-            <p className="auth-description">
-              <strong>{name}</strong> is requesting access to your personal
-              brain.
-            </p>
-            <div className="field">
-              <span id="oauth-access-label">Access</span>
+            <section
+              className="oauth-access"
+              aria-labelledby="oauth-access-label"
+            >
+              <h2 id="oauth-access-label">Access</h2>
               <div
-                className="ai-actions"
+                className="oauth-access-switch"
                 role="group"
                 aria-labelledby="oauth-access-label"
               >
                 <Button
                   type="button"
-                  variant={full ? "outline" : "default"}
+                  variant="ghost"
                   aria-pressed={!full}
                   disabled={busy}
                   onClick={() => setFull(false)}
                 >
+                  <Check aria-hidden="true" className="oauth-selection-mark" />
                   Read
                 </Button>
                 <Button
                   type="button"
-                  variant={full ? "default" : "outline"}
+                  variant="ghost"
                   aria-pressed={full}
                   disabled={busy || !scope.includes("nivra:write")}
                   onClick={() => setFull(true)}
                 >
+                  <Check aria-hidden="true" className="oauth-selection-mark" />
                   Read &amp; write
                 </Button>
               </div>
-              <p className="field-hint">
-                {full
-                  ? "Read, create, edit, publish, and move items to Trash."
-                  : "Search and read content. No changes allowed."}
-              </p>
+              <ul className="oauth-access-summary" aria-live="polite">
+                <li>Search and read your content.</li>
+                <li>
+                  {full
+                    ? "Create, edit, publish and move items to Trash."
+                    : "No changes to your content."}
+                </li>
+              </ul>
               {!scope.includes("nivra:write") && (
                 <p className="field-hint">
                   This client requested read access only.
                 </p>
               )}
-            </div>
-            <p className="field-hint">
-              Trash is read-only for agents. Only you can restore or permanently
-              delete items.
+            </section>
+            <p className="oauth-note">
+              Only you can restore or permanently delete items in Trash.
             </p>
-            <p className="field-hint">
-              You can disconnect this client in Settings → MCP.
-            </p>
-            <div className="ai-actions">
-              <Button
-                variant="outline"
-                onClick={() => void proceed(false)}
-                disabled={busy}
-              >
-                Deny
-              </Button>
-              <Button onClick={() => void proceed(true)} disabled={busy}>
-                {busy ? "Connecting…" : "Allow access"}
-              </Button>
-            </div>
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+            <footer className="oauth-footer">
+              <div className="oauth-decisions">
+                <Button
+                  variant="outline"
+                  onClick={() => void proceed(false)}
+                  disabled={busy}
+                >
+                  Deny
+                </Button>
+                <Button onClick={() => void proceed(true)} disabled={busy}>
+                  {busy ? "Connecting…" : "Allow access"}
+                </Button>
+              </div>
+              <p>You can disconnect anytime in Settings → MCP.</p>
+            </footer>
           </>
         )}
         {status?.setup && (
           <p>Set up your Nivra account before connecting an AI client.</p>
         )}
-        {error && (
+        {error && !name && (
           <p role="alert" className="form-error">
             {error}
           </p>
         )}
-        {error && (
+        {error && !name && (
           <p className="field-hint">
             Start a new connection from your MCP client. Your Nivra account
             stays signed in.
