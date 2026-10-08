@@ -1,4 +1,5 @@
 import { captureOAuthToken } from "@/lib/server/agent-auth";
+import { prepareOAuthRegistration } from "@/lib/server/oauth-registration";
 import { auth } from "@/lib/server/auth";
 import { tokenHash } from "@/lib/server/agent-access";
 import { sqlite } from "@/lib/server/db";
@@ -7,6 +8,25 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handle(request: Request) {
   const startedAt = Date.now();
+  if (
+    request.method === "POST" &&
+    new URL(request.url).pathname.endsWith("/oauth2/register")
+  ) {
+    try {
+      request = await prepareOAuthRegistration(request);
+    } catch (error) {
+      return response(
+        {
+          error: "invalid_client_metadata",
+          error_description:
+            error instanceof HttpError
+              ? error.message
+              : "Invalid client registration.",
+        },
+        error instanceof HttpError ? error.status : 400,
+      );
+    }
+  }
   const revoking =
     request.method === "POST" &&
     new URL(request.url).pathname.endsWith("/oauth2/revoke");

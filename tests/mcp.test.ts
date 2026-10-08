@@ -576,7 +576,11 @@ test("MCP shares content while isolating agent credentials and account administr
         ).json();
         assert.equal(metadata.issuer, `${base}/api/auth`);
         assert.ok(metadata.code_challenge_methods_supported.includes("S256"));
-        assert.ok(!metadata.registration_endpoint);
+        assert.equal(
+          metadata.registration_endpoint,
+          `${base}/api/auth/oauth2/register`,
+        );
+        assert.equal(metadata.client_id_metadata_document_supported, true);
         const removed = await fetch(`${base}/api/nivra/ai-connections`, {
           method: "POST",
           headers: { cookie, origin: base, "content-type": "application/json" },
@@ -588,18 +592,89 @@ test("MCP shares content while isolating agent credentials and account administr
           }),
         });
         assert.equal(removed.status, 400);
-        const { auth } = await import("../src/lib/server/auth");
-        const c = await auth(new Request(base)).api.createOAuthClient({
-          headers: new Headers({ cookie, origin: base }),
-          body: {
-            application_type: "native",
-            client_name: "OAuth test fixture",
+        const registration = await fetch(metadata.registration_endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            client_name: "DCR public client",
             redirect_uris: ["http://localhost:9999/callback"],
             token_endpoint_auth_method: "none",
             grant_types: ["authorization_code", "refresh_token"],
+            response_types: ["code"],
             scope: "nivra:read nivra:write offline_access",
-          },
+          }),
         });
+        assert.equal(
+          registration.status,
+          201,
+          await registration.clone().text(),
+        );
+        const c = await registration.json();
+        assert.equal(c.client_secret, undefined);
+        assert.equal(c.application_type, "native");
+        const registrationHeaders = { "content-type": "application/json" };
+        const register = (body: unknown) =>
+          fetch(metadata.registration_endpoint, {
+            method: "POST",
+            headers: registrationHeaders,
+            body: JSON.stringify(body),
+          });
+        const confidential = await register({
+          client_name: "DCR confidential client",
+          redirect_uris: ["https://client.example/callback"],
+          token_endpoint_auth_method: "client_secret_post",
+        });
+        assert.equal(confidential.status, 201);
+        const confidentialClient = await confidential.json();
+        assert.ok(confidentialClient.client_secret);
+        const { auth } = await import("../src/lib/server/auth");
+        for (const input of [
+          { redirect_uris: ["http://private.example/callback"] },
+          { redirect_uris: ["https://client.example/callback#fragment"] },
+          {
+            redirect_uris: ["https://client.example/callback"],
+            grant_types: ["client_credentials"],
+          },
+
+          {
+            redirect_uris: ["https://client.example/callback"],
+            require_pkce: false,
+          },
+        ])
+          assert.equal((await register(input)).status, 400);
+        await assert.rejects(
+          auth(new Request(base)).api.registerOAuthClient({
+            body: {
+              redirect_uris: ["https://client.example/callback"],
+              scope: "admin",
+            },
+          }),
+          (error: unknown) =>
+            (error as { body?: { error?: string } }).body?.error ===
+            "invalid_scope",
+        );
+        assert.equal(
+          (
+            await register({
+              redirect_uris: ["https://client.example/callback"],
+            })
+          ).status,
+          429,
+        );
+        const oversized = await register({
+          client_name: "x".repeat(17000),
+          redirect_uris: ["https://client.example/callback"],
+        });
+        assert.equal(oversized.status, 413);
+        assert.equal(
+          (
+            await fetch(`${base}/mcp`, {
+              method: "POST",
+              headers: { authorization: `Bearer ${c.client_id}` },
+            })
+          ).status,
+          401,
+        );
         assert.ok(c.client_id);
         const verifier = randomUUID() + randomUUID();
         const challenge = createHash("sha256")
