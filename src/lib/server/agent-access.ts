@@ -43,6 +43,33 @@ export function authorizeContentPath(
       403,
       "This connection does not have permission to change content.",
     );
+  if (method !== "GET") {
+    if (
+      path[0] === "trash" ||
+      (path[0] === "notes" && path.length === 2 && method === "DELETE")
+    )
+      throw new HttpError(
+        403,
+        "Agents cannot restore or permanently delete items. Trash is read-only.",
+      );
+    const tables: Record<string, string> = {
+      notes: "notes",
+      tasks: "tasks",
+      bookmarks: "bookmarks",
+      artifacts: "artifacts",
+    };
+    const table = tables[path[0]];
+    if (
+      table &&
+      path[1] &&
+      sqlite()
+        .prepare(
+          `SELECT 1 FROM ${table} WHERE id=? AND owner_id=? AND trashed_at IS NOT NULL`,
+        )
+        .get(path[1], principal.ownerId)
+    )
+      throw new HttpError(403, "Agents cannot change items in Trash.");
+  }
 }
 export function revokeOAuth(owner: string, client: string) {
   const d = sqlite();

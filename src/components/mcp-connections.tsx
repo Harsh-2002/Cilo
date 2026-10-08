@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, Copy, Loader2, Plus, Unplug } from "lucide-react";
+import { Check, Copy, Loader2, Plus, Unplug } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Checkbox } from "./ui/checkbox";
 import { useConfirm } from "./confirm-provider";
 type Connections = {
   endpoint: string;
@@ -36,10 +35,6 @@ export function McpConnections({
   const [secret, setSecret] = useState("");
   const [copied, setCopied] = useState("");
   const [keyForm, setKeyForm] = useState(false);
-  const [clientForm, setClientForm] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [redirectUri, setRedirectUri] = useState("");
-  const [publicClient, setPublicClient] = useState(false);
   const confirm = useConfirm();
   const load = () => api<Connections>("ai-connections").then(setData);
   useEffect(() => {
@@ -64,16 +59,11 @@ export function McpConnections({
     setError("");
     setReauth(false);
     try {
-      const result = await api<{
-        key?: string;
-        client_id?: string;
-        client_secret?: string;
-      }>("ai-connections", { method: "POST", body: JSON.stringify(body) });
+      const result = await api<{ key?: string }>("ai-connections", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
       if (result.key) setSecret(result.key);
-      if (result.client_id)
-        setSecret(
-          `Client ID: ${result.client_id}${result.client_secret ? `\nClient secret: ${result.client_secret}` : "\nPublic client · PKCE required"}`,
-        );
       setCopied("");
       await load();
       return true;
@@ -191,32 +181,59 @@ export function McpConnections({
             </div>
             <div className="field">
               <Label htmlFor="agent-key-expiry">
-                Expires after{" "}
-                <span className="field-hint">(optional, days)</span>
+                Expires after <span className="field-hint">(days)</span>
               </Label>
               <Input
                 id="agent-key-expiry"
                 type="number"
                 min={1}
                 max={365}
+                placeholder="e.g. 60"
+                aria-describedby="agent-key-expiry-hint"
                 inputMode="numeric"
                 value={expires}
                 onChange={(e) => setExpires(e.target.value)}
                 disabled={busy}
               />
             </div>
-            <label className="check-row">
-              <Checkbox
-                checked={full}
-                onCheckedChange={(v) => setFull(v === true)}
-                disabled={busy}
-              />
-              Allow changes to content
-            </label>
+            <p id="agent-key-expiry-hint" className="field-hint">
+              Leave blank for no expiry.
+            </p>
+            <div className="field">
+              <span id="agent-key-access-label">Access</span>
+              <div
+                className="ai-actions"
+                role="group"
+                aria-labelledby="agent-key-access-label"
+              >
+                <Button
+                  type="button"
+                  variant={full ? "outline" : "default"}
+                  aria-pressed={!full}
+                  disabled={busy}
+                  onClick={() => setFull(false)}
+                >
+                  Read
+                </Button>
+                <Button
+                  type="button"
+                  variant={full ? "default" : "outline"}
+                  aria-pressed={full}
+                  disabled={busy}
+                  onClick={() => setFull(true)}
+                >
+                  Read &amp; write
+                </Button>
+              </div>
+              <p className="field-hint">
+                {full
+                  ? "Read, create, edit, publish, and move items to Trash."
+                  : "Search and read content. No changes allowed."}
+              </p>
+            </div>
             <p className="field-hint">
-              {full
-                ? "Can edit, publish, and permanently delete content."
-                : "Read-only access by default."}
+              Trash is read-only for agents. Only you can restore or permanently
+              delete items.
             </p>
             <div className="ai-actions">
               <Button type="submit" disabled={busy || !name.trim() || !!secret}>
@@ -249,8 +266,8 @@ export function McpConnections({
                   <small>
                     {key.start}… ·{" "}
                     {key.permissions?.includes("write")
-                      ? "Full content access"
-                      : "Read only"}
+                      ? "Read & write"
+                      : "Read"}
                     {key.expiresAt
                       ? ` · Expires ${new Date(key.expiresAt).toLocaleDateString()}`
                       : ""}
@@ -315,72 +332,6 @@ export function McpConnections({
               </li>
             ))}
           </ul>
-        )}
-      </section>
-      <section>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={clientForm}
-          aria-controls="mcp-client-form"
-          onClick={() => setClientForm(!clientForm)}
-          disabled={busy}
-        >
-          Manual client registration
-          <ChevronDown size={14} />
-        </Button>
-        {clientForm && (
-          <form
-            id="mcp-client-form"
-            className="ai-client-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (
-                await run({
-                  action: "create-client",
-                  name: clientName,
-                  redirectUri,
-                  public: publicClient,
-                })
-              ) {
-                setClientForm(false);
-                setClientName("");
-                setRedirectUri("");
-              }
-            }}
-          >
-            <div className="field">
-              <Label htmlFor="oauth-client-name">Client name</Label>
-              <Input
-                id="oauth-client-name"
-                value={clientName}
-                required
-                maxLength={80}
-                onChange={(e) => setClientName(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-            <div className="field">
-              <Label htmlFor="oauth-client-redirect">Exact callback URL</Label>
-              <Input
-                id="oauth-client-redirect"
-                type="url"
-                value={redirectUri}
-                required
-                onChange={(e) => setRedirectUri(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-            <label className="check-row">
-              <Checkbox
-                checked={publicClient}
-                onCheckedChange={(v) => setPublicClient(v === true)}
-                disabled={busy}
-              />
-              Public client without a client secret
-            </label>
-            <Button disabled={busy || !!secret}>Register client</Button>
-          </form>
         )}
       </section>
       {!!copied && (

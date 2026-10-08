@@ -137,14 +137,14 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
                   onCheckedChange={(v) => setFull(v === true)}
                   disabled={busy}
                 />
-                Allow changes to content
+                Read & write
               </label>
             )}
             {full && (
               <p className="field-hint">
-                This includes editing, publishing, moving items to Trash and
-                permanent deletion. Account security and server settings remain
-                private.
+                Read, create, edit, publish, and move items to Trash. Agents
+                cannot restore or permanently delete items. Account security and
+                server settings remain private.
               </p>
             )}
             <p className="field-hint">

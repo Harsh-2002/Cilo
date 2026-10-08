@@ -431,13 +431,13 @@ test("MCP shares content while isolating agent credentials and account administr
       },
     );
     await t.test(
-      "Trash is reversible and permanent deletion requires Trash",
+      "agents can list Trash but cannot restore, purge, or change deleted items",
       async () => {
-        const invalid = await client.callTool({
-          name: "purge_item",
-          arguments: { id: task.id, kind: "task", revision: task.revision },
-        });
-        assert.equal(invalid.isError, true);
+        const catalog = (await client.listTools()).tools.map(
+          (tool) => tool.name,
+        );
+        assert.ok(!catalog.includes("restore_item"));
+        assert.ok(!catalog.includes("purge_item"));
         await call(client, "trash_item", {
           id: task.id,
           kind: "task",
@@ -449,26 +449,123 @@ test("MCP shares content while isolating agent credentials and account administr
             "list_trash",
             {},
           )
-        ).items.find((x) => x.id === task.id);
+        ).items.find((item) => item.id === task.id);
         assert.ok(trashed);
-        await call(client, "restore_item", {
-          id: task.id,
-          kind: "task",
-          revision: trashed!.revision,
-        });
-        task = await call<import("../src/lib/types").Task>(client, "get_task", {
-          id: task.id,
-        });
+        const { handleWorkspace } =
+          await import("../src/lib/server/workspace-api");
+        const principal = {
+          ownerId: owner,
+          connectionId: "test",
+          scopes: ["nivra:read", "nivra:write"],
+        };
+        const invoke = (path: string, method: string, body: unknown) =>
+          handleWorkspace(
+            new Request(`${base}/api/nivra/${path}`, {
+              method,
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+            { params: Promise.resolve({ path: path.split("/") }) },
+            principal,
+          );
+        for (const method of ["POST", "DELETE"])
+          assert.equal(
+            (
+              await invoke(`trash/task/${task.id}`, method, {
+                revision: trashed.revision,
+              })
+            ).status,
+            403,
+          );
+        assert.equal(
+          (
+            await invoke(`tasks/${task.id}`, "PATCH", {
+              revision: trashed.revision,
+              title: "denied",
+            })
+          ).status,
+          403,
+        );
+        const deletedNote = await call<import("../src/lib/types").Note>(
+          client,
+          "create_note",
+          {
+            title: "Deleted guard fixture",
+          },
+        );
         await call(client, "trash_item", {
-          id: task.id,
-          kind: "task",
-          revision: task.revision,
+          id: deletedNote.id,
+          kind: "note",
+          revision: deletedNote.revision,
         });
-        await call(client, "purge_item", {
-          id: task.id,
-          kind: "task",
-          revision: task.revision + 1,
-        });
+        for (const body of [{ title: "denied" }, { trashed: false }])
+          assert.equal(
+            (
+              await invoke(`notes/${deletedNote.id}`, "PATCH", {
+                revision: deletedNote.revision + 1,
+                ...body,
+              })
+            ).status,
+            403,
+          );
+        assert.equal(
+          (await invoke(`notes/${deletedNote.id}`, "DELETE", {})).status,
+          403,
+        );
+        assert.equal(
+          (
+            sqlite()
+              .prepare(
+                "SELECT title FROM notes WHERE id=? AND trashed_at IS NOT NULL",
+              )
+              .get(deletedNote.id) as { title: string } | undefined
+          )?.title,
+          "Deleted guard fixture",
+        );
+        const reader = await connect(readKey);
+        assert.ok(
+          (
+            await call<{ items: import("../src/lib/types").TrashItem[] }>(
+              reader,
+              "list_trash",
+              {},
+            )
+          ).items.some((item) => item.id === deletedNote.id),
+        );
+        const restored = await fetch(
+          `${base}/api/nivra/trash/task/${task.id}`,
+          {
+            method: "POST",
+            headers: {
+              cookie,
+              origin: base,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ revision: trashed.revision }),
+          },
+        );
+        assert.equal(
+          restored.status,
+          200,
+          "Human restoration must remain available",
+        );
+        const purged = await fetch(
+          `${base}/api/nivra/trash/note/${deletedNote.id}`,
+          {
+            method: "DELETE",
+            headers: {
+              cookie,
+              origin: base,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ revision: deletedNote.revision + 1 }),
+          },
+        );
+        assert.equal(
+          purged.status,
+          200,
+          "Human permanent deletion must remain available",
+        );
       },
     );
     await t.test(
@@ -480,11 +577,28 @@ test("MCP shares content while isolating agent credentials and account administr
         assert.equal(metadata.issuer, `${base}/api/auth`);
         assert.ok(metadata.code_challenge_methods_supported.includes("S256"));
         assert.ok(!metadata.registration_endpoint);
-        const c = await human("ai-connections", {
-          action: "create-client",
-          name: "OAuth test",
-          redirectUri: "http://localhost:9999/callback",
-          public: true,
+        const removed = await fetch(`${base}/api/nivra/ai-connections`, {
+          method: "POST",
+          headers: { cookie, origin: base, "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "create-client",
+            name: "Removed form",
+            redirectUri: "http://localhost:9999/callback",
+            public: true,
+          }),
+        });
+        assert.equal(removed.status, 400);
+        const { auth } = await import("../src/lib/server/auth");
+        const c = await auth(new Request(base)).api.createOAuthClient({
+          headers: new Headers({ cookie, origin: base }),
+          body: {
+            application_type: "native",
+            client_name: "OAuth test fixture",
+            redirect_uris: ["http://localhost:9999/callback"],
+            token_endpoint_auth_method: "none",
+            grant_types: ["authorization_code", "refresh_token"],
+            scope: "nivra:read nivra:write offline_access",
+          },
         });
         assert.ok(c.client_id);
         const verifier = randomUUID() + randomUUID();

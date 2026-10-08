@@ -989,6 +989,8 @@ export async function handleWorkspace(
         if (!(file instanceof File) || typeof noteId !== "string")
           throw new HttpError(400, "Choose a file and note.");
         needNote(noteId);
+        if (principal)
+          authorizeContentPath(principal, ["notes", noteId], "POST");
         if (file.size > limit)
           throw new HttpError(413, "This file exceeds your attachment limit.");
         const fileId = randomUUID();

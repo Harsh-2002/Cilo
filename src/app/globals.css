@@ -5276,8 +5276,7 @@ button:disabled {
   min-width: 0;
   flex: 1;
 }
-.ai-key-form,
-.ai-client-form {
+.ai-key-form {
   display: grid;
   gap: 12px;
 }
@@ -5323,9 +5322,6 @@ button:disabled {
   color: var(--muted-foreground);
   font-size: 12px;
   margin-top: 4px;
-}
-.ai-client-form {
-  margin-top: 16px;
 }
 .oauth-card {
   display: grid;

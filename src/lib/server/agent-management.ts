@@ -44,12 +44,6 @@ export async function agentManagement(
         action: z.literal("revoke-oauth"),
         clientId: z.string().min(1).max(4096),
       }),
-      z.object({
-        action: z.literal("create-client"),
-        name: z.string().trim().min(1).max(80),
-        redirectUri: z.url().max(4096),
-        public: z.boolean().default(false),
-      }),
     ])
     .parse(await json(request));
   if (input.action === "create-key") {
@@ -85,30 +79,5 @@ export async function agentManagement(
     revokeOAuth(owner, input.clientId);
     return response({ ok: true });
   }
-  const uri = new URL(input.redirectUri);
-  if (typeof auth(request).api.createOAuthClient !== "function")
-    throw new HttpError(
-      400,
-      "OAuth requires HTTPS or a loopback origin. API keys can still be used here.",
-    );
-  if (
-    uri.protocol !== "https:" &&
-    !(
-      uri.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(uri.hostname)
-    )
-  )
-    throw new HttpError(400, "Use an HTTPS callback or a localhost callback.");
-  const client = await auth(request).api.createOAuthClient({
-    headers: request.headers,
-    body: {
-      application_type: uri.protocol === "http:" ? "native" : "web",
-      client_name: input.name,
-      redirect_uris: [input.redirectUri],
-      token_endpoint_auth_method: input.public ? "none" : "client_secret_post",
-      grant_types: ["authorization_code", "refresh_token"],
-      scope: "nivra:read nivra:write offline_access",
-    },
-  });
-  return response(client, 201);
+  throw new HttpError(400, "This MCP action was not found.");
 }
