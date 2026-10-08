@@ -527,12 +527,7 @@ export function SettingsPanel({
                 )}
               </>
             )}
-            {tab === "agents" && (
-              <McpConnections
-                onGuardChange={setMfaGuard}
-                onSignOut={onSignOut}
-              />
-            )}
+            {tab === "agents" && <McpConnections onGuardChange={setMfaGuard} />}
             {tab === "data" && (
               <>
                 <div className="settings-section-heading">

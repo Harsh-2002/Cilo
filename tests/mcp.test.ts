@@ -101,15 +101,49 @@ test("MCP shares content while isolating agent credentials and account administr
     return (r.structuredContent as { data: T }).data;
   };
   try {
+    const password = `Test-${randomUUID()}`;
     const setup = await human("setup", {
       username: "mcptester",
       name: "MCP Test",
-      password: `Test-${randomUUID()}`,
+      password,
     });
     assert.ok(setup.recoveryCode);
     const owner = (
       sqlite().prepare("SELECT id FROM user").get() as { id: string }
     ).id;
+    await t.test(
+      "valid older owner sessions manage MCP credentials without signing in again",
+      async () => {
+        sqlite()
+          .prepare("UPDATE session SET created_at=? WHERE user_id=?")
+          .run(Date.now() - 86400000, owner);
+        const created = await human("ai-connections", {
+          action: "create-key",
+          name: "Older session",
+          access: "read",
+        });
+        assert.ok(created.key);
+        assert.equal((await human("status")).owner.id, owner);
+        await human("ai-connections", { action: "revoke-key", id: created.id });
+        assert.equal(
+          sqlite().prepare("SELECT 1 FROM apikey WHERE id=?").get(created.id),
+          undefined,
+        );
+        const anonymous = await fetch(`${base}/api/nivra/ai-connections`, {
+          method: "POST",
+          headers: { origin: base, "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "create-key",
+            name: "Denied",
+            access: "read",
+          }),
+        });
+        assert.equal(anonymous.status, 401);
+        sqlite()
+          .prepare("UPDATE session SET created_at=? WHERE user_id=?")
+          .run(Date.now(), owner);
+      },
+    );
     let fullKey = "",
       readKey = "";
     await t.test(
@@ -150,6 +184,10 @@ test("MCP shares content while isolating agent credentials and account administr
         assert.match(
           anonymous.headers.get("www-authenticate")!,
           /resource_metadata/,
+        );
+        assert.match(
+          anonymous.headers.get("www-authenticate")!,
+          /scope="nivra:read nivra:write"/,
         );
       },
     );
@@ -373,7 +411,204 @@ test("MCP shares content while isolating agent credentials and account administr
         );
       },
     );
+    await t.test(
+      "exact inventory, schemas and pagination cover large collections and journals",
+      async () => {
+        const before = await call<{ counts: Record<string, number> }>(
+          client,
+          "count_items",
+          {},
+        );
+        const ids = Array.from({ length: 65 }, () => randomUUID());
+        const tag = await call(client, "create_tag", {
+          name: "Paged MCP",
+          color: "blue",
+        });
+        sqlite().transaction(() => {
+          for (const id of ids) {
+            sqlite()
+              .prepare(
+                "INSERT INTO notes(id,owner_id,title,document,favorite,created_at,updated_at) VALUES(?,?,?,?,1,?,?)",
+              )
+              .run(
+                id,
+                owner,
+                "Paged fixture",
+                JSON.stringify({ schemaVersion: 1, blocks: [] }),
+                Date.now(),
+                Date.now(),
+              );
+            sqlite()
+              .prepare("INSERT INTO note_tags(note_id,tag_id) VALUES(?,?)")
+              .run(id, tag.id);
+          }
+        })();
+        const journal = await call(client, "create_journal", {
+          date: "2042-03-04",
+          markdown: "Journal fixture",
+        });
+        const journalTags = await call(client, "item_tags", {
+          type: "journal",
+          id: journal.id,
+        });
+        await call(client, "assign_tags", {
+          type: "journal",
+          id: journal.id,
+          revision: journalTags.revision,
+          tags: [tag.id],
+        });
+        const counts = await call<{ counts: Record<string, number> }>(
+          client,
+          "count_items",
+          {},
+        );
+        assert.equal(counts.counts.notes, before.counts.notes + 65);
+        assert.equal(counts.counts.journals, before.counts.journals + 1);
+        const page = await call<{
+          items: { id: string; type: string }[];
+          nextOffset: number | null;
+        }>(client, "tagged_items", { id: tag.id, limit: 50 });
+        assert.equal(page.items.length, 50);
+        assert.equal(page.nextOffset, 50);
+        const rest = await call<{
+          items: { id: string; type: string }[];
+          nextOffset: number | null;
+        }>(client, "tagged_items", {
+          id: tag.id,
+          limit: 50,
+          offset: page.nextOffset,
+        });
+        assert.equal(rest.items.length, 16);
+        assert.equal(rest.nextOffset, null);
+        assert.equal(
+          new Set([...page.items, ...rest.items].map((i) => i.id)).size,
+          66,
+        );
+        assert.ok(
+          [...page.items, ...rest.items].some(
+            (i) => i.id === journal.id && i.type === "journal",
+          ),
+        );
+        const search = await call<{ id: string; type: string }[]>(
+          client,
+          "search",
+          { query: "type:journal Journal fixture" },
+        );
+        assert.ok(
+          search.some((i) => i.id === journal.id && i.type === "journal"),
+        );
+        const renamed = await call(client, "update_tag", {
+          id: tag.id,
+          name: "Renamed MCP",
+        });
+        assert.equal(renamed.color, "blue");
+        const matches = await call<{
+          items: { id: string }[];
+          total: number;
+          nextOffset: number | null;
+        }>(client, "search_items", {
+          query: 'type:note tag:"Renamed MCP" Paged',
+          limit: 50,
+        });
+        assert.equal(matches.total, 65);
+        assert.equal(matches.items.length, 50);
+        assert.equal(matches.nextOffset, 50);
+        const remaining = await call<{
+          items: { id: string }[];
+          total: number;
+          nextOffset: number | null;
+        }>(client, "search_items", {
+          query: 'type:note tag:"Renamed MCP" Paged',
+          limit: 50,
+          offset: matches.nextOffset,
+        });
+        assert.equal(remaining.items.length, 15);
+        assert.equal(remaining.total, 65);
+        assert.equal(remaining.nextOffset, null);
+        const malformed = await client.callTool({
+          name: "update_note",
+          arguments: { id: note.id, revision: note.revision },
+        });
+        assert.equal(malformed.isError, true);
+        const missing = await client.callTool({
+          name: "file_transfer",
+          arguments: { target: "attachment" },
+        });
+        assert.equal(missing.isError, true);
+        const catalog = (await client.listTools()).tools;
+        assert.ok(
+          catalog.find((t) => t.name === "count_items")?.outputSchema
+            ?.properties,
+        );
+        sqlite().transaction(() => {
+          for (const id of [...ids, String(journal.id)])
+            sqlite()
+              .prepare("DELETE FROM notes WHERE id=? AND owner_id=?")
+              .run(id, owner);
+          sqlite().prepare("DELETE FROM tags WHERE id=?").run(tag.id);
+        })();
+      },
+    );
     await t.test("file upload and authenticated binary transfer", async () => {
+      const bookmarkId = randomUUID();
+      sqlite()
+        .prepare(
+          "INSERT INTO bookmarks(id,owner_id,url,title,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+        )
+        .run(
+          bookmarkId,
+          owner,
+          "https://bookmark.example/contract",
+          "Contract bookmark",
+          Date.now(),
+          Date.now(),
+        );
+      assert.equal(
+        (await call(client, "get_bookmark", { id: bookmarkId })).favorite,
+        false,
+      );
+      await call(client, "update_bookmark", {
+        id: bookmarkId,
+        revision: 1,
+        favorite: true,
+      });
+      assert.equal(
+        (await call(client, "get_bookmark", { id: bookmarkId })).favorite,
+        true,
+      );
+      const attachment = await call(client, "upload_file", {
+        target: "attachment",
+        noteId: note.id,
+        name: "agent-note.txt",
+        mime: "text/plain",
+        base64: Buffer.from("Agent attachment").toString("base64"),
+      });
+      const attachmentTransfer = await call(client, "file_transfer", {
+        target: "attachment",
+        id: attachment.id,
+      });
+      assert.equal(
+        await (
+          await fetch(String(attachmentTransfer.url), {
+            headers: { authorization: `Bearer ${fullKey}` },
+          })
+        ).text(),
+        "Agent attachment",
+      );
+      const bundle = await call(client, "file_transfer", {
+        target: "export-bundle",
+      });
+      const exported = await fetch(String(bundle.url), {
+        headers: { authorization: `Bearer ${fullKey}` },
+      });
+      assert.equal(exported.status, 200);
+      assert.ok(exported.headers.get("content-type")?.includes("zip"));
+      const upload = await call(client, "upload_transfer", {
+        target: "upload-attachment",
+        noteId: note.id,
+      });
+      assert.equal(upload.method, "POST");
+      assert.deepEqual(upload.fields, { note: note.id });
       const file = await call(client, "upload_file", {
         target: "artifact",
         name: "agent.txt",
@@ -395,6 +630,12 @@ test("MCP shares content while isolating agent credentials and account administr
       "read-only credentials cannot call writes and bad origins are denied",
       async () => {
         const reader = await connect(readKey);
+        assert.ok(
+          !(await reader.listTools()).tools.some(
+            (tool) => tool.name === "upload_transfer",
+          ),
+        );
+        assert.equal((await call(reader, "count_items", {})).exact, true);
         assert.ok(
           !(await reader.listTools()).tools.some(
             (x) => x.name === "purge_item",
@@ -711,6 +952,47 @@ test("MCP shares content while isolating agent credentials and account administr
         assert.ok(
           deniedRedirect.status >= 400 ||
             (deniedRedirect.headers.get("location") || "").includes("error="),
+        );
+        const loginRedirect = await fetch(
+          `${base}/api/auth/oauth2/authorize?${query}`,
+          { headers: { accept: "text/html" }, redirect: "manual" },
+        );
+        assert.equal(loginRedirect.status, 302);
+        const loginUrl = new URL(loginRedirect.headers.get("location")!, base);
+        assert.equal(loginUrl.pathname, "/oauth/login");
+        const resume = await fetch(`${base}/api/auth/oauth2/continue`, {
+          method: "POST",
+          headers: { cookie, origin: base, "content-type": "application/json" },
+          body: JSON.stringify({
+            oauth_query: loginUrl.search.slice(1),
+            postLogin: true,
+          }),
+        });
+        assert.equal(resume.status, 200, await resume.clone().text());
+        const resumed = await resume.json();
+        assert.equal(
+          new URL(resumed.url || resumed.redirect_uri, base).pathname,
+          "/oauth/consent",
+        );
+        const login = await fetch(`${base}/api/auth/sign-in/username`, {
+          method: "POST",
+          headers: { origin: base, "content-type": "application/json" },
+          body: JSON.stringify({
+            username: "mcptester",
+            password,
+            oauth_query: loginUrl.search.slice(1),
+          }),
+        });
+        assert.equal(login.status, 200, await login.clone().text());
+        const loggedIn = await login.json();
+        assert.equal(
+          new URL(loggedIn.url || loggedIn.redirect_uri, base).pathname,
+          "/oauth/consent",
+        );
+        assert.ok(
+          login.headers
+            .getSetCookie()
+            .some((s) => s.includes("session_token=")),
         );
         const authorize = await fetch(
           `${base}/api/auth/oauth2/authorize?${query}`,

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Check, Copy, Loader2, Plus, Unplug } from "lucide-react";
-import { api, ApiError } from "@/lib/client";
+import { api } from "@/lib/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -20,10 +20,8 @@ type Connections = {
 };
 export function McpConnections({
   onGuardChange,
-  onSignOut,
 }: {
   onGuardChange: (busy: boolean) => void;
-  onSignOut: () => Promise<void>;
 }) {
   const [data, setData] = useState<Connections | null>(null);
   const [name, setName] = useState("");
@@ -31,7 +29,6 @@ export function McpConnections({
   const [expires, setExpires] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [reauth, setReauth] = useState(false);
   const [secret, setSecret] = useState("");
   const [copied, setCopied] = useState("");
   const [keyForm, setKeyForm] = useState(false);
@@ -57,7 +54,6 @@ export function McpConnections({
   async function run(body: Record<string, unknown>) {
     setBusy(true);
     setError("");
-    setReauth(false);
     try {
       const result = await api<{ key?: string }>("ai-connections", {
         method: "POST",
@@ -69,7 +65,6 @@ export function McpConnections({
       return true;
     } catch (e) {
       setError((e as Error).message);
-      if (e instanceof ApiError && e.status === 403) setReauth(true);
       return false;
     } finally {
       setBusy(false);
@@ -343,11 +338,6 @@ export function McpConnections({
         <p role="alert" className="form-error">
           {error}
         </p>
-      )}
-      {reauth && (
-        <Button variant="outline" onClick={() => void onSignOut()}>
-          Sign out to sign in again
-        </Button>
       )}
     </div>
   );

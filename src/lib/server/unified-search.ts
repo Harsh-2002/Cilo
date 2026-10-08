@@ -14,7 +14,7 @@ export function parseSearch(input: string) {
         const value = quoted || plain;
         if (
           key.toLowerCase() === "type" &&
-          /^(notes?|tasks?|bookmarks?|artifacts?)$/i.test(value)
+          /^(notes?|journals?|tasks?|bookmarks?|artifacts?)$/i.test(value)
         ) {
           type = value.toLowerCase().replace(/s$/, "");
           return "";
@@ -39,7 +39,8 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     (rows: Candidate[]) => SearchResult[]
   >();
   for (const area of ["note", "task", "bookmark", "artifact"] as const) {
-    if (type && type !== area) continue;
+    if (type && type !== area && !(type === "journal" && area === "note"))
+      continue;
     const table =
       area === "note"
         ? "notes"
@@ -51,6 +52,10 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
     const conditions = ["owner_id=?", "trashed_at IS NULL"];
     const params: (string | number)[] = [owner];
     if (area === "note") conditions.push("trashed_at IS NULL AND kind='note'");
+    if (area === "note" && type === "journal")
+      conditions.push("daily_date IS NOT NULL");
+    if (area === "note" && type === "note")
+      conditions.push("daily_date IS NULL");
     if (tag) {
       conditions.push(
         `EXISTS(SELECT 1 FROM ${area}_tags it JOIN tags t ON t.id=it.tag_id WHERE it.${area}_id=${table}.id AND t.name=? COLLATE NOCASE)`,
@@ -82,7 +87,7 @@ export function searchWorkspace(owner: string, input: string): SearchResult[] {
             : "";
       return database
         .prepare(
-          `SELECT rowid AS searchRow,id,title,${query ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed} FROM ${table} INDEXED BY ${table}_search_order_idx WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT 12`,
+          `SELECT rowid AS searchRow,id,title,${query ? "''" : `substr(replace(${excerpt},char(10),' '),1,180)`} AS excerpt,updated_at AS updatedAt${completed}${area === "note" ? ",daily_date AS dailyDate" : ""} FROM ${table} INDEXED BY ${table}_search_order_idx WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id LIMIT 12`,
         )
         .all(...values) as (Omit<SearchResult, "type"> & {
         searchRow: number;

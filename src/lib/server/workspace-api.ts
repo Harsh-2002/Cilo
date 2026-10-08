@@ -397,11 +397,7 @@ export async function handleWorkspace(
       return response({ name: info.name || info.client_id });
     }
     if (area === "ai-connections" && !id)
-      return await agentManagement(
-        request,
-        owner.id,
-        session!.session.createdAt,
-      );
+      return await agentManagement(request, owner.id);
     if (area === "media" && method === "GET" && !id)
       return await remoteMedia(request, url.searchParams.get("url") || "");
     if (area === "account-password" && method === "POST" && !id) {
@@ -499,6 +495,7 @@ export async function handleWorkspace(
             url.searchParams.get("q") || "",
             kind ? kinds.parse(kind) : undefined,
             url.searchParams.get("after"),
+            Number(url.searchParams.get("limit")) || 60,
           ),
         );
       }

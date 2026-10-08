@@ -4,7 +4,6 @@ import { api, authRequest } from "@/lib/client";
 import { AuthScreen, Mark } from "./auth-screen";
 import { LaunchScreen } from "./launch-screen";
 import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
 type Status = {
   setup: boolean;
   owner: unknown;
@@ -17,6 +16,14 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
   const [full, setFull] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const requiresLogin =
+    typeof window !== "undefined" &&
+    !consent &&
+    (new URLSearchParams(window.location.search)
+      .get("prompt")
+      ?.split(" ")
+      .includes("login") ||
+      new URLSearchParams(window.location.search).has("max_age"));
   async function proceed(accept?: boolean) {
     setBusy(true);
     setError("");
@@ -26,6 +33,7 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
         consent ? "oauth2/consent" : "oauth2/continue",
         {
           oauth_query: query,
+          ...(!consent ? { postLogin: true } : {}),
           ...(consent
             ? {
                 accept,
@@ -60,16 +68,17 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
       .then(async (v) => {
         if (!active) return;
         setScope(requested);
-        setFull(requested.includes("nivra:write"));
+        setFull(false);
         setStatus(v);
         if (v.owner && consent) {
           const info = await api<{ name: string }>(
             `ai-consent?client=${encodeURIComponent(query.get("client_id") || "")}`,
           );
           if (active) setName(info.name);
-        } else if (v.owner && !consent) {
+        } else if (v.owner && !consent && !requiresLogin) {
           const result = await authRequest("oauth2/continue", {
             oauth_query: window.location.search.slice(1),
+            postLogin: true,
           });
           if (active && typeof (result.redirect_uri || result.url) === "string")
             window.location.assign(
@@ -84,69 +93,101 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
     return () => {
       active = false;
     };
-  }, [consent]);
+  }, [consent, requiresLogin]);
   if (!status && !error) return <LaunchScreen />;
-  if (status && !status.owner && !status.setup)
+  if (status && (!status.owner || requiresLogin) && !status.setup)
     return (
-      <>
-        <AuthScreen
-          setup={false}
-          methods={status.methods}
-          onReady={() => {
-            void authRequest("oauth2/continue", {
-              oauth_query: window.location.search.slice(1),
+      <AuthScreen
+        setup={false}
+        methods={status.methods}
+        continuationError={error}
+        oauthQuery={window.location.search.slice(1)}
+        onReady={(result) => {
+          setError("");
+          if (typeof (result?.redirect_uri || result?.url) === "string") {
+            window.location.assign(
+              new URL(
+                result?.redirect_uri || result?.url || "",
+                window.location.href,
+              ).href,
+            );
+            return;
+          }
+          void authRequest("oauth2/continue", {
+            oauth_query: window.location.search.slice(1),
+            postLogin: true,
+          })
+            .then((result) => {
+              if (typeof (result.redirect_uri || result.url) === "string")
+                window.location.assign(
+                  new URL(
+                    result.redirect_uri || result.url,
+                    window.location.href,
+                  ).href,
+                );
             })
-              .then((result) => {
-                if (typeof (result.redirect_uri || result.url) === "string")
-                  window.location.assign(
-                    new URL(
-                      result.redirect_uri || result.url,
-                      window.location.href,
-                    ).href,
-                  );
-              })
-              .catch((e) => setError(e.message));
-          }}
-        />
-        {error && (
-          <p className="oauth-error" role="alert">
-            {error}
-          </p>
-        )}
-      </>
+            .catch((e) => setError(e.message));
+        }}
+      />
     );
   return (
     <main className="auth-page">
       <section className="auth-panel oauth-card">
         <Mark />
-        <h1>{consent ? "Connect to Nivra" : "Continue to your AI client"}</h1>
+        <h1>
+          {error
+            ? "Connection couldn’t continue"
+            : consent
+              ? "Connect to Nivra"
+              : "Continue to your client"}
+        </h1>
         {consent && name && (
           <>
             <p className="auth-description">
               <strong>{name}</strong> is requesting access to your personal
               brain.
             </p>
-            <p>
-              It can search and read your notes, journals, tasks, bookmarks,
-              artifacts and files.
-            </p>
-            {scope.includes("nivra:write") && (
-              <label className="check-row">
-                <Checkbox
-                  checked={full}
-                  onCheckedChange={(v) => setFull(v === true)}
+            <div className="field">
+              <span id="oauth-access-label">Access</span>
+              <div
+                className="ai-actions"
+                role="group"
+                aria-labelledby="oauth-access-label"
+              >
+                <Button
+                  type="button"
+                  variant={full ? "outline" : "default"}
+                  aria-pressed={!full}
                   disabled={busy}
-                />
-                Read & write
-              </label>
-            )}
-            {full && (
+                  onClick={() => setFull(false)}
+                >
+                  Read
+                </Button>
+                <Button
+                  type="button"
+                  variant={full ? "default" : "outline"}
+                  aria-pressed={full}
+                  disabled={busy || !scope.includes("nivra:write")}
+                  onClick={() => setFull(true)}
+                >
+                  Read &amp; write
+                </Button>
+              </div>
               <p className="field-hint">
-                Read, create, edit, publish, and move items to Trash. Agents
-                cannot restore or permanently delete items. Account security and
-                server settings remain private.
+                {full
+                  ? "Read, create, edit, publish, and move items to Trash."
+                  : "Search and read content. No changes allowed."}
               </p>
-            )}
+              {!scope.includes("nivra:write") && (
+                <p className="field-hint">
+                  This client requested read access only.
+                </p>
+              )}
+            </div>
+            <p className="field-hint">
+              Trash is read-only for agents. Only you can restore or permanently
+              delete items.
+            </p>
             <p className="field-hint">
               You can disconnect this client in Settings → MCP.
             </p>
@@ -170,6 +211,12 @@ export function OAuthFlow({ consent = false }: { consent?: boolean }) {
         {error && (
           <p role="alert" className="form-error">
             {error}
+          </p>
+        )}
+        {error && (
+          <p className="field-hint">
+            Start a new connection from your MCP client. Your Nivra account
+            stays signed in.
           </p>
         )}
         {(!consent || status?.setup) && (

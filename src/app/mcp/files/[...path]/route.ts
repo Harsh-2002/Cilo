@@ -13,7 +13,7 @@ async function handle(
     const { path } = await context.params;
     const [target, id] = path;
     let route: string;
-    let method = request.method;
+    const method = request.method;
     if (
       path.length === 2 &&
       method === "GET" &&
@@ -40,7 +40,6 @@ async function handle(
       method === "GET"
     ) {
       route = "export/bundle";
-      method = "POST";
     } else
       return response(
         { error: "This file transfer route was not found." },

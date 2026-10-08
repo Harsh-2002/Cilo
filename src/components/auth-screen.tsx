@@ -96,10 +96,14 @@ export function AuthScreen({
   setup,
   methods,
   onReady,
+  continuationError,
+  oauthQuery,
 }: {
   setup: boolean;
   methods: { password: boolean; passkey: boolean };
-  onReady: () => void;
+  onReady: (result?: { url?: string; redirect_uri?: string }) => void;
+  continuationError?: string;
+  oauthQuery?: string;
 }) {
   const [setupMethod, setSetupMethod] = useState<"password" | "passkey">(
     "password",
@@ -186,10 +190,11 @@ export function AuthScreen({
         const result = await authRequest("sign-in/username", {
           username,
           password,
+          ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
         });
         setPassword("");
         if (result.twoFactorRedirect) setMfa(true);
-        else onReady();
+        else onReady(result);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -245,7 +250,11 @@ export function AuthScreen({
                   backup
                     ? "two-factor/verify-backup-code"
                     : "two-factor/verify-totp",
-                  { code: mfaCode, trustDevice: false },
+                  {
+                    code: mfaCode,
+                    trustDevice: false,
+                    ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+                  },
                 )
                   .then(onReady)
                   .catch((e) => setError(e.message))
@@ -268,9 +277,9 @@ export function AuthScreen({
                   onChange={(e) => setMfaCode(e.target.value.trim())}
                 />
               </div>
-              {error && (
+              {(error || continuationError) && (
                 <p className="form-error" role="alert">
-                  {error}
+                  {error || continuationError}
                 </p>
               )}
               <Button type="submit" disabled={busy}>
@@ -417,7 +426,25 @@ export function AuthScreen({
                     setPasskeyBusy(true);
                     setError("");
                     void passkeyAuth.signIn
-                      .passkey()
+                      .passkey(
+                        oauthQuery
+                          ? {
+                              fetchOptions: {
+                                onRequest: (context) => {
+                                  const body =
+                                    typeof context.body === "string"
+                                      ? JSON.parse(context.body)
+                                      : context.body;
+                                  context.body = JSON.stringify({
+                                    ...body,
+                                    oauth_query: oauthQuery,
+                                  });
+                                  return context;
+                                },
+                              },
+                            }
+                          : undefined,
+                      )
                       .then((result) => {
                         if (result.error) {
                           if (!passkeyCancelled(result.error))
@@ -425,7 +452,13 @@ export function AuthScreen({
                               result.error.message ||
                                 "Passkey sign-in failed. Try again or use your password.",
                             );
-                        } else onReady();
+                        } else
+                          onReady(
+                            result.data as {
+                              url?: string;
+                              redirect_uri?: string;
+                            },
+                          );
                       })
                       .catch(() =>
                         setError(
@@ -596,9 +629,9 @@ export function AuthScreen({
                     />
                   </div>
                 )}
-                {error && (
+                {(error || continuationError) && (
                   <p className="form-error" role="alert">
-                    {error}
+                    {error || continuationError}
                   </p>
                 )}
                 <Button type="submit" className="w-full" disabled={busy}>
@@ -638,6 +671,11 @@ export function AuthScreen({
                   "Use recovery code"
                 )}
               </button>
+            )}
+            {!methods.password && continuationError && (
+              <p className="form-error" role="alert">
+                {continuationError}
+              </p>
             )}
           </>
         )}

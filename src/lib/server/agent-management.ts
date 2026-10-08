@@ -3,12 +3,7 @@ import { auth } from "./auth";
 import { sqlite } from "./db";
 import { json, response, HttpError, requestOrigin } from "./http";
 import { revokeOAuth } from "./agent-access";
-import { passkeyFreshSeconds } from "./passkeys";
-export async function agentManagement(
-  request: Request,
-  owner: string,
-  createdAt: Date | string,
-) {
+export async function agentManagement(request: Request, owner: string) {
   if (request.method === "GET") {
     const keys = sqlite()
       .prepare(
@@ -26,8 +21,6 @@ export async function agentManagement(
       connections,
     });
   }
-  if (Date.now() - new Date(createdAt).getTime() >= passkeyFreshSeconds * 1000)
-    throw new HttpError(403, "Sign in again before managing AI credentials.");
   const input = z
     .discriminatedUnion("action", [
       z.object({

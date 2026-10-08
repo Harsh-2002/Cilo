@@ -2,6 +2,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
   ) {
     super(message);
   }
@@ -21,6 +22,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(
       body.error || "This action could not be completed.",
       result.status,
+      body.code,
     );
   return body;
 }
@@ -52,8 +54,14 @@ export async function authRequest(path: string, data: Record<string, unknown>) {
   });
   const body = await result.json();
   if (!result.ok)
-    throw new Error(
-      body.message || "Please check your credentials and try again.",
+    throw new ApiError(
+      (body.error === "invalid_signature"
+        ? "This connection request expired or is invalid. Start again from your MCP client."
+        : body.error_description) ||
+        body.message ||
+        "This request could not be completed. Try again.",
+      result.status,
+      body.code || body.error,
     );
   return body;
 }

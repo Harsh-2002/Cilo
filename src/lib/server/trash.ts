@@ -22,6 +22,7 @@ export function listTrash(
   query: string,
   kind?: TrashKind,
   after?: string | null,
+  pageSize = 60,
 ): Page<TrashItem> {
   const where = ["1=1"];
   const values: (string | number)[] = [owner, owner, owner, owner];
@@ -38,17 +39,18 @@ export function listTrash(
     where.push("(trashedAt<? OR (trashedAt=? AND (id,kind)>(?,?)))");
     values.push(cursor[0], cursor[0], cursor[1], cursor[2]);
   }
+  const limit = Math.max(1, Math.min(100, Math.trunc(pageSize) || 60));
   const rows = sqlite()
     .prepare(
-      `SELECT * FROM (${union}) WHERE ${where.join(" AND ")} ORDER BY trashedAt DESC,id,kind LIMIT 61`,
+      `SELECT * FROM (${union}) WHERE ${where.join(" AND ")} ORDER BY trashedAt DESC,id,kind LIMIT ?`,
     )
-    .all(...values) as TrashItem[];
-  const items = rows.slice(0, 60),
+    .all(...values, limit + 1) as TrashItem[];
+  const items = rows.slice(0, limit),
     last = items.at(-1);
   return {
     items,
     next:
-      rows.length > 60 && last
+      rows.length > limit && last
         ? encodeCursor([last.trashedAt, last.id, last.kind])
         : null,
   };

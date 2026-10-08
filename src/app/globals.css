@@ -5327,14 +5327,10 @@ button:disabled {
   display: grid;
   gap: 16px;
 }
-.oauth-error {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  padding: 12px;
-  background: var(--background);
-  border: 1px solid var(--border);
+@media (max-width: 767px) {
+  .oauth-card [data-slot="button"] {
+    min-height: 44px;
+  }
 }
 @media (max-width: 600px) {
   .ai-connection-list li {

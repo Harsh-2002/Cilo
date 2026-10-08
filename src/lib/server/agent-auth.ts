@@ -24,7 +24,7 @@ export function agentResource(request: Request) {
 export function agentChallenge(
   request: Request,
   status = 401,
-  scope = "nivra:read",
+  scope = status === 401 ? "nivra:read nivra:write" : "nivra:read",
 ) {
   const result = response(
     {

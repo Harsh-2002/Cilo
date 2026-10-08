@@ -60,13 +60,9 @@ export const authGuard = createAuthMiddleware(async (ctx) => {
     ctx.path?.startsWith("/oauth2/rotate-client")
   ) {
     const session = await getSessionFromCtx(ctx);
-    if (
-      !session ||
-      Date.now() - new Date(session.session.createdAt).getTime() >=
-        passkeyFreshSeconds * 1000
-    )
+    if (!session)
       throw new APIError("FORBIDDEN", {
-        message: "Sign in again before managing AI credentials.",
+        message: "Sign in to manage MCP credentials.",
       });
   }
 

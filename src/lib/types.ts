@@ -79,6 +79,7 @@ export type Bookmark = {
   noteTitle: string | null;
 };
 export type SearchResult = {
+  dailyDate?: string | null;
   id: string;
   type: "note" | "task" | "bookmark" | "artifact";
   title: string;
