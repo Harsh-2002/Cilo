@@ -50,7 +50,7 @@ export async function enableDeviceNotifications() {
     throw Error(
       permission === "denied"
         ? "Notifications are blocked. Allow them in your browser’s site settings, then try again."
-        : "Notification permission was not granted. You can still read reminders in Calendar.",
+        : "Notification permission was not granted.",
     );
   await navigator.serviceWorker.register(
     process.env.NODE_ENV === "production" ? "/sw.js" : "/sw.js?development=1",
@@ -95,6 +95,6 @@ export function notificationError(error: unknown) {
   const message =
     value?.message ?? "Notifications could not be enabled. Try again.";
   return value?.name === "AbortError" || /push service/i.test(message)
-    ? "Your browser could not connect to its notification service. Check its push settings or try another browser. Reminders remain available in Calendar."
+    ? "Your browser could not connect to its notification service. Check its push settings or try another browser."
     : message;
 }

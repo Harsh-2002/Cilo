@@ -132,6 +132,34 @@ test("durable reminders deduplicate, cancel completed tasks, reject private prov
     assert.deepEqual(pushKeys(), pushKeys());
     await assert.rejects(validatedPushEndpoint("http://example.com/push"));
     await assert.rejects(validatedPushEndpoint("https://127.0.0.1/push"));
+    const { calendarApi } = await import("../src/lib/server/calendar-api");
+    const subscription = {
+      endpoint: "https://127.0.0.1/push",
+      keys: { p256dh: "a".repeat(87), auth: "b".repeat(22) },
+    };
+    const register = (body: unknown) =>
+      calendarApi(
+        new Request("https://example.com/api/nivra/calendar/subscriptions", {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }),
+        owner,
+        "fixture-session",
+        ["calendar", "subscriptions"],
+      );
+    for (const expirationTime of [undefined, null, now + 86400000]) {
+      await assert.rejects(register({ ...subscription, expirationTime }), {
+        message: "The push endpoint is not public.",
+      });
+    }
+    for (const invalid of [
+      { ...subscription, expirationTime: "tomorrow" },
+      { ...subscription, expirationTime: -1 },
+      { ...subscription, expirationTime: null, unexpected: true },
+    ]) {
+      await assert.rejects(register(invalid), { name: "ZodError" });
+    }
     assert.equal(reminderList("other").items.length, 0);
     const { seal, masterKey } = await import("../src/lib/server/encryption");
     const { createHash } = await import("node:crypto");

@@ -1,6 +1,7 @@
 "use client";
 import { McpConnections } from "./mcp-connections";
 import { ResponsiveSurface } from "./responsive-surface";
+import { DeviceNotifications } from "./device-notifications";
 import { BackupSettings } from "./backup-settings";
 import { useEffect, useRef, useState } from "react";
 import { FeedbackOutlet } from "./inline-feedback";
@@ -304,6 +305,7 @@ export function SettingsPanel({
                         </span>
                         <ChevronRight size={16} />
                       </button>
+                      <DeviceNotifications />
                       <div className="settings-row">
                         <div>
                           <h3>Other sessions</h3>

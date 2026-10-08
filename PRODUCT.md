@@ -51,7 +51,7 @@ Favorites is a browsing-only card collection of starred notes, journal entries a
 
 ## Next iteration
 
-Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Task reminders, offline editing, and collaboration remain deferred.
+Browser-extension capture remains proposed. Bookmarks and tasks are separate implemented sections, backed by SQLite and included in lossless bundles and encrypted instance backups. Offline editing and collaboration remain deferred.
 
 Passkeys are an optional login method alongside passwords and account recovery. They require PIN or biometric verification, support discoverable FIDO2 hardware and password-manager credentials, and have account settings for enrollment, rename and removal. Verified passkeys satisfy login when TOTP is enabled; password login still requires TOTP. Account recovery preserves registered passkeys, while revoking sessions and clearing TOTP.
 
@@ -60,3 +60,5 @@ The owner’s name and login identifier are fixed after onboarding. Login identi
 First-run setup offers password or verified passkey authentication after choosing the fixed account identity. Password setup supports optional TOTP enrollment. The owner can add the other login method later; recovery remains available for either choice. Show passkey sign-in only when a passkey is registered. Prevent removal of the final usable login method.
 
 Calendar integrates planned and due task dates, daily journals, standalone events and schedules linked to saved content. Month, Week, Day and Year views retain date and view in the URL. Timed events use persistent IANA timezones; all-day dates remain stable. Recurrence supports editing one occurrence, following occurrences or the series. Reminders are listed in Calendar, with optional per-device Web Push over HTTPS. External calendar sync and drag-to-reschedule are deferred.
+
+Device notifications are managed in Settings → Account, with an optional setup offer after first sign-in. Calendar keeps task and event scheduling controls without a notification bell or device settings panel.

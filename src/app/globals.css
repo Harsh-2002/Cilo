@@ -5784,8 +5784,7 @@ button:disabled {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.schedule-agenda-entry small,
-.schedule-reminder small {
+.schedule-agenda-entry small {
   display: block;
   font-size: 12px;
   color: var(--muted-foreground);
@@ -5962,35 +5961,6 @@ button:disabled {
 .schedule-link-result span {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.schedule-reminders {
-  padding: 20px 0 28px;
-}
-.schedule-reminders header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.schedule-reminders h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-}
-.schedule-reminders p {
-  font-size: 14px;
-  color: var(--muted-foreground);
-}
-.schedule-reminder {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
 }
 @media (max-width: 1279px) {
   .schedule-layout {
@@ -6266,8 +6236,7 @@ button:disabled {
   }
   .schedule-year,
   .schedule-skeleton,
-  .schedule-time-grid,
-  .schedule-reminders {
+  .schedule-time-grid {
     min-height: 0;
     overflow: auto;
   }
@@ -6284,15 +6253,13 @@ button:disabled {
   .schedule-scroll,
   .schedule-agenda,
   .schedule-year,
-  .schedule-time-grid,
-  .schedule-reminders {
+  .schedule-time-grid {
     scrollbar-width: none;
   }
   .schedule-scroll::-webkit-scrollbar,
   .schedule-agenda::-webkit-scrollbar,
   .schedule-year::-webkit-scrollbar,
-  .schedule-time-grid::-webkit-scrollbar,
-  .schedule-reminders::-webkit-scrollbar {
+  .schedule-time-grid::-webkit-scrollbar {
     display: none;
   }
 }
@@ -6358,11 +6325,6 @@ button:disabled {
     min-height: 0;
     height: auto;
   }
-  .schedule-reminders {
-    max-height: min(200px, 30dvh);
-    flex-shrink: 0;
-    margin-bottom: 12px;
-  }
 }
 
 .schedule-summary [data-slot="button"] {
@@ -6426,4 +6388,26 @@ button:disabled {
     position: absolute;
     bottom: 1px;
   }
+}
+
+.device-notifications {
+  padding-block: 18px;
+}
+.device-notifications > p {
+  margin-top: 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.device-notifications > .form-error {
+  color: var(--destructive);
+}
+.device-notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.settings-security > .device-notifications {
+  border-bottom: 1px solid var(--border);
 }

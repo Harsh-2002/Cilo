@@ -191,6 +191,12 @@ export async function calendarApi(
       const body = z
         .object({
           endpoint: z.string().url().max(4096),
+          expirationTime: z
+            .number()
+            .finite()
+            .nonnegative()
+            .nullable()
+            .optional(),
           keys: z
             .object({
               p256dh: z.string().min(80).max(100),

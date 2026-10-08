@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import {
-  Bell,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -25,7 +24,6 @@ import { DatePicker } from "./date-picker";
 import { CalendarEventEditor, CalendarSelect } from "./calendar-event-editor";
 import { useConfirm } from "./confirm-provider";
 import { CalendarTimeGrid } from "./calendar-time-grid";
-import { CalendarNotifications } from "./calendar-notifications";
 
 type TaskPage = {
   items: {
@@ -114,7 +112,6 @@ export function CalendarPanel({
         ? { event: null }
         : null,
     ),
-    [notifications, setNotifications] = useState(false),
     [busy, setBusy] = useState(false),
     [refresh, setRefresh] = useState(0);
   const monthGrid = useRef<HTMLDivElement>(null);
@@ -399,14 +396,6 @@ export function CalendarPanel({
                 ["year", "Year"],
               ]}
             />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Reminders"
-              onClick={() => setNotifications(!notifications)}
-            >
-              <Bell size={18} />
-            </Button>
             <Button onClick={() => setEditor({ event: null })}>
               <Plus size={16} />
               New event
@@ -448,7 +437,6 @@ export function CalendarPanel({
             </Button>
           </div>
         )}
-        {notifications && <CalendarNotifications />}
         {loading && !data ? (
           <div
             className={`schedule-skeleton schedule-skeleton-${route.view}`}
