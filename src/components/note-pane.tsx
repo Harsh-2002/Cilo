@@ -500,8 +500,11 @@ export function NotePane({
                 >
                   {!note.trashedAt && (
                     <>
-                      <DropdownMenuLabel>Page width</DropdownMenuLabel>
+                      <DropdownMenuLabel className="note-width-control">
+                        Page width
+                      </DropdownMenuLabel>
                       <DropdownMenuRadioGroup
+                        className="note-width-control"
                         value={note.editorWidth}
                         onValueChange={(value) =>
                           change({
@@ -518,7 +521,7 @@ export function NotePane({
                           Wide
                         </DropdownMenuRadioItem>
                       </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
+                      <DropdownMenuSeparator className="note-width-control" />
                       <DropdownMenuItem
                         onSelect={() =>
                           void action(async () => setHistory(true))

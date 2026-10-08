@@ -223,6 +223,14 @@ button:not(:disabled) {
   box-shadow: none;
   outline-offset: -2px;
 }
+[data-slot="dropdown-menu-item"]:focus-visible,
+[data-slot="dropdown-menu-checkbox-item"]:focus-visible,
+[data-slot="dropdown-menu-radio-item"]:focus-visible,
+[data-slot="dropdown-menu-sub-trigger"]:focus-visible,
+[data-slot="select-item"]:focus-visible {
+  box-shadow: none;
+  outline-offset: -2px;
+}
 [data-variant="default"][data-slot="button"]:focus-visible,
 [data-variant="default"][data-slot="dropdown-menu-trigger"]:focus-visible {
   outline-color: var(--primary-foreground);
@@ -1446,7 +1454,7 @@ button:disabled {
   justify-self: start;
   color: var(--muted-foreground);
   font-size: 12px;
-  padding-left: 0;
+  padding-inline: 12px;
 }
 .publication-page {
   height: 100%;
@@ -1886,7 +1894,7 @@ button:disabled {
   color: #b3b3b3;
 }
 .code-block-header button {
-  padding-inline: 8px;
+  padding-inline: 12px;
   margin-left: 0;
   background: transparent;
   color: inherit;
@@ -2042,8 +2050,6 @@ button:disabled {
   gap: 16px;
   align-items: center;
   margin: 32px 0 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
 }
 .task-filters {
   display: flex;
@@ -3027,7 +3033,7 @@ button:disabled {
   border-top: 1px solid var(--border);
 }
 .connections-toggle {
-  padding-left: 0;
+  padding-inline: 12px;
   color: var(--muted-foreground);
   min-height: 44px;
 }
@@ -3050,7 +3056,7 @@ button:disabled {
   display: flex;
   gap: 10px;
   min-height: 44px;
-  padding: 8px;
+  padding: 8px 12px;
   align-items: center;
   text-align: left;
   border-radius: 6px;
@@ -3441,7 +3447,7 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 4px;
+  padding: 12px;
   border-radius: 6px;
   text-align: left;
   min-width: 0;
@@ -4156,14 +4162,15 @@ button:disabled {
   white-space: nowrap;
 }
 .artifact-drop-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
 }
 .artifact-drop-actions button {
+  flex: 1;
   min-height: 44px;
-  padding-inline: 10px;
+  padding-inline: 12px;
 }
 .artifact-composer {
   display: grid;
@@ -4555,15 +4562,15 @@ button:disabled {
   }
   .artifact-viewer-footer {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
   .artifact-delete {
     margin-left: 0;
   }
   .artifact-viewer-footer > * {
     min-width: 0;
-    padding-inline: 8px;
+    padding-inline: 12px;
   }
   .artifact-title {
     font-size: 16px;
@@ -4575,9 +4582,6 @@ button:disabled {
   }
 }
 @media (max-width: 480px) {
-  .artifact-viewer-footer svg {
-    display: none;
-  }
   .artifact-viewer-footer {
     gap: 8px;
     font-size: 13px;
@@ -4599,7 +4603,7 @@ button:disabled {
   }
   .artifact-drop-actions button {
     gap: 5px;
-    padding-inline: 8px;
+    padding-inline: 12px;
     font-size: 12px;
   }
   .artifacts-panel .task-search {
@@ -4637,8 +4641,6 @@ button:disabled {
 
 .section-toolbar {
   margin: 24px 0 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
 }
 .section-toolbar button,
 .section-toolbar [data-slot="select-trigger"] {
@@ -5456,9 +5458,6 @@ button:disabled {
 .ai-key-form {
   margin-bottom: 16px;
 }
-.ai-connections > section > button {
-  padding-left: 0;
-}
 .ai-connections .settings-section-heading {
   margin-bottom: 0;
 }
@@ -5484,8 +5483,9 @@ button:disabled {
 
 .mcp-setup-toggle {
   width: 100%;
+  height: 44px;
   justify-content: space-between;
-  padding-inline: 0;
+  padding-inline: 12px;
 }
 .mcp-setup-open {
   transform: rotate(180deg);
@@ -5499,6 +5499,7 @@ button:disabled {
 .mcp-setup-body [data-slot="select-trigger"] {
   width: 100%;
   height: 44px;
+  padding-inline: 12px;
 }
 .mcp-setup-auth {
   display: grid;
@@ -5544,4 +5545,10 @@ button:disabled {
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .note-width-control {
+    display: none;
+  }
 }

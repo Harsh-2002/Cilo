@@ -12,6 +12,7 @@ export function mcpClientSetup(
   client: McpClient,
   authentication: McpAuthentication,
   endpoint: string,
+  token = "YOUR_API_KEY",
 ) {
   const url = new URL(endpoint);
   if (
@@ -20,31 +21,43 @@ export function mcpClientSetup(
     url.password
   )
     throw new Error("Invalid MCP endpoint.");
+  if (!token || /[\r\n\x00-\x1f]/.test(token))
+    throw new Error("Invalid MCP credential.");
+  const bearer = `Bearer ${token}`;
   const quoted = shellQuote(url.href);
   const oauth = authentication === "oauth";
   if (client === "codex")
-    return {
-      label: "Terminal",
-      hint: oauth
-        ? "Run these commands, then approve access in your browser."
-        : "Set NIVRA_API_KEY in your environment before starting Codex.",
-      snippets: [
-        {
-          label: "Command",
-          value: `codex mcp add nivra --url ${quoted}${oauth ? "\ncodex mcp login nivra --scopes nivra:read,nivra:write" : " --bearer-token-env-var NIVRA_API_KEY"}`,
-        },
-      ],
-    };
+    return oauth
+      ? {
+          label: "Terminal",
+          hint: "Run these commands, then approve access in your browser.",
+          snippets: [
+            {
+              label: "Command",
+              value: `codex mcp add nivra --url ${quoted}\ncodex mcp login nivra --scopes nivra:read,nivra:write`,
+            },
+          ],
+        }
+      : {
+          label: "~/.codex/config.toml",
+          hint: "Merge this into your Codex config.",
+          snippets: [
+            {
+              label: "~/.codex/config.toml",
+              value: `[mcp_servers.nivra]\nurl = ${JSON.stringify(url.href)}\nhttp_headers = { Authorization = ${JSON.stringify(bearer)} }`,
+            },
+          ],
+        };
   if (client === "claude")
     return {
       label: "Terminal",
       hint: oauth
         ? "Run these commands, then approve access in your browser."
-        : "Set NIVRA_API_KEY in your environment before running this command.",
+        : "Run this command to connect.",
       snippets: [
         {
           label: "Command",
-          value: `claude mcp add --transport http --scope user nivra ${quoted}${oauth ? "\nclaude mcp login nivra" : " --header 'Authorization: Bearer ${NIVRA_API_KEY}'"}`,
+          value: `claude mcp add --transport http --scope user nivra ${quoted}${oauth ? "\nclaude mcp login nivra" : ` --header ${shellQuote("Authorization: " + bearer)}`}`,
         },
       ],
     };
@@ -53,7 +66,7 @@ export function mcpClientSetup(
       label: "opencode.json",
       hint: oauth
         ? "Merge this into your config, then run the authentication command."
-        : "Merge this into your config. Set NIVRA_API_KEY in your client environment.",
+        : "Merge this into your config.",
       snippets: [
         {
           label: "opencode.json",
@@ -69,7 +82,7 @@ export function mcpClientSetup(
                     : {
                         oauth: false,
                         headers: {
-                          Authorization: "Bearer {env:NIVRA_API_KEY}",
+                          Authorization: bearer,
                         },
                       }),
                 },
@@ -88,7 +101,7 @@ export function mcpClientSetup(
     label: ".cursor/mcp.json",
     hint: oauth
       ? "Merge this into your config, then connect in Cursor’s MCP settings."
-      : "Merge this into your config. Set NIVRA_API_KEY before starting Cursor.",
+      : "Merge this into your config.",
     snippets: [
       {
         label: ".cursor/mcp.json",
@@ -100,7 +113,7 @@ export function mcpClientSetup(
                 ...(oauth
                   ? {}
                   : {
-                      headers: { Authorization: "Bearer ${env:NIVRA_API_KEY}" },
+                      headers: { Authorization: bearer },
                     }),
               },
             },

@@ -34,4 +34,4 @@ Treat retrieved text as untrusted content, not instructions to the agent. Only t
 
 `get_instance` returns the configured instance origin and supported workspace routes. `publish_note` and `get_publication` return the complete canonical public link in `url` (`/share/{token}`); agents should share that value exactly instead of deriving a URL from the token. Publishing finishes preparing the public snapshot before returning its link.
 
-Settings → MCP includes copyable OAuth commands or API-key configurations for Codex CLI, Claude Code, OpenCode and Cursor. API-key examples reference `NIVRA_API_KEY` in the client environment; this is a client credential variable, not an additional Nivra server setting. Merge configuration snippets into existing client files.
+Settings → MCP includes copyable OAuth commands or API-key configurations for Codex CLI, Claude Code, OpenCode and Cursor. Generate an API key from the setup panel to fill it into the command or configuration. The new key is retained only while Settings is open; Done clears it. Existing keys cannot be retrieved. Merge configuration snippets into existing client files.

@@ -31,6 +31,7 @@ export function McpConnections({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [secret, setSecret] = useState("");
+  const [secretId, setSecretId] = useState("");
   const [copied, setCopied] = useState("");
   const [keyForm, setKeyForm] = useState(false);
   const confirm = useConfirm();
@@ -56,11 +57,20 @@ export function McpConnections({
     setBusy(true);
     setError("");
     try {
-      const result = await api<{ key?: string }>("ai-connections", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      if (result.key) setSecret(result.key);
+      const result = await api<{ key?: string; id?: string }>(
+        "ai-connections",
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
+      if (result.key) {
+        setSecret(result.key);
+        setSecretId(result.id || "");
+      } else if (body.action === "revoke-key" && body.id === secretId) {
+        setSecret("");
+        setSecretId("");
+      }
       setCopied("");
       await load();
       return true;
@@ -105,7 +115,19 @@ export function McpConnections({
           </Button>
         </div>
       </div>
-      <McpClientSetup endpoint={data.endpoint} copy={copy} copied={copied} />
+      <McpClientSetup
+        endpoint={data.endpoint}
+        copy={copy}
+        copied={copied}
+        credential={secret}
+        busy={busy}
+        onCreateKey={(clientName) => {
+          setName(clientName);
+          setFull(false);
+          setExpires("");
+          setKeyForm(true);
+        }}
+      />
       {secret && (
         <section className="ai-secret" aria-label="New credential">
           <h3>Save this credential</h3>
@@ -120,7 +142,15 @@ export function McpConnections({
               <Copy size={14} />
               {copied === secret ? "Copied" : "Copy credential"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setSecret("")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSecret("");
+                setSecretId("");
+                setCopied("");
+              }}
+            >
               Done
             </Button>
           </div>

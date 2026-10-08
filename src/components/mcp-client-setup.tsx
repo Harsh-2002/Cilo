@@ -1,5 +1,5 @@
 "use client";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Copy } from "lucide-react";
 import {
   mcpClients,
@@ -20,19 +20,35 @@ export function McpClientSetup({
   endpoint,
   copy,
   copied,
+  credential,
+  onCreateKey,
+  busy,
 }: {
   endpoint: string;
   copy: (value: string) => Promise<void>;
   copied: string;
+  credential: string;
+  onCreateKey: (name: string) => void;
+  busy: boolean;
 }) {
   const id = useId();
+  const section = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(false);
   const [client, setClient] = useState<McpClient>("codex");
   const [authentication, setAuthentication] =
     useState<McpAuthentication>("oauth");
-  const setup = mcpClientSetup(client, authentication, endpoint);
+  const setup = mcpClientSetup(
+    client,
+    authentication,
+    endpoint,
+    credential || undefined,
+  );
+  useEffect(() => {
+    if (credential && authentication === "key")
+      section.current?.scrollIntoView({ block: "nearest" });
+  }, [credential, authentication]);
   return (
-    <section className="mcp-setup">
+    <section className="mcp-setup" ref={section}>
       <Button
         variant="ghost"
         className="mcp-setup-toggle"
@@ -86,11 +102,18 @@ export function McpClientSetup({
               </Button>
             </div>
           </div>
-          <p className="mcp-setup-hint">
-            {setup.hint}
-            {authentication === "key" &&
-              " Create a key below if you don’t have one."}
-          </p>
+          <p className="mcp-setup-hint">{setup.hint}</p>
+          {authentication === "key" && !credential && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                onCreateKey(mcpClients.find((item) => item.id === client)!.name)
+              }
+            >
+              Generate key
+            </Button>
+          )}
           {setup.snippets.map((snippet) => (
             <div className="mcp-setup-snippet" key={snippet.label}>
               <div>
@@ -99,6 +122,7 @@ export function McpClientSetup({
                   variant="ghost"
                   size="sm"
                   aria-label={`Copy ${snippet.label}`}
+                  disabled={authentication === "key" && !credential}
                   onClick={() => void copy(snippet.value)}
                 >
                   {copied === snippet.value ? (
