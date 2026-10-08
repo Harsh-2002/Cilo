@@ -106,6 +106,7 @@ function createAuth(origin: string) {
       jwt({ disableSettingJwtHeader: true }),
       apiKey({
         defaultPrefix: "nivra_",
+        maximumNameLength: 80,
         enableSessionForAPIKeys: false,
         rateLimit: { enabled: true, timeWindow: 60000, maxRequests: 120 },
         permissions: { defaultPermissions: { nivra: ["read"] } },

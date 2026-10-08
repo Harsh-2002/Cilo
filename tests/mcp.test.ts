@@ -119,16 +119,34 @@ test("MCP shares content while isolating agent credentials and account administr
           .run(Date.now() - 86400000, owner);
         const created = await human("ai-connections", {
           action: "create-key",
-          name: "Older session",
+          name: "Older session ".padEnd(80, "n"),
           access: "read",
         });
         assert.ok(created.key);
+        assert.equal(
+          (
+            sqlite()
+              .prepare("SELECT name FROM apikey WHERE id=?")
+              .get(created.id) as { name: string }
+          ).name.length,
+          80,
+        );
         assert.equal((await human("status")).owner.id, owner);
         await human("ai-connections", { action: "revoke-key", id: created.id });
         assert.equal(
           sqlite().prepare("SELECT 1 FROM apikey WHERE id=?").get(created.id),
           undefined,
         );
+        const oversized = await fetch(`${base}/api/nivra/ai-connections`, {
+          method: "POST",
+          headers: { cookie, origin: base, "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "create-key",
+            name: "n".repeat(81),
+            access: "read",
+          }),
+        });
+        assert.equal(oversized.status, 400);
         const anonymous = await fetch(`${base}/api/nivra/ai-connections`, {
           method: "POST",
           headers: { origin: base, "content-type": "application/json" },
