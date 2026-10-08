@@ -106,6 +106,7 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
         })
         .run();
     let recurring: { id: string; revision: number };
+    let createdAt = 1000;
     for (const [title, dueDate] of [
       ["Undated", null],
       ["Future", "2026-10-20"],
@@ -120,6 +121,9 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
         dueDate,
         ...(title === "Today recurring" ? { recurrence: "daily" } : {}),
       });
+      sqlite()
+        .prepare("UPDATE tasks SET created_at=? WHERE id=?")
+        .run(createdAt++, task.id);
       if (title === "Today recurring") recurring = task;
       if (title === "Completed")
         await value(`tasks/${task.id}`, "PATCH", {
@@ -149,18 +153,18 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
       },
     );
     await t.test(
-      "counts all open tasks and prioritizes due dates without including completed tasks",
+      "counts open tasks and lists newest first regardless of due date",
       async () => {
         const snapshot = await value("overview?date=2026-10-05");
         assert.deepEqual(snapshot.counts, { open: 6, today: 1, overdue: 1 });
         assert.deepEqual(
           snapshot.tasks.map((task: { title: string }) => task.title),
           [
-            "Overdue",
-            "Today recurring",
-            "Tomorrow",
-            "Future",
             "Later",
+            "Tomorrow",
+            "Today recurring",
+            "Overdue",
+            "Future",
             "Undated",
           ],
         );
@@ -182,6 +186,46 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
           workspaceOverview(randomUUID(), "2026-10-05").bookmarks.length,
           0,
         );
+      },
+    );
+    await t.test(
+      "creation ties match Tasks and edits do not reorder tasks",
+      async () => {
+        const { listTasks } = await import("../src/lib/server/tasks");
+        const rows = sqlite()
+          .prepare(
+            "SELECT id,created_at AS createdAt FROM tasks WHERE completed_at IS NULL ORDER BY created_at DESC",
+          )
+          .all() as { id: string; createdAt: number }[];
+        try {
+          sqlite()
+            .prepare("UPDATE tasks SET created_at=? WHERE completed_at IS NULL")
+            .run(2000);
+          sqlite()
+            .prepare("UPDATE tasks SET updated_at=? WHERE id=?")
+            .run(Date.now(), rows[rows.length - 1].id);
+          const expected = rows
+            .map((row) => row.id)
+            .sort()
+            .reverse();
+          assert.deepEqual(
+            (await value("overview?date=2026-10-05")).tasks.map(
+              (task: { id: string }) => task.id,
+            ),
+            expected,
+          );
+          assert.deepEqual(
+            listTasks(owner)
+              .filter((task) => task.completedAt === null)
+              .map((task) => task.id),
+            expected,
+          );
+        } finally {
+          for (const row of rows)
+            sqlite()
+              .prepare("UPDATE tasks SET created_at=? WHERE id=?")
+              .run(row.createdAt, row.id);
+        }
       },
     );
     await t.test(

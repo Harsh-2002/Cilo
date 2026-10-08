@@ -32,12 +32,7 @@ export function workspaceOverview(owner: string, today: string): Overview {
         })
         .from(tasks)
         .where(open)
-        .orderBy(
-          sql`${tasks.dueDate} is null`,
-          asc(tasks.dueDate),
-          asc(tasks.createdAt),
-          asc(tasks.id),
-        )
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .limit(20)
         .all(),
       notes: database
