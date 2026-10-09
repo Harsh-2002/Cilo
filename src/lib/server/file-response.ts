@@ -18,6 +18,7 @@ const inlineTypes = new Set([
 ]);
 export type FileSource = {
   size: number;
+  release?: () => Promise<void>;
   // Both bounds are inclusive byte offsets.
   read(start: number, end: number): Promise<Uint8Array>;
 };
@@ -28,7 +29,11 @@ export const memorySource = (bytes: Uint8Array): FileSource => ({
 const streamStep = 1024 * 1024;
 async function body(source: FileSource, start: number, end: number) {
   if (end - start < streamStep) {
-    return (await source.read(start, end)) as Uint8Array<ArrayBuffer>;
+    try {
+      return (await source.read(start, end)) as Uint8Array<ArrayBuffer>;
+    } finally {
+      await source.release?.();
+    }
   }
   let position = start;
   return new ReadableStream<Uint8Array>({
@@ -37,11 +42,16 @@ async function body(source: FileSource, start: number, end: number) {
         const last = Math.min(end, position + streamStep - 1);
         controller.enqueue(await source.read(position, last));
         position = last + 1;
-        if (position > end) controller.close();
+        if (position > end) {
+          await source.release?.();
+          controller.close();
+        }
       } catch (error) {
+        await source.release?.();
         controller.error(error);
       }
     },
+    cancel: () => source.release?.(),
   });
 }
 export function mediaMime(bytes: Uint8Array) {
@@ -80,55 +90,62 @@ export async function fileResponse(
   file: { mime: string; name: string },
   published = false,
 ) {
-  const length = source.size;
-  const mime =
-    file.mime === "application/octet-stream" && length
-      ? mediaMime(await source.read(0, 11)) || file.mime
-      : file.mime;
-  const inline = inlineTypes.has(mime);
-  const headers = new Headers({
-    "Content-Type": inline ? mime : "application/octet-stream",
-    "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName(file.name)}"`,
-    "Cache-Control": published ? "no-store" : "private, no-store",
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
-    "Accept-Ranges": "bytes",
-  });
-  const range = request.headers.get("range");
-  if (!range || request.headers.has("if-range")) {
-    headers.set("Content-Length", String(length));
-    return new Response(length ? await body(source, 0, length - 1) : null, {
+  try {
+    const length = source.size;
+    const mime =
+      file.mime === "application/octet-stream" && length
+        ? mediaMime(await source.read(0, 11)) || file.mime
+        : file.mime;
+    const inline = inlineTypes.has(mime);
+    const headers = new Headers({
+      "Content-Type": inline ? mime : "application/octet-stream",
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName(file.name)}"`,
+      "Cache-Control": published ? "no-store" : "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "Accept-Ranges": "bytes",
+    });
+    const range = request.headers.get("range");
+    if (!range || request.headers.has("if-range")) {
+      headers.set("Content-Length", String(length));
+      if (!length) await source.release?.();
+      return new Response(length ? await body(source, 0, length - 1) : null, {
+        headers,
+      });
+    }
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const start = match?.[1]
+      ? Number(match[1])
+      : Math.max(0, length - Number(match?.[2]));
+    const end =
+      match?.[1] && match[2]
+        ? Math.min(Number(match[2]), length - 1)
+        : length - 1;
+    if (
+      !match ||
+      match
+        .slice(1)
+        .some((value) => value && !Number.isSafeInteger(Number(value))) ||
+      (!match[1] && !match[2]) ||
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(end) ||
+      start < 0 ||
+      start >= length ||
+      end < start ||
+      (!match[1] && Number(match[2]) <= 0)
+    ) {
+      headers.set("Content-Range", `bytes */${length}`);
+      await source.release?.();
+      return new Response(null, { status: 416, headers });
+    }
+    headers.set("Content-Range", `bytes ${start}-${end}/${length}`);
+    headers.set("Content-Length", String(end - start + 1));
+    return new Response(await body(source, start, end), {
+      status: 206,
       headers,
     });
+  } catch (error) {
+    await source.release?.();
+    throw error;
   }
-  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-  const start = match?.[1]
-    ? Number(match[1])
-    : Math.max(0, length - Number(match?.[2]));
-  const end =
-    match?.[1] && match[2]
-      ? Math.min(Number(match[2]), length - 1)
-      : length - 1;
-  if (
-    !match ||
-    match
-      .slice(1)
-      .some((value) => value && !Number.isSafeInteger(Number(value))) ||
-    (!match[1] && !match[2]) ||
-    !Number.isSafeInteger(start) ||
-    !Number.isSafeInteger(end) ||
-    start < 0 ||
-    start >= length ||
-    end < start ||
-    (!match[1] && Number(match[2]) <= 0)
-  ) {
-    headers.set("Content-Range", `bytes */${length}`);
-    return new Response(null, { status: 416, headers });
-  }
-  headers.set("Content-Range", `bytes ${start}-${end}/${length}`);
-  headers.set("Content-Length", String(end - start + 1));
-  return new Response(await body(source, start, end), {
-    status: 206,
-    headers,
-  });
 }

@@ -1,4 +1,5 @@
 "use client";
+import { SystemSettings } from "./system-settings";
 import { brandPath, brandFramePath, brandTagline } from "@/lib/brand";
 import { MfaSettings } from "./mfa-settings";
 import { useState } from "react";
@@ -15,9 +16,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Moon,
-  Sun,
-  Monitor,
   KeyRound,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -94,17 +92,23 @@ export function RecoveryCard({
 }
 export function AuthScreen({
   setup,
+  installation: initialInstallation,
   methods,
   onReady,
   continuationError,
   oauthQuery,
 }: {
   setup: boolean;
+  installation?: { encrypted: boolean; locked: boolean; publicUrl: string };
   methods: { password: boolean; passkey: boolean };
   onReady: (result?: { url?: string; redirect_uri?: string }) => void;
   continuationError?: string;
   oauthQuery?: string;
 }) {
+  const [installation, setInstallation] = useState(initialInstallation);
+  const [encrypted, setEncrypted] = useState(
+    initialInstallation?.encrypted ?? true,
+  );
   const [setupMethod, setSetupMethod] = useState<"password" | "passkey">(
     "password",
   );
@@ -127,7 +131,7 @@ export function AuthScreen({
   const [error, setError] = useState("");
   const passkeysSupported = usePasskeySupported();
   const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -146,7 +150,10 @@ export function AuthScreen({
         if (setupMethod === "passkey") {
           const intent = await api<{ context: string; recoveryCode: string }>(
             "setup-passkey",
-            { method: "POST", body: JSON.stringify({ name, username }) },
+            {
+              method: "POST",
+              body: JSON.stringify({ name, username, encrypted }),
+            },
           );
           try {
             const registered = await passkeyAuth.passkey.addPasskey({
@@ -171,7 +178,7 @@ export function AuthScreen({
         } else
           result = await api<{ recoveryCode: string }>("setup", {
             method: "POST",
-            body: JSON.stringify({ name, username, password }),
+            body: JSON.stringify({ name, username, password, encrypted }),
           });
         setRecoveryCode(result.recoveryCode);
         setPassword("");
@@ -198,6 +205,15 @@ export function AuthScreen({
       }
     } catch (e) {
       setError((e as Error).message);
+      if (setup) {
+        try {
+          const current = await api<{
+            installation: NonNullable<typeof installation>;
+          }>("status");
+          setInstallation(current.installation);
+          setEncrypted(current.installation.encrypted);
+        } catch {}
+      }
     } finally {
       setBusy(false);
     }
@@ -327,31 +343,11 @@ export function AuthScreen({
           />
         ) : step === 2 ? (
           <>
-            <h1>A space that feels like you.</h1>
+            <h1>Finish setup.</h1>
             <p className="auth-description">
-              Choose your appearance. You can change this anytime in the
-              sidebar.
+              Local storage is ready. Configure S3 now or later in Settings →
+              System.
             </p>
-            <div className="theme-options">
-              {(
-                [
-                  { value: "light", Icon: Sun, label: "Light" },
-                  { value: "dark", Icon: Moon, label: "Dark" },
-                  { value: "system", Icon: Monitor, label: "System" },
-                ] as const
-              ).map(({ value, Icon, label }) => (
-                <button
-                  type="button"
-                  key={value}
-                  aria-pressed={theme === value}
-                  className={theme === value ? "selected" : ""}
-                  onClick={() => setTheme(value)}
-                >
-                  <Icon size={22} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
             {setupMethod === "password" &&
               (mfaSetup ? (
                 <MfaSettings
@@ -382,20 +378,7 @@ export function AuthScreen({
                 : "a password and an authenticator"}{" "}
               in Settings → Account.
             </p>
-            <Button
-              className="w-full"
-              disabled={busy || mfaGuard}
-              onClick={finish}
-            >
-              {busy ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <>
-                  Start writing
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </Button>
+            {!mfaGuard && <SystemSettings onboarding onDone={finish} />}
           </>
         ) : (
           <>
@@ -535,6 +518,26 @@ export function AuthScreen({
                         Use 3–30 letters, numbers, dots or underscores, or an
                         email address.
                       </p>
+                    )}
+                  </div>
+                )}
+                {setup && (
+                  <div className="field">
+                    <label className="check-row">
+                      <Checkbox
+                        checked={encrypted}
+                        disabled={installation?.locked || busy}
+                        onCheckedChange={(v) => setEncrypted(v === true)}
+                      />
+                      Encrypt stored content
+                    </label>
+                    <p className="field-hint">
+                      {installation?.locked
+                        ? "Encryption was chosen when this installation initialized."
+                        : "Enabled by default. This choice is fixed when account setup starts."}
+                    </p>
+                    {installation?.publicUrl && (
+                      <p className="field-hint">{installation.publicUrl}</p>
                     )}
                   </div>
                 )}

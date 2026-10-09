@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { importPath } from "../src/lib/import-files";
 import { createStorage } from "../src/lib/server/storage";
-import { uploadLimit } from "../src/lib/server/config";
+import { validateUploadLimit } from "../src/lib/server/config";
 test("import paths resolve folder assets without treating remote URLs as local", () => {
   assert.equal(
     importPath("../images/a%20b.png", "notes/sub"),
@@ -194,13 +194,9 @@ test("S3 adapter signs path-style requests, preserves binary files, and deletes"
     );
   }
 });
-test("invalid upload environment configuration fails instead of silently changing limits", () => {
-  const original = process.env.NIVRA_UPLOAD_LIMIT_MIB;
-  try {
-    process.env.NIVRA_UPLOAD_LIMIT_MIB = "1.5";
-    assert.throws(uploadLimit, /integer/);
-  } finally {
-    if (original === undefined) delete process.env.NIVRA_UPLOAD_LIMIT_MIB;
-    else process.env.NIVRA_UPLOAD_LIMIT_MIB = original;
-  }
+test("upload settings reject invalid limits", () => {
+  assert.throws(() => validateUploadLimit(1.5), /integer/);
+  assert.equal(validateUploadLimit(25), 25 * 1024 * 1024);
+  for (const value of [0, 101, NaN, Infinity])
+    assert.throws(() => validateUploadLimit(value));
 });

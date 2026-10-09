@@ -171,8 +171,11 @@ export function TasksPanel({
   }, [focusCreate]);
   const view = `${boardId ?? "all"}\n${filter}\n${query}`;
   const currentView = useRef(view);
+  const loadVersion = useRef(0);
+  const pendingRefresh = useRef(false);
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      const version = ++loadVersion.current;
       currentView.current = view;
       setLoading(true);
       try {
@@ -185,23 +188,32 @@ export function TasksPanel({
             { signal },
           ),
         ]);
-        if (signal?.aborted) return;
+        if (signal?.aborted || version !== loadVersion.current) return;
         setTasks(first.items);
         setNext(first.next);
         setListFilter(filter);
         setCounts(summary);
         setError("");
       } catch (e) {
-        if (!signal?.aborted) setError((e as Error).message);
+        if (!signal?.aborted && version === loadVersion.current)
+          setError((e as Error).message);
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!signal?.aborted && version === loadVersion.current)
+          setLoading(false);
       }
     },
     [filter, query, view, boardId],
   );
   useCompletion(undefined, () => {
-    if (!editing) void load();
+    if (editing) pendingRefresh.current = true;
+    else void load();
   });
+  useEffect(() => {
+    if (!editing && pendingRefresh.current) {
+      pendingRefresh.current = false;
+      void load();
+    }
+  }, [editing, load]);
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(

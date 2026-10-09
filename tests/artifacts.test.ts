@@ -393,7 +393,10 @@ test("artifacts store anything, read text out of it, and make all of it searchab
     );
 
     await t.test("oversized uploads are refused", async () => {
-      process.env.NIVRA_UPLOAD_LIMIT_MIB = "1";
+      (await import("../src/lib/server/db"))
+        .sqlite()
+        .prepare("UPDATE system_configuration SET upload_mib=1 WHERE id=1")
+        .run();
       const form = new FormData();
       form.set(
         "file",

@@ -66,7 +66,7 @@ test("a pre-mode installation cannot opt out or modify existing data", async () 
 test("concurrent first starts publish one complete mode and reject a conflicting choice", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "nivra-mode-race-"));
   try {
-    const program = `import {encryptionEnabled} from './src/lib/server/encryption-mode.ts'; encryptionEnabled(process.env.NIVRA_DATA_DIR);`;
+    const program = `import {encryptionEnabled} from './src/lib/server/encryption-mode.ts'; encryptionEnabled(process.env.NIVRA_DATA_DIR, process.env);`;
     const starts = await Promise.allSettled(
       ["true", "false"].map((mode) =>
         promisify(execFile)(
@@ -99,7 +99,10 @@ test("concurrent first starts publish one complete mode and reject a conflicting
 test("opt-out persists across restarts and restores while auth secrets and backups stay encrypted", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "nivra-mode-plain-"));
   process.env.NIVRA_DATA_DIR = directory;
-  process.env.NIVRA_ENCRYPTION_ENABLED = "false";
+  (await import("../src/lib/server/encryption-mode")).persistEncryptionMode(
+    directory,
+    false,
+  );
   const { sqlite } = await import("../src/lib/server/db");
   const { storage, createStorage } = await import("../src/lib/server/storage");
   const { authSecret } = await import("../src/lib/server/auth");
@@ -197,8 +200,10 @@ test("opt-out persists across restarts and restores while auth secrets and backu
     );
     await backups.verifyBackup(backup.id);
     reset();
-    process.env.NIVRA_ENCRYPTION_ENABLED = "true";
-    assert.throws(sqlite, /conflicts/);
+    assert.throws(
+      () => encryptionEnabled(directory, { NIVRA_ENCRYPTION_ENABLED: "true" }),
+      /conflicts/,
+    );
     delete process.env.NIVRA_ENCRYPTION_ENABLED;
     database = sqlite();
   } finally {

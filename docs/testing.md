@@ -25,7 +25,7 @@ Use isolated, disposable data for benchmarks. `scripts/benchmark-library.ts`, `b
 
 ## S3 integration
 
-Nivra uses S3-compatible object storage for files and optional backups; SQLite remains local. See [storage configuration](self-hosting.md). Verify changes using a disposable MinIO/RustFS-compatible service, private bucket and isolated Nivra data:
+Nivra uses S3-compatible object storage for files and optional backups; SQLite remains local. See [storage configuration](../README.md#configuration). Verify changes using a disposable MinIO/RustFS-compatible service, private bucket and isolated Nivra data:
 
 1. Upload and fetch a file through authenticated routes; compare the original bytes and reject anonymous private access.
 2. Check public snapshots use their copied attachments while the originals remain private.

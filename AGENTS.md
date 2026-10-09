@@ -14,7 +14,7 @@ Nivra is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its st
 - `src/lib/server/`: authentication, schema, persistence, storage, and validation.
 - `migrations/`: ordered SQL migrations, including FTS5 and the single-owner invariant.
 - `tests/`: automated behavior and persistence checks.
-- `docs/`: architecture and self-hosting references; `README.md` contains the quick start.
+- `docs/`: architecture, MCP and testing references; `README.md` contains the quick start.
 
 Inspect the relevant implementation and `git status --short` before making changes. Treat code and executed checks as evidence of current behavior; product plans are not proof that a feature works.
 
@@ -45,8 +45,8 @@ Docker delivery uses `docker compose up -d --build`. Inspect configuration with 
 - BlockNote JSON is canonical. Markdown export is intentionally lossy; Nivra bundles must preserve document and attachment data.
 - Keep revision checks and unsaved edits intact. Never silently resolve a conflict by overwriting the server document.
 - Owner creation must remain atomic and single-use. Public signup stays disabled. Authorize every private API and file request on the server.
-- Onboarding, appearance, account security, and import/export belong in the UI. Upload limits and local/S3 storage are configured only through environment variables; secrets are generated and persisted by the server.
-- Encryption at rest defaults on. A new installation can choose `NIVRA_ENCRYPTION_ENABLED=false` before its first startup; persist that choice and reject later mode changes. Keep the encryption-enabled SQLite driver, authenticated file encryption, object binding, and resumable legacy migration intact for encrypted installations. Never fall back to plaintext after an encryption or key failure. Authentication secrets and recovery backups remain encrypted in either mode. Keep keys out of Git, logs, and chat; use the configured secret manager for externally managed keys. Verify wrong-key, tamper, recovery, and migration behavior.
+- Onboarding, appearance, account security, and import/export belong in the UI. Upload limits, storage and backups belong in onboarding and Settings → System; secrets are generated and persisted by the server.
+- Encryption at rest defaults on. A new installation can disable encryption during onboarding before database initialization; persist that choice and reject later mode changes. Keep the encryption-enabled SQLite driver, authenticated file encryption, object binding, and resumable legacy migration intact for encrypted installations. Never fall back to plaintext after an encryption or key failure. Authentication secrets and recovery backups remain encrypted in either mode. Keep keys out of Git, logs, and chat; use the configured secret manager for externally managed keys. Verify wrong-key, tamper, recovery, and migration behavior.
 - Fetch bookmark metadata only from public HTTP(S) destinations. Pin validated DNS addresses, revalidate redirects and preview assets, enforce deadlines and response limits, and serve cached previews through authenticated storage using the installation's persisted encryption mode. Never proxy arbitrary private-network URLs.
 - Full-instance backups must include all referenced local/S3 files and account/publication state. Commit manifests last, verify recovery before publishing an empty destination, and never overwrite a running installation or place a master key in remote backup objects.
 - Keep uploads outside public assets behind the storage adapter. Enforce upload limits, generated storage keys, and safe serving of active file formats.

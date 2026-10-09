@@ -10,6 +10,12 @@ function inspect(directory) {
       [
         "encryption.key",
         "encryption-mode.json",
+        "installation.json",
+        "installation.lock",
+        "configuration-import.enc",
+        "imported-encryption.key",
+        "backup-state.enc",
+        "backup.lock",
         "auth.secret",
         "nivra.sqlite",
         "nivra.sqlite-wal",

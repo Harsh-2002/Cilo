@@ -99,3 +99,35 @@ test("legacy binary media receive non-executable content types from their signat
   assert.equal(active.headers.get("Content-Type"), "application/octet-stream");
   assert.match(active.headers.get("Content-Disposition")!, /^attachment/);
 });
+
+test("file delivery releases retained-storage pins on completion, cancellation, invalid ranges and read failure", async () => {
+  for (const scenario of ["small", "stream", "cancel", "range", "failure"]) {
+    let released = 0;
+    const bytes = new Uint8Array(scenario === "small" ? 8 : 3 * 1024 * 1024);
+    const source = {
+      ...memorySource(bytes),
+      release: async () => {
+        released++;
+      },
+      ...(scenario === "failure"
+        ? {
+            read: async () => {
+              throw new Error("fixture read failure");
+            },
+          }
+        : {}),
+    };
+    const request = new Request("https://nivra.test/file", {
+      headers: scenario === "range" ? { Range: "bytes=99999999-" } : {},
+    });
+    if (scenario === "failure") {
+      const response = await fileResponse(request, source, file);
+      await assert.rejects(response.arrayBuffer());
+    } else {
+      const response = await fileResponse(request, source, file);
+      if (scenario === "cancel") await response.body!.cancel();
+      else await response.arrayBuffer();
+    }
+    assert.equal(released, 1, scenario);
+  }
+});

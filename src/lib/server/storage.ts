@@ -1,6 +1,16 @@
+import { Readable } from "node:stream";
+import { createHash } from "node:crypto";
+import { operationProfile } from "./storage-operations";
+import {
+  profileSource,
+  readProfile,
+  readableProfile,
+  systemConfiguration,
+} from "./system-configuration";
 import { environment } from "./environment";
 import { runtimeFs } from "./runtime-fs";
-const { mkdir, open, readFile, writeFile, unlink, rename } = runtimeFs.promises;
+const { mkdir, open, readFile, writeFile, unlink, rename, link } =
+  runtimeFs.promises;
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import {
@@ -35,6 +45,11 @@ export interface StoredFile {
   read(start: number, end: number): Promise<Buffer<ArrayBuffer>>;
 }
 interface RawStorageAdapter extends StorageAdapter {
+  writeChunks(
+    key: string,
+    size: number,
+    chunks: AsyncIterable<Buffer>,
+  ): Promise<void>;
   replace(key: string, data: Uint8Array): Promise<void>;
   readRange(
     key: string,
@@ -53,7 +68,7 @@ function validateKey(key: string) {
   return key;
 }
 function createRawStorage(
-  env: Record<string, string | undefined> = environment(),
+  env: Record<string, string | undefined> = profileSource(operationProfile()),
 ): RawStorageAdapter {
   env = environment(env);
   const backend = env.NIVRA_STORAGE_BACKEND || "local";
@@ -72,6 +87,37 @@ function createRawStorage(
           flush: true,
         });
         syncDirectory(directory);
+      },
+      async writeChunks(key, size, chunks) {
+        await mkdir(directory, { recursive: true, mode: 0o700 });
+        const temporary = `${file(key)}.${randomUUID()}.tmp`;
+        const handle = await open(temporary, "wx", 0o600);
+        try {
+          let total = 0;
+          for await (const chunk of chunks) {
+            total += chunk.length;
+            if (total > size)
+              throw new Error("File size changed during transfer.");
+            let offset = 0;
+            while (offset < chunk.length) {
+              const written = await handle.write(
+                chunk,
+                offset,
+                chunk.length - offset,
+              );
+              if (!written.bytesWritten) throw new Error("File write stopped.");
+              offset += written.bytesWritten;
+            }
+          }
+          if (total !== size)
+            throw new Error("File size changed during transfer.");
+          await handle.sync();
+          await link(temporary, file(key));
+          syncDirectory(directory);
+        } finally {
+          await handle.close();
+          await unlink(temporary);
+        }
       },
       async read(key) {
         return readFile(file(key));
@@ -145,6 +191,18 @@ function createRawStorage(
     responseChecksumValidation: "WHEN_REQUIRED",
   });
   return {
+    async writeChunks(key, size, chunks) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: objectKey(key),
+          Body: Readable.from(chunks),
+          ContentLength: size,
+          ContentType: "application/octet-stream",
+          IfNoneMatch: "*",
+        }),
+      );
+    },
     async write(key, data) {
       await client.send(
         new PutObjectCommand({
@@ -203,11 +261,16 @@ function createRawStorage(
 const upgrades = new Map<string, Promise<void>>();
 let upgradeQueue: Promise<void> = Promise.resolve();
 export function createStorage(
-  env: Record<string, string | undefined> = environment(),
+  env: Record<string, string | undefined> = profileSource(operationProfile()),
 ): FileStorageAdapter {
   env = environment(env);
   const raw = createRawStorage(env);
-  if (!encryptionEnabled(path.resolve(env.NIVRA_DATA_DIR || dataDir), env)) {
+  if (
+    !encryptionEnabled(
+      path.resolve(env.NIVRA_KEY_DATA_DIR || env.NIVRA_DATA_DIR || dataDir),
+      env,
+    )
+  ) {
     async function open(id: string): Promise<StoredFile> {
       const head = await raw
         .readRange(id, 0, 1)
@@ -254,7 +317,7 @@ export function createStorage(
     };
   }
   const key = masterKey(
-    path.resolve(env.NIVRA_DATA_DIR || dataDir),
+    path.resolve(env.NIVRA_KEY_DATA_DIR || env.NIVRA_DATA_DIR || dataDir),
     false,
     env,
   );
@@ -367,7 +430,26 @@ export function createStorage(
     },
   };
 }
-let adapter: FileStorageAdapter | undefined;
+const adapters = new Map<string, FileStorageAdapter>();
+function adapterFor(profile: string) {
+  profile = readableProfile(profile);
+  let adapter = adapters.get(profile);
+  if (!adapter) {
+    adapter = createStorage(profileSource(profile));
+    adapters.set(profile, adapter);
+  }
+  return adapter;
+}
+function location(key: string) {
+  systemConfiguration();
+  const row = sqlite()
+    .prepare(
+      "SELECT profile_id,deleted FROM storage_locations WHERE storage_key=?",
+    )
+    .get(key) as { profile_id: string; deleted: number } | undefined;
+  if (row?.deleted) throw new Error("Stored file was deleted.");
+  return row?.profile_id || systemConfiguration().media_profile;
+}
 const runtime = globalThis as unknown as {
   nivraFilePins?: Map<string, number>;
   nivraDeferredDeletes?: Set<string>;
@@ -387,7 +469,7 @@ export function pinStoredFiles(keys: string[]) {
       }
     }
     const results = await Promise.allSettled(
-      removals.map((key) => (adapter ||= createStorage()).delete(key)),
+      removals.map((key) => storage.delete(key)),
     );
     const failures = results.filter((result) => result.status === "rejected");
     if (failures.length)
@@ -395,18 +477,156 @@ export function pinStoredFiles(keys: string[]) {
   };
 }
 export const storage: FileStorageAdapter = {
-  write: (key, data) => (adapter ||= createStorage()).write(key, data),
-  read: (key) => (adapter ||= createStorage()).read(key),
-  open: (key) => (adapter ||= createStorage()).open(key),
-  delete: async (key) => {
+  async write(key, data) {
+    const profile = operationProfile();
+    const inserted = sqlite()
+      .prepare(
+        "INSERT OR IGNORE INTO storage_locations(storage_key,profile_id) VALUES(?,?)",
+      )
+      .run(key, profile).changes;
+    const existing = sqlite()
+      .prepare(
+        "SELECT profile_id,deleted FROM storage_locations WHERE storage_key=?",
+      )
+      .get(key) as { profile_id: string; deleted: number };
+    if (existing.profile_id !== profile || existing.deleted)
+      throw new Error("This file identifier is already in use.");
+    try {
+      await adapterFor(profile).write(key, data);
+    } catch (error) {
+      if (inserted)
+        sqlite()
+          .prepare(
+            "DELETE FROM storage_locations WHERE storage_key=? AND profile_id=?",
+          )
+          .run(key, profile);
+      throw error;
+    }
+  },
+  read: async (key) => adapterFor(location(key)).read(key),
+  open: async (key) => adapterFor(location(key)).open(key),
+  async delete(key) {
     if (pins.has(key)) {
       deferred.add(key);
       return;
     }
-    await (adapter ||= createStorage()).delete(key);
+    const row = sqlite()
+      .prepare("SELECT profile_id FROM storage_locations WHERE storage_key=?")
+      .get(key) as { profile_id: string } | undefined;
+    const profile = row?.profile_id || systemConfiguration().media_profile;
+    sqlite()
+      .prepare(
+        "INSERT INTO storage_locations(storage_key,profile_id,deleted) VALUES(?,?,1) ON CONFLICT(storage_key) DO UPDATE SET deleted=1",
+      )
+      .run(key, profile);
+    const copies = sqlite()
+      .prepare("SELECT profile_id FROM storage_copies WHERE storage_key=?")
+      .all(key) as { profile_id: string }[];
+    await Promise.all(
+      [profile, ...copies.map((row) => row.profile_id)].map((id) =>
+        adapterFor(id).delete(key),
+      ),
+    );
+    sqlite().prepare("DELETE FROM storage_copies WHERE storage_key=?").run(key);
   },
-  migrateLegacy: (key) => (adapter ||= createStorage()).migrateLegacy(key),
+  migrateLegacy: async (key) => adapterFor(location(key)).migrateLegacy(key),
 };
+function sameLocation(first: string, second: string) {
+  const a = readProfile(first),
+    b = readProfile(second);
+  if (a.backend === "local" && b.backend === "local")
+    return (
+      profileSource(first).NIVRA_DATA_DIR ===
+      profileSource(second).NIVRA_DATA_DIR
+    );
+  return (
+    a.backend === "s3" &&
+    b.backend === "s3" &&
+    a.endpoint.replace(/\/$/, "") === b.endpoint.replace(/\/$/, "") &&
+    a.bucket === b.bucket &&
+    a.mediaPrefix === b.mediaPrefix
+  );
+}
+export async function copyStorageObject(key: string, destination: string) {
+  const source = location(key);
+  if (source === destination) return false;
+  const from = createRawStorage(profileSource(readableProfile(source)));
+  const to = createRawStorage(profileSource(destination));
+  const verified = await adapterFor(source).open(key);
+  for (let offset = 0; offset < verified.size; offset += 1024 * 1024)
+    await verified.read(
+      offset,
+      Math.min(verified.size - 1, offset + 1024 * 1024 - 1),
+    );
+  const head = await from.readRange(key, 0, 1024 * 1024);
+  async function* chunks(adapter: RawStorageAdapter) {
+    for (let offset = 0; offset < head.size; offset += 1024 * 1024) {
+      const part = await adapter.readRange(
+        key,
+        offset,
+        Math.min(1024 * 1024, head.size - offset),
+      );
+      if (part.data.length !== Math.min(1024 * 1024, head.size - offset))
+        throw new Error("Stored file is truncated.");
+      yield part.data;
+    }
+  }
+  const expected = createHash("sha256");
+  for await (const part of chunks(from)) expected.update(part);
+  const digest = expected.digest("hex");
+  try {
+    await to.writeChunks(key, head.size, chunks(from));
+  } catch (error) {
+    const code = error as {
+      code?: string;
+      $metadata?: { httpStatusCode?: number };
+    };
+    if (code.code !== "EEXIST" && code.$metadata?.httpStatusCode !== 412)
+      throw error;
+  }
+  const copiedHead = await to.readRange(key, 0, 1);
+  if (copiedHead.size !== head.size)
+    throw new Error("The copied file has a different size.");
+  const actual = createHash("sha256");
+  for await (const part of chunks(to)) actual.update(part);
+  if (actual.digest("hex") !== digest)
+    throw new Error("The copied file failed verification.");
+  const readable = await createStorage(profileSource(destination)).open(key);
+  for (let offset = 0; offset < readable.size; offset += 1024 * 1024)
+    await readable.read(
+      offset,
+      Math.min(readable.size - 1, offset + 1024 * 1024 - 1),
+    );
+  const committed = sqlite()
+    .transaction(() => {
+      const changed = sqlite()
+        .prepare(
+          "UPDATE storage_locations SET profile_id=? WHERE storage_key=? AND profile_id=? AND deleted=0",
+        )
+        .run(destination, key, source).changes;
+      if (changed && !sameLocation(source, destination))
+        sqlite()
+          .prepare("INSERT OR REPLACE INTO storage_copies VALUES(?,?,?)")
+          .run(key, source, Date.now());
+      return !!changed;
+    })
+    .immediate();
+  if (!committed) {
+    const current = sqlite()
+      .prepare(
+        "SELECT profile_id,deleted FROM storage_locations WHERE storage_key=?",
+      )
+      .get(key) as { profile_id: string; deleted: number } | undefined;
+    if (
+      !current ||
+      current.deleted ||
+      !sameLocation(current.profile_id, destination)
+    )
+      await to.delete(key);
+  }
+  return committed;
+}
+
 const migrations = new WeakMap<object, Promise<void>>();
 export function migrateStoredFiles(): Promise<void> {
   const database = sqlite();
@@ -427,4 +647,66 @@ export function migrateStoredFiles(): Promise<void> {
     migration.catch(() => migrations.delete(database));
   }
   return migration;
+}
+
+export async function removeRetainedCopies() {
+  const copies = sqlite()
+    .prepare("SELECT storage_key,profile_id FROM storage_copies")
+    .all() as { storage_key: string; profile_id: string }[];
+  for (const row of copies) {
+    if (pins.has(row.storage_key))
+      throw new Error(
+        "A file operation is using retained copies. Retry shortly.",
+      );
+    const current = sqlite()
+      .prepare(
+        "SELECT profile_id FROM storage_locations WHERE storage_key=? AND deleted=0",
+      )
+      .get(row.storage_key) as { profile_id: string } | undefined;
+    if (current && sameLocation(current.profile_id, row.profile_id)) {
+      sqlite()
+        .prepare(
+          "DELETE FROM storage_copies WHERE storage_key=? AND profile_id=?",
+        )
+        .run(row.storage_key, row.profile_id);
+      continue;
+    }
+    await adapterFor(row.profile_id).delete(row.storage_key);
+    sqlite()
+      .prepare(
+        "DELETE FROM storage_copies WHERE storage_key=? AND profile_id=?",
+      )
+      .run(row.storage_key, row.profile_id);
+  }
+}
+
+export async function storedFileResponse(
+  request: Request,
+  key: string,
+  file: { mime: string; name: string },
+  published = false,
+) {
+  const unpin = pinStoredFiles([key]);
+  let released = false;
+  async function release() {
+    if (released) return;
+    released = true;
+    request.signal.removeEventListener("abort", abort);
+    await unpin().catch(() =>
+      console.error("Deferred file cleanup failed; retained data needs retry."),
+    );
+  }
+  const abort = () => {
+    void release();
+  };
+  request.signal.addEventListener("abort", abort, { once: true });
+  try {
+    request.signal.throwIfAborted();
+    const source = await storage.open(key);
+    const { fileResponse } = await import("./file-response");
+    return await fileResponse(request, { ...source, release }, file, published);
+  } catch (error) {
+    await release();
+    throw error;
+  }
 }

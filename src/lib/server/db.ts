@@ -25,6 +25,14 @@ export const databaseFile = path.join(dataDir, "nivra.sqlite");
 const globalDb = globalThis as unknown as { nivraSqlite?: Database.Database };
 export function sqlite() {
   if (!globalDb.nivraSqlite) {
+    if (
+      process.env.NEXT_RUNTIME === "nodejs" &&
+      !existsSync(path.join(dataDir, "encryption-mode.json")) &&
+      !existsSync(databaseFile)
+    )
+      throw new Error(
+        "Complete installation setup before opening the database.",
+      );
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     const encrypted = encryptionEnabled(dataDir);
     const file = databaseFile;

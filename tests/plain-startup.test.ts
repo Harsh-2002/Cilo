@@ -10,7 +10,7 @@ test("a fresh plaintext installation supports owner setup, authorized files and 
     path.join(os.tmpdir(), "nivra-plain-startup-"),
   );
   process.env.NIVRA_DATA_DIR = directory;
-  process.env.NIVRA_ENCRYPTION_ENABLED = "false";
+
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { auth } = await import("../src/lib/server/auth");
@@ -46,6 +46,7 @@ test("a fresh plaintext installation supports owner setup, authorized files and 
       JSON.stringify({
         name: "Plain fixture",
         username: "plainfixture",
+        encrypted: false,
         password,
       }),
       false,

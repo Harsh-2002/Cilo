@@ -1,9 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { remoteMedia } from "../src/lib/server/remote-media";
+const directory = mkdtempSync(path.join(tmpdir(), "nivra-media-auth-"));
+process.env.NIVRA_DATA_DIR = directory;
+let remoteMedia: (typeof import("../src/lib/server/remote-media"))["remoteMedia"];
 import {
   hasPublishedMedia,
   mediaUrl,
@@ -16,6 +19,7 @@ const source = "https://images.example.com/photo.png";
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4]);
 
 test("linked media rejects SSRF and active formats, preserves ranges, and bounds simultaneous reads", async () => {
+  ({ remoteMedia } = await import("../src/lib/server/remote-media"));
   await assert.rejects(
     remoteMedia(
       new Request("http://localhost/media"),
@@ -116,8 +120,6 @@ test("publication media projection preserves originals and scopes relay access t
 });
 
 test("media APIs require a private session or a live publication that references the requested media", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "nivra-media-auth-"));
-  process.env.NIVRA_DATA_DIR = directory;
   const routes = await import("../src/app/api/nivra/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { stopJobWorker } = await import("../src/lib/server/jobs");

@@ -1,3 +1,4 @@
+import { installationUrl } from "./installation";
 import { eq } from "drizzle-orm";
 import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
@@ -5,7 +6,6 @@ import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
 import { jwt } from "better-auth/plugins/jwt";
 import { isLoginIdentifier } from "../login-identifier";
-import { environment } from "./environment";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins/username";
@@ -74,7 +74,7 @@ const instances = new Map<string, ReturnType<typeof createAuth>>();
 export function auth(request?: Request) {
   const origin = request
     ? requestOrigin(request)
-    : environment().NIVRA_PUBLIC_URL || "http://localhost:3000";
+    : installationUrl() || "http://localhost:3000";
   const cached = instances.get(origin);
   if (cached) return cached;
   const instance = createAuth(origin);

@@ -1,3 +1,4 @@
+import { encryptionEnabled } from "../src/lib/server/encryption-mode";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -190,15 +191,19 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
     assert.throws(() => unkeyed.prepare("SELECT * FROM notes").all());
     unkeyed.close();
     process.env.NIVRA_ENCRYPTION_ENABLED = "false";
-    assert.throws(sqlite, /conflicts/);
+    assert.throws(
+      () => encryptionEnabled(directory, { NIVRA_ENCRYPTION_ENABLED: "false" }),
+      /conflicts/,
+    );
     delete process.env.NIVRA_ENCRYPTION_ENABLED;
     const modeFile = path.join(directory, "encryption-mode.json");
     await writeFile(modeFile, JSON.stringify({ version: 1, encrypted: false }));
     assert.throws(sqlite);
     await writeFile(modeFile, JSON.stringify({ version: 1, encrypted: true }));
-    process.env.NIVRA_ENCRYPTION_KEY = "00".repeat(32);
+    await writeFile(path.join(directory, "wrong.key"), Buffer.alloc(32));
+    process.env.NIVRA_ENCRYPTION_KEY_FILE = path.join(directory, "wrong.key");
     assert.throws(sqlite);
-    delete process.env.NIVRA_ENCRYPTION_KEY;
+    delete process.env.NIVRA_ENCRYPTION_KEY_FILE;
     await unlink(path.join(directory, "encryption.key"));
     assert.throws(sqlite, /key is missing/);
     await assert.rejects(readFile(path.join(directory, "encryption.key")));
@@ -214,7 +219,7 @@ test("existing SQLite, FTS, tasks, attachments and auth secrets migrate without 
   } finally {
     clear();
     delete process.env.NIVRA_ENCRYPTION_ENABLED;
-    delete process.env.NIVRA_ENCRYPTION_KEY;
+    delete process.env.NIVRA_ENCRYPTION_KEY_FILE;
     await rm(directory, { recursive: true, force: true });
   }
 });

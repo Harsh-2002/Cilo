@@ -155,6 +155,7 @@ export function CalendarPanel({
       setRoute(value);
       setTaskMode(null);
       const url = new URL(window.location.href);
+      if (url.pathname.replace(/\/$/, "") !== "/calendar") return;
       url.searchParams.set("date", value.date);
       url.searchParams.set("view", value.view);
       url.searchParams.set("mode", value.mode);
@@ -225,7 +226,21 @@ export function CalendarPanel({
       abort.abort();
     };
   }, [taskMode, refresh]);
-  useCompletion(undefined, () => setRefresh((value) => value + 1));
+  useCompletion(undefined, (change) => {
+    setRefresh((value) => value + 1);
+    const id = editor?.event?.id;
+    if (!id || dirty.current || (change.target && change.target !== id)) return;
+    void api<CalendarEvent>(`calendar/events/${encodeURIComponent(id)}`)
+      .then((event) => {
+        if (dirty.current) return;
+        setEditor((current) =>
+          current?.event?.id === id && event.revision > current.event.revision
+            ? { ...current, event }
+            : current,
+        );
+      })
+      .catch(() => {});
+  });
   useEffect(() => {
     const params = new URL(window.location.href).searchParams;
     const id = params.get("event");
@@ -780,7 +795,9 @@ export function CalendarPanel({
       </div>
       {editor && (
         <CalendarEventEditor
-          key={editor.event?.id ?? "new"}
+          key={
+            editor.event ? `${editor.event.id}:${editor.event.revision}` : "new"
+          }
           event={editor.event}
           occurrence={editor.occurrence}
           date={route.date}

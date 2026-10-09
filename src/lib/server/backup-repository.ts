@@ -1,3 +1,4 @@
+import { activeBackupSource } from "./system-configuration";
 import { environment } from "./environment";
 import path from "node:path";
 import { runtimeFs } from "./runtime-fs";
@@ -27,7 +28,7 @@ function positive(
   return result;
 }
 export function backupConfig(
-  env: Record<string, string | undefined> = environment(),
+  env: Record<string, string | undefined> = activeBackupSource(),
 ): BackupConfig {
   env = environment(env);
   const shared = env.NIVRA_S3_BACKUP_ENABLED;
@@ -65,7 +66,7 @@ export interface BackupRepository {
   remove(key: string): Promise<void>;
 }
 export function backupRepository(
-  env: Record<string, string | undefined> = environment(),
+  env: Record<string, string | undefined> = activeBackupSource(),
 ): BackupRepository {
   env = environment(env);
   const config = backupConfig(env);

@@ -2,12 +2,12 @@ import { thumbnailSupported } from "./artifact-thumbnails";
 import { moveToTrash } from "./trash";
 import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
-import { storage } from "./storage";
+import { storage, storedFileResponse } from "./storage";
 import { HttpError } from "./http";
 import { fuzzyQuery } from "./search";
 import { ftsQuery } from "./validation";
 import { decodeMatches } from "../search-context";
-import { fileResponse, mediaMime } from "./file-response";
+import { mediaMime } from "./file-response";
 import { decodeCursor, encodeCursor } from "./pagination";
 import { imageInfo, isPdf, maxTextLength } from "./extract";
 import { enqueueJob, startJobWorker } from "./jobs";
@@ -344,7 +344,7 @@ export async function artifactFile(
           name: "thumbnail",
         }
       : { mime: row.mime, name: row.name || "file" };
-  return fileResponse(request, await storage.open(key), meta);
+  return storedFileResponse(request, key, meta);
 }
 export function artifactFileKeys(owner: string) {
   return sqlite()

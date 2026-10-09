@@ -45,3 +45,26 @@ test("only current environment names configure Nivra while established encrypted
       `/api/${name}/files/${id}`,
     );
 });
+
+test("retired deployment variables do not configure the running application", () => {
+  const values = {
+    NIVRA_STORAGE_BACKEND: "s3",
+    NIVRA_UPLOAD_LIMIT_MIB: "1",
+    NIVRA_ENCRYPTION_ENABLED: "false",
+    NIVRA_S3_BUCKET: "retired-bucket",
+    NIVRA_BACKUP_KEEP: "1",
+    NIVRA_DEV_ORIGINS: "retired.example",
+  };
+  const previous = { ...process.env };
+  try {
+    Object.assign(process.env, values);
+    const current = environment();
+    for (const name of Object.keys(values))
+      assert.equal(current[name], undefined);
+  } finally {
+    for (const name of Object.keys(values)) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+});

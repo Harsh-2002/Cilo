@@ -118,11 +118,15 @@ async function execute(job: Job) {
       job,
       commit: (write: () => string) => commitJob(job, write),
     };
-    if (job.kind === "artifact")
-      await (await import("./artifact-processing")).processArtifact(context);
-    else if (job.kind === "thumbnail")
-      await (await import("./artifact-thumbnails")).processThumbnail(context);
-    else await (await import("./bookmarks")).processBookmark(context);
+    await (
+      await import("./storage-operations")
+    ).storageOperation(async () => {
+      if (job.kind === "artifact")
+        await (await import("./artifact-processing")).processArtifact(context);
+      else if (job.kind === "thumbnail")
+        await (await import("./artifact-thumbnails")).processThumbnail(context);
+      else await (await import("./bookmarks")).processBookmark(context);
+    });
   } catch {
     if (job.attempts >= maxAttempts) {
       commitJob(job, () => {

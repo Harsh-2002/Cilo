@@ -2,7 +2,7 @@
 import { McpConnections } from "./mcp-connections";
 import { ResponsiveSurface } from "./responsive-surface";
 import { DeviceNotifications } from "./device-notifications";
-import { BackupSettings } from "./backup-settings";
+import { SystemSettings } from "./system-settings";
 import { useEffect, useRef, useState } from "react";
 import { FeedbackOutlet } from "./inline-feedback";
 import { notify } from "@/lib/feedback";
@@ -27,7 +27,7 @@ import { api, authRequest, downloadRequest } from "@/lib/client";
 import { importFiles, type ImportResult } from "@/lib/import-files";
 import type { Owner, Settings } from "@/lib/types";
 
-type Section = "account" | "data" | "agents";
+type Section = "account" | "data" | "agents" | "system";
 type AccountView = "profile" | "password" | "recovery" | "mfa" | "passkeys";
 export function SettingsPanel({
   open,
@@ -171,6 +171,7 @@ export function SettingsPanel({
               [
                 { id: "account", label: "Account" },
                 { id: "data", label: "Import & export" },
+                { id: "system", label: "System" },
                 { id: "agents", label: "MCP" },
               ] as const
             ).map((item, index, items) => (
@@ -219,6 +220,7 @@ export function SettingsPanel({
             tabIndex={0}
           >
             <FeedbackOutlet />
+            {tab === "system" && <SystemSettings beforeAction={beforeAction} />}
             {tab === "account" && (
               <>
                 {accountView !== "profile" && (
@@ -682,7 +684,6 @@ export function SettingsPanel({
                     e.target.value = "";
                   }}
                 />
-                <BackupSettings beforeAction={beforeAction} />
                 <input
                   ref={bundleRef}
                   type="file"

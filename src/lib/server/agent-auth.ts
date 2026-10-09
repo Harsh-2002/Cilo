@@ -1,8 +1,8 @@
+import { installationExists, installationUrl } from "./installation";
 import { requireMcpAuth } from "@better-auth/mcp";
 import { decodeJwt } from "jose";
 import { auth } from "./auth";
 import { sqlite } from "./db";
-import { environment } from "./environment";
 import { checkOrigin, HttpError, requestOrigin, response } from "./http";
 import {
   agentScopes,
@@ -46,8 +46,10 @@ export async function withAgent(
   handler: (p: AgentPrincipal) => Promise<Response>,
 ) {
   try {
+    if (!installationExists())
+      return response({ error: "Complete installation setup first." }, 401);
     checkOrigin(request);
-    const publicUrl = environment().NIVRA_PUBLIC_URL;
+    const publicUrl = installationUrl();
     if (
       publicUrl &&
       request.headers.get("host") &&

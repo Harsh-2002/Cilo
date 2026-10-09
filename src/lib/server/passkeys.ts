@@ -1,3 +1,4 @@
+import { installationUrl } from "./installation";
 import { passkey } from "@better-auth/passkey";
 import {
   APIError,
@@ -6,7 +7,6 @@ import {
 } from "better-auth/api";
 import { sqlite } from "./db";
 import { passkeySetupIntent, createPasskeyOwner } from "./passkey-setup";
-import { environment } from "./environment";
 
 export const passkeyFreshSeconds = 300;
 export function requireVerifiedPasskey(userVerified: boolean | undefined) {
@@ -17,9 +17,7 @@ export function requireVerifiedPasskey(userVerified: boolean | undefined) {
     });
 }
 export function passkeyPlugin() {
-  const origin = new URL(
-    environment().NIVRA_PUBLIC_URL || "http://localhost:3000",
-  );
+  const origin = new URL(installationUrl() || "http://localhost:3000");
   return passkey({
     rpName: "Nivra",
     rpID: origin.hostname,
@@ -41,7 +39,12 @@ export function passkeyPlugin() {
       afterVerification: async ({ verification, ctx, context, user }) => {
         requireVerifiedPasskey(verification.registrationInfo?.userVerified);
         const session = await getSessionFromCtx(ctx);
-        if (!session) createPasskeyOwner(context, user.id);
+        if (!session) {
+          createPasskeyOwner(context, user.id);
+          await (
+            await import("./startup")
+          ).startInstallationWorkersAfterSetup();
+        }
       },
     },
     authentication: {
@@ -78,9 +81,7 @@ export const authGuard = createAuthMiddleware(async (ctx) => {
       code: "ACCOUNT_IDENTITY_FIXED",
     });
   if (!ctx.path?.startsWith("/passkey/")) return;
-  const origin = new URL(
-    environment().NIVRA_PUBLIC_URL || "http://localhost:3000",
-  );
+  const origin = new URL(installationUrl() || "http://localhost:3000");
   if (
     origin.protocol !== "https:" &&
     !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)

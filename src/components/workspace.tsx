@@ -82,6 +82,7 @@ import {
   workspacePath,
   workspaceView,
   workspaceSurface,
+  cleanWorkspaceUrl,
   type WorkspaceView,
 } from "@/lib/workspace-routes";
 
@@ -121,7 +122,8 @@ export function Workspace({
     const path = workspacePath(next);
     if (url.pathname !== path) {
       url.pathname = path;
-      url.searchParams.delete("note");
+      url.search = "";
+      url.hash = "";
       window.history.pushState(null, "", url);
     }
     acceptedUrl.current = window.location.href;
@@ -431,7 +433,7 @@ export function Workspace({
     return () => clearTimeout(timer);
   }, [navigateNote]);
   useEffect(() => {
-    const url = new URL(window.location.href);
+    const url = cleanWorkspaceUrl(new URL(window.location.href));
     if (workspaceSurface(url.pathname)) return;
     url.pathname = workspacePath(view);
     if (active) url.searchParams.set("note", active.id);

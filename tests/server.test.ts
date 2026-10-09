@@ -130,6 +130,71 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
       },
     );
     await t.test(
+      "web note and tag changes reach the authenticated SSE stream",
+      async () => {
+        const events = await call("events");
+        assert.equal(events.status, 200);
+        const reader = events.body!.getReader();
+        const decoder = new TextDecoder();
+        try {
+          assert.match(
+            decoder.decode((await reader.read()).value),
+            /event: resync/,
+          );
+          const note = await (
+            await call("notes", "POST", { title: "Live update" })
+          ).json();
+          const changed = await call(`notes/${note.id}`, "PATCH", {
+            revision: note.revision,
+            title: "Updated live",
+          });
+          assert.equal(changed.status, 200);
+          const tag = await call("tags", "POST", {
+            name: "Live tag",
+            color: "blue",
+          });
+          assert.equal(tag.status, 201);
+          const timer = setTimeout(() => void reader.cancel(), 5000);
+          let text = "";
+          try {
+            while (
+              !text.includes(`"target":"${note.id}"`) ||
+              !text.includes('"target":""')
+            ) {
+              const chunk = await reader.read();
+              assert.equal(
+                chunk.done,
+                false,
+                "SSE must deliver mutations before the deadline",
+              );
+              text += decoder.decode(chunk.value);
+            }
+          } finally {
+            clearTimeout(timer);
+          }
+          assert.match(text, /event: completion/);
+          assert.match(text, /"kind":"content"/);
+          const updated = await changed.json();
+          assert.equal(
+            (
+              await call(`notes/${note.id}`, "PATCH", {
+                revision: updated.revision,
+                trashed: true,
+              })
+            ).status,
+            200,
+          );
+          assert.equal((await call(`notes/${note.id}`, "DELETE")).status, 200);
+          assert.equal(
+            (await call(`tags/${(await tag.json()).id}`, "DELETE")).status,
+            200,
+          );
+        } finally {
+          await reader.cancel();
+        }
+      },
+    );
+    await t.test(
       "revision conflicts and FTS track edits, tags, and trash",
       async () => {
         const created = await call("notes", "POST", { title: "Ideas" });
@@ -578,7 +643,10 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         Object.defineProperty(resource, "webkitRelativePath", {
           value: "folder/image.png",
         });
-        process.env.NIVRA_UPLOAD_LIMIT_MIB = "1";
+        (await import("../src/lib/server/db"))
+          .sqlite()
+          .prepare("UPDATE system_configuration SET upload_mib=1 WHERE id=1")
+          .run();
         try {
           const results = await importFiles(
             [
@@ -836,9 +904,12 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
       },
     );
     await t.test(
-      "upload limits are configured by environment, not account settings",
+      "upload limits use System configuration, not account settings",
       async () => {
-        process.env.NIVRA_UPLOAD_LIMIT_MIB = "2";
+        (await import("../src/lib/server/db"))
+          .sqlite()
+          .prepare("UPDATE system_configuration SET upload_mib=2 WHERE id=1")
+          .run();
         try {
           assert.equal(
             (await (await call("settings")).json()).uploadLimit,

@@ -63,6 +63,11 @@ export function ArtifactViewer({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const pendingEdits = useRef(false);
+  useEffect(() => {
+    pendingEdits.current =
+      busy || (!!item && (title !== item.title || draft !== item.content));
+  }, [busy, item, title, draft]);
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -91,6 +96,13 @@ export function ArtifactViewer({
     void api<ArtifactDetail>(`artifacts/${id}`)
       .then((detail) => {
         if (currentId.current !== id) return;
+        if (!pendingEdits.current) {
+          setItem(detail);
+          setTitle(detail.title);
+          setDraft(detail.content);
+          onChange(detail);
+          return;
+        }
         setItem((current) =>
           current
             ? {

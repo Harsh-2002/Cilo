@@ -1,3 +1,10 @@
+import {
+  activeBackupSource,
+  profileSource,
+  readProfile,
+  readableProfile,
+  systemConfiguration,
+} from "./system-configuration";
 import { completionEvent } from "./jobs";
 import { environment } from "./environment";
 import path from "node:path";
@@ -212,16 +219,43 @@ function info(data: Manifest): BackupInfo {
   };
 }
 export async function listBackups(
-  env: NodeJS.ProcessEnv = environment(),
+  env?: NodeJS.ProcessEnv,
   key = masterKey(dataDir, true),
 ): Promise<BackupInfo[]> {
-  const repository = backupRepository(env);
+  const repository = backupRepository(env || activeBackupSource());
   const keys = await repository.list();
   const result: BackupInfo[] = [];
-  for (const object of keys.filter((k) => k.endsWith("/manifest")))
-    result.push(info(await manifest(repository, object.split("/")[0], key)));
+  for (const object of keys.filter((k) => k.endsWith("/manifest"))) {
+    const value = info(await manifest(repository, object.split("/")[0], key));
+    result.push(value);
+    if (!env)
+      sqlite()
+        .prepare(
+          "INSERT INTO backup_archives(id,profile_id,information) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET profile_id=excluded.profile_id,information=excluded.information",
+        )
+        .run(
+          value.id,
+          systemConfiguration().backup_profile,
+          JSON.stringify(value),
+        );
+  }
+  if (!env) {
+    const old = sqlite()
+      .prepare("SELECT information FROM backup_archives WHERE profile_id<>?")
+      .all(systemConfiguration().backup_profile) as { information: string }[];
+    for (const row of old) result.push(JSON.parse(row.information));
+  }
   return result.sort((a, b) => b.createdAt - a.createdAt);
 }
+export function lockBackupConfiguration() {
+  return lease();
+}
+export async function waitForBackup() {
+  if (runtime.nivraBackupJob) await runtime.nivraBackupJob;
+  if (leaseIsAlive())
+    throw new HttpError(409, "A backup is running. Retry after it finishes.");
+}
+
 async function prune(repository: BackupRepository, key: Buffer, keep: number) {
   const keys = await repository.list();
   const complete: Manifest[] = [];
@@ -231,6 +265,7 @@ async function prune(repository: BackupRepository, key: Buffer, keep: number) {
   for (const old of complete.slice(keep)) {
     // Remove the commit marker before pruning its objects.
     await repository.remove(`${old.id}/manifest`);
+    sqlite().prepare("DELETE FROM backup_archives WHERE id=?").run(old.id);
     for (const object of old.objects)
       await repository.remove(`${old.id}/${object.name}`);
   }
@@ -276,7 +311,7 @@ export async function createBackup(): Promise<BackupInfo> {
       version: 1,
       id,
       createdAt: Date.now(),
-      storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
+      storage: readProfile(systemConfiguration().media_profile).backend,
       encrypted,
       objects: [],
     };
@@ -314,6 +349,15 @@ export async function createBackup(): Promise<BackupInfo> {
           "Backup saved, but retention cleanup failed. Check the backup destination and permissions.",
       });
     }
+    sqlite()
+      .prepare(
+        "INSERT INTO backup_archives(id,profile_id,information) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET profile_id=excluded.profile_id,information=excluded.information",
+      )
+      .run(
+        data.id,
+        systemConfiguration().backup_profile,
+        JSON.stringify(info(data)),
+      );
     return info(data);
   } catch (error) {
     persistState({
@@ -364,7 +408,7 @@ export async function backupStatus(): Promise<BackupStatus> {
   const current = state();
   return {
     backend: config.backend,
-    storage: environment().NIVRA_STORAGE_BACKEND === "s3" ? "s3" : "local",
+    storage: readProfile(systemConfiguration().media_profile).backend,
     intervalHours: config.intervalHours,
     keep: config.keep,
     running: !!runtime.nivraBackupJob || leaseIsAlive(),
@@ -402,11 +446,23 @@ async function readObject(
 export async function restoreBackup(
   id: string,
   destination: string,
-  env: NodeJS.ProcessEnv = environment(),
+  env?: NodeJS.ProcessEnv,
 ): Promise<BackupInfo> {
+  if (!env) {
+    const archive = sqlite()
+      .prepare("SELECT profile_id FROM backup_archives WHERE id=?")
+      .get(id) as { profile_id: string } | undefined;
+    env = archive
+      ? profileSource(readableProfile(archive.profile_id, "backup"))
+      : activeBackupSource();
+  }
   env = environment(env);
   const key = masterKey(
-    path.resolve(/* turbopackIgnore: true */ env.NIVRA_DATA_DIR || "./data"),
+    path.resolve(
+      /* turbopackIgnore: true */ env.NIVRA_KEY_DATA_DIR ||
+        env.NIVRA_DATA_DIR ||
+        "./data",
+    ),
     true,
     env,
   );
@@ -493,6 +549,63 @@ export async function restoreBackup(
           )
           .run();
       }
+      if (
+        database
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE name='system_configuration'",
+          )
+          .get()
+      ) {
+        const columns = database.pragma("table_info(system_configuration)") as {
+          name: string;
+        }[];
+        const address = columns.some((column) => column.name === "public_url")
+          ? (database
+              .prepare("SELECT public_url FROM system_configuration WHERE id=1")
+              .get() as { public_url: string | null })
+          : undefined;
+        if (address?.public_url)
+          fs.writeFileSync(
+            path.join(stage, "installation.json"),
+            JSON.stringify({ version: 1, publicUrl: address.public_url }),
+            { mode: 0o600, flag: "wx", flush: true },
+          );
+        const profile = randomUUID();
+        database.prepare("INSERT INTO storage_profiles VALUES(?,?,?)").run(
+          profile,
+          seal(
+            Buffer.from(
+              JSON.stringify({
+                backend: "local",
+                installation: true,
+                directory: target,
+                backupDirectory: path.join(target, "backups"),
+              }),
+            ),
+            key,
+            `storage-profile:${profile}`,
+          ),
+          Date.now(),
+        );
+        database
+          .prepare("UPDATE storage_locations SET profile_id=? WHERE deleted=0")
+          .run(profile);
+        database
+          .prepare(
+            "UPDATE system_configuration SET media_profile=?,backup_profile=?,revision=revision+1 WHERE id=1",
+          )
+          .run(profile, profile);
+        if (columns.some((column) => column.name === "local_profile"))
+          database
+            .prepare(
+              "UPDATE system_configuration SET local_profile=? WHERE id=1",
+            )
+            .run(profile);
+        database.prepare("DELETE FROM storage_transfers").run();
+        database.prepare("DELETE FROM storage_verifications").run();
+        database.prepare("DELETE FROM storage_copies").run();
+        database.prepare("DELETE FROM backup_archives").run();
+      }
     } finally {
       database.close();
     }
@@ -533,16 +646,28 @@ export async function restoreBackup(
     if (fs.existsSync(stage)) fs.rmSync(stage, { recursive: true });
   }
 }
-export async function verifyBackup(id: string): Promise<BackupInfo> {
+export async function verifyBackup(
+  id: string,
+  env?: NodeJS.ProcessEnv,
+): Promise<BackupInfo> {
   const target = privatePath(`verify-${randomUUID()}`);
   try {
-    return await restoreBackup(id, target);
+    const restored = await restoreBackup(id, target, env);
+    if (!env) {
+      sqlite()
+        .prepare("UPDATE backup_archives SET verified_at=? WHERE id=?")
+        .run(Date.now(), id);
+      const owner = sqlite().prepare("SELECT id FROM user LIMIT 1").get() as
+        { id: string } | undefined;
+      if (owner) completionEvent(owner.id, "backup", id, "verified");
+    }
+    return restored;
   } finally {
     if (fs.existsSync(target)) fs.rmSync(target, { recursive: true });
   }
 }
 export function startBackupScheduler() {
-  const config = backupConfig();
+  backupConfig();
   if (
     runtime.nivraBackupTimer ||
     process.env.NEXT_PHASE === "phase-production-build"
@@ -560,52 +685,8 @@ export function startBackupScheduler() {
       current.lastAttempt ||
       Number(fs.statSync(databaseFile).birthtimeMs) ||
       Date.now();
-    if (Date.now() >= base + config.intervalHours * 3_600_000)
+    if (Date.now() >= base + backupConfig().intervalHours * 3_600_000)
       void startBackup().catch(() => undefined);
   }, 60_000);
   runtime.nivraBackupTimer.unref();
-}
-
-export async function copyStoredFiles(backend: "local" | "s3") {
-  if (backend === (environment().NIVRA_STORAGE_BACKEND || "local"))
-    throw new Error("Choose a different file backend.");
-  await migrateStoredFiles();
-  const unlock = lease();
-  try {
-    const target = createStorage({
-      ...process.env,
-      NIVRA_STORAGE_BACKEND: backend,
-    });
-    const files = referencedFiles(sqlite());
-    for (const file of files) {
-      const bytes = await storage.read(file);
-      let existing: Buffer | null = null;
-      try {
-        existing = await target.read(file);
-      } catch (error) {
-        const e = error as {
-          code?: string;
-          name?: string;
-          $metadata?: { httpStatusCode?: number };
-        };
-        if (
-          e.code !== "ENOENT" &&
-          e.name !== "NoSuchKey" &&
-          e.$metadata?.httpStatusCode !== 404
-        )
-          throw error;
-      }
-      if (existing) {
-        if (hash(existing) !== hash(bytes))
-          throw new Error(
-            "A destination file differs. Existing objects cannot be overwritten.",
-          );
-      } else await target.write(file, bytes);
-      if (hash(await target.read(file)) !== hash(bytes))
-        throw new Error("A copied file failed verification.");
-    }
-    return { files: files.length, backend };
-  } finally {
-    unlock();
-  }
 }

@@ -1,10 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile, readdir } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+  readdir,
+  rename,
+} from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID, randomBytes } from "node:crypto";
 import Database from "better-sqlite3";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 test("encrypted full-instance backups preserve accounts, search, tasks, bookmarks, shares and files", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "nivra-backup-test-"));
@@ -17,6 +26,12 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
   const { authSecret } = await import("../src/lib/server/auth");
   const backups = await import("../src/lib/server/backups");
   const database = sqlite();
+  (
+    await import("../src/lib/server/system-configuration")
+  ).systemConfiguration();
+  database
+    .prepare("UPDATE system_configuration SET backup_keep=2 WHERE id=1")
+    .run();
   const owner = randomUUID(),
     note = randomUUID(),
     file = randomUUID(),
@@ -325,6 +340,19 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
           /empty directory/,
         );
         await backups.verifyBackup(first.id);
+        const moved = path.join(directory, "relocated");
+        await rename(target, moved);
+        const storageModule = path.resolve("src/lib/server/storage.ts");
+        const configuration = path.resolve(
+          "src/lib/server/system-configuration.ts",
+        );
+        const script = `(async()=>{const s=await import(${JSON.stringify(storageModule)});const c=await import(${JSON.stringify(configuration)});if((await s.storage.read(${JSON.stringify(file)})).toString()!=="payload")throw new Error("Moved files unavailable");if(c.profileSource(c.systemConfiguration().local_profile).NIVRA_DATA_DIR!==process.env.NIVRA_DATA_DIR)throw new Error("Local destination retained an old host path");console.log("Relocated restore is readable");})().catch(()=>{process.exitCode=1;});`;
+        const child = await promisify(execFile)(
+          process.execPath,
+          ["--import", "tsx", "--eval", script],
+          { env: { ...process.env, NIVRA_DATA_DIR: moved }, timeout: 60000 },
+        );
+        assert.equal(child.stdout.trim(), "Relocated restore is readable");
       },
     );
     await t.test(

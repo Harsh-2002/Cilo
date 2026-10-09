@@ -42,6 +42,9 @@ export function ItemCollection({
   const [moreError, setMoreError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const generation = useRef(0);
+  const completionRefresh = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   useEffect(() => {
     const timer = setTimeout(() => setSearch(query), 180);
     return () => clearTimeout(timer);
@@ -80,8 +83,10 @@ export function ItemCollection({
     };
   }, [load]);
   useCompletion(undefined, () => {
-    if (rows !== null) void load();
+    clearTimeout(completionRefresh.current);
+    completionRefresh.current = setTimeout(() => void load(), 150);
   });
+  useEffect(() => () => clearTimeout(completionRefresh.current), []);
   async function more() {
     if (next === null || loadingMore) return;
     const version = generation.current;

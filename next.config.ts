@@ -15,10 +15,9 @@ const config: NextConfig = {
     webpackMemoryOptimizations: true,
     turbopackMemoryEviction: "auto",
   },
-  allowedDevOrigins: (environment().NIVRA_DEV_ORIGINS || "")
-    .split(",")
-    .map((host) => host.trim())
-    .filter(Boolean),
+  allowedDevOrigins: environment().NIVRA_PUBLIC_URL
+    ? [new URL(environment().NIVRA_PUBLIC_URL!).hostname]
+    : [],
   output: "standalone",
   agentRules: false,
   serverExternalPackages: [

@@ -1,4 +1,4 @@
-import { environment } from "./environment";
+import { installationUrl } from "./installation";
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -52,7 +52,7 @@ export async function json(request: Request) {
   }
 }
 export function requestOrigin(request: Request) {
-  const publicUrl = environment().NIVRA_PUBLIC_URL;
+  const publicUrl = installationUrl();
   if (publicUrl) return new URL(publicUrl).origin;
   const url = new URL(request.url);
   return `${url.protocol}//${request.headers.get("host") || url.host}`;

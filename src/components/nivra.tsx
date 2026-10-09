@@ -16,6 +16,7 @@ export function Nivra({
 }) {
   const [status, setStatus] = useState<{
     setup: boolean;
+    installation?: { encrypted: boolean; locked: boolean; publicUrl: string };
     methods: { password: boolean; passkey: boolean };
     owner: Owner | null;
     settings: Settings | null;
@@ -70,6 +71,7 @@ export function Nivra({
   ) : (
     <AuthScreen
       setup={status.setup}
+      installation={status.installation}
       methods={status.methods}
       onReady={refresh}
     />

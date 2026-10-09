@@ -1782,7 +1782,7 @@ button:disabled {
   .settings-row {
     gap: 12px;
   }
-  .settings-content button,
+  .settings-content button:not([data-slot="checkbox"]),
   .settings-form > button {
     min-height: 44px;
   }
@@ -2735,7 +2735,7 @@ button:disabled {
 .mobile-app-page .settings-profile-fields {
   grid-template-columns: 1fr;
 }
-.mobile-app-page .settings-content button {
+.mobile-app-page .settings-content button:not([data-slot="checkbox"]) {
   min-height: 44px;
 }
 .mobile-app-page input,
@@ -6914,5 +6914,76 @@ body .bn-mobile-formatting-toolbar {
   .item-tag-picker > button {
     min-height: 44px;
     flex-shrink: 0;
+  }
+}
+
+.system-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.system-form .settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+.system-form .settings-section-heading {
+  margin: 0;
+}
+.system-form .check-row {
+  margin: 0;
+}
+.system-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.system-connection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.system-field-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.system-form > button {
+  align-self: flex-start;
+}
+.system-settings > .backup-settings {
+  margin-top: 32px;
+}
+.auth-panel .system-form > button {
+  width: 100%;
+}
+@media (max-width: 480px) {
+  .system-field-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .system-form > button {
+    min-height: 44px;
+  }
+}
+
+.settings-tabs {
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.settings-tabs > button {
+  flex-shrink: 0;
+}
+.system-settings fieldset {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .settings-content .check-row {
+    min-height: 44px;
   }
 }

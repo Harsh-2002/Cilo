@@ -1,3 +1,12 @@
+import { systemApi } from "./system-api";
+import { storageOperation } from "./storage-operations";
+import { encryptionEnabled } from "./encryption-mode";
+import {
+  InstallationBusyError,
+  installationExists,
+  initializeInstallation,
+  installationUrl,
+} from "./installation";
 import { completionEvent } from "./jobs";
 import {
   boardInput,
@@ -29,7 +38,7 @@ import {
 } from "@/lib/server/passkey-setup";
 import { passkeyFreshSeconds } from "@/lib/server/passkeys";
 import { listTrash, restoreTrash, deleteTrash } from "@/lib/server/trash";
-import { fileResponse, safeName } from "@/lib/server/file-response";
+import { safeName } from "@/lib/server/file-response";
 import { pageLimit } from "@/lib/server/pagination";
 import { bookmarkUrl, imageMime } from "@/lib/server/link-metadata";
 import { backupStatus, startBackup, verifyBackup } from "@/lib/server/backups";
@@ -65,8 +74,12 @@ import {
 } from "@/lib/server/item-tags";
 import { remapDocument } from "@/lib/document";
 import { auth } from "@/lib/server/auth";
-import { sqlite } from "@/lib/server/db";
-import { storage, migrateStoredFiles } from "@/lib/server/storage";
+import { sqlite, dataDir } from "@/lib/server/db";
+import {
+  storage,
+  storedFileResponse,
+  migrateStoredFiles,
+} from "@/lib/server/storage";
 import { uploadLimit } from "@/lib/server/config";
 import { remoteMedia } from "@/lib/server/remote-media";
 import { hasPublishedMedia } from "@/lib/media-url";
@@ -193,7 +206,7 @@ function zipResponse(files: Record<string, Uint8Array>, name: string) {
     },
   });
 }
-export async function handleWorkspace(
+async function handleWorkspaceInternal(
   request: Request,
   context: { params: Promise<{ path: string[] }> },
   principal?: AgentPrincipal,
@@ -204,6 +217,39 @@ export async function handleWorkspace(
     if (principal) authorizeContentPath(principal, path, request.method);
     const method = request.method;
     const url = new URL(request.url);
+    if (!installationExists()) {
+      if (area === "health" && method === "GET")
+        return response({ status: "ok", installation: "pending" });
+      if (area === "status" && method === "GET")
+        return response({
+          setup: true,
+          installation: {
+            encrypted: true,
+            locked: false,
+            publicUrl: installationUrl() || requestOrigin(request),
+          },
+          methods: { password: false, passkey: false },
+          owner: null,
+          settings: null,
+        });
+      if (
+        method === "POST" &&
+        (area === "setup" || (area === "setup-passkey" && !id))
+      ) {
+        checkOrigin(request);
+        throttle("initialize");
+        const body = await json(request.clone());
+        const input = (
+          area === "setup" ? setupInput : setupInput.omit({ password: true })
+        ).parse(body);
+        const encrypted = z.boolean().parse(body.encrypted ?? true);
+        void input;
+        initializeInstallation(
+          encrypted,
+          installationUrl() || requestOrigin(request),
+        );
+      } else throw new HttpError(401, "Please sign in to continue.");
+    }
     const database = sqlite();
     await migrateStoredFiles();
     if (!principal && method !== "GET") checkOrigin(request);
@@ -226,12 +272,7 @@ export async function handleWorkspace(
           .prepare("SELECT * FROM publication_files WHERE token=? AND id=?")
           .get(id, path[3]) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        return await fileResponse(
-          request,
-          await storage.open(file.storage_key),
-          file,
-          true,
-        );
+        return await storedFileResponse(request, file.storage_key, file, true);
       }
       if (action) throw new HttpError(404, "This shared note was not found.");
       return response(published);
@@ -247,6 +288,11 @@ export async function handleWorkspace(
       });
       return response({
         setup: !owner,
+        installation: {
+          encrypted: encryptionEnabled(dataDir),
+          locked: true,
+          publicUrl: installationUrl() || requestOrigin(request),
+        },
         methods: loginMethods(owner?.id),
         owner: session ? owner : null,
         settings: session ? settings() : null,
@@ -316,6 +362,7 @@ export async function handleWorkspace(
         headers: request.headers,
         asResponse: true,
       });
+      await (await import("./startup")).startInstallationWorkersAfterSetup();
       const headers = new Headers(signIn.headers);
       headers.set("Content-Type", "application/json");
       headers.set("Cache-Control", "no-store");
@@ -392,6 +439,7 @@ export async function handleWorkspace(
         : !session || session.user.id !== owner.id)
     )
       throw new HttpError(401, "Please sign in to continue.");
+    if (area === "system") return await systemApi(request, owner.id, path);
     if (area === "calendar")
       return await calendarApi(
         request,
@@ -1086,11 +1134,7 @@ export async function handleWorkspace(
           .prepare("SELECT * FROM attachments WHERE id=?")
           .get(id) as Attachment | undefined;
         if (!file) throw new HttpError(404, "This file was not found.");
-        return await fileResponse(
-          request,
-          await storage.open(file.storage_key),
-          file,
-        );
+        return await storedFileResponse(request, file.storage_key, file);
       }
       if (method === "GET") {
         needNote(url.searchParams.get("note") || "");
@@ -1792,6 +1836,8 @@ export async function handleWorkspace(
         },
         error.statusCode,
       );
+    if (error instanceof InstallationBusyError)
+      return response({ error: error.message }, 409);
     if (error instanceof HttpError)
       return response({ error: error.message }, error.status);
     if (error instanceof SyntaxError)
@@ -1821,4 +1867,46 @@ export async function handleWorkspace(
       500,
     );
   }
+}
+
+export async function handleWorkspace(
+  request: Request,
+  context: { params: Promise<{ path: string[] }> },
+  principal?: AgentPrincipal,
+) {
+  const path = (await context.params).path;
+  const run = () => handleWorkspaceInternal(request, context, principal);
+  const result = await (installationExists() &&
+  request.method !== "GET" &&
+  !["system", "setup", "setup-passkey"].includes(path[0])
+    ? storageOperation(run)
+    : run());
+  if (
+    !principal &&
+    result.ok &&
+    ["POST", "PATCH", "DELETE"].includes(request.method) &&
+    [
+      "notes",
+      "bookmarks",
+      "artifacts",
+      "tags",
+      "item-tags",
+      "files",
+      "import",
+    ].includes(path[0])
+  ) {
+    const owner = sqlite().prepare("SELECT id FROM user LIMIT 1").get() as {
+      id: string;
+    };
+    const target =
+      path[0] === "item-tags"
+        ? path[2]
+        : ["notes", "bookmarks", "artifacts"].includes(path[0])
+          ? path[1] === "daily"
+            ? ""
+            : path[1] || ""
+          : "";
+    completionEvent(owner.id, "content", target, "changed");
+  }
+  return result;
 }

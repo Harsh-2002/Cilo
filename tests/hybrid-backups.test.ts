@@ -76,6 +76,25 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
   const { backupRepository } =
     await import("../src/lib/server/backup-repository");
   const db = sqlite();
+  const { systemConfiguration, writeProfile } =
+    await import("../src/lib/server/system-configuration");
+  systemConfiguration();
+  const s3 = writeProfile({
+    backend: "s3",
+    provider: "compatible",
+    endpoint,
+    region: "us-east-1",
+    bucket: "files",
+    accessKeyId: "fixture-media",
+    secretAccessKey: "fixture-secret",
+    pathStyle: true,
+    mediaPrefix: "media",
+    backupPrefix: "nivra-backups",
+  });
+  db.prepare(
+    "UPDATE system_configuration SET media_profile=?,s3_profile=?,backup_profile=?,backup_keep=1 WHERE id=1",
+  ).run(s3, s3, s3);
+
   try {
     const owner = randomUUID(),
       note = randomUUID(),
@@ -129,19 +148,30 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
           `^${Buffer.from([67, 73, 76, 79, 69, 78, 67]).toString()}[12]$`,
         ),
       );
-    assert.equal((await backups.copyStoredFiles("local")).files, 1);
+    const localProfile = writeProfile({ backend: "local", directory });
+    assert.equal(
+      await (
+        await import("../src/lib/server/storage")
+      ).copyStorageObject(file, localProfile),
+      true,
+    );
+    db.prepare(
+      "UPDATE system_configuration SET media_profile=? WHERE id=1",
+    ).run(localProfile);
     assert.equal(
       (
         await createStorage({ NIVRA_DATA_DIR: directory }).read(file)
       ).toString(),
       "payload",
     );
+    assert.ok(objects.has(`/files/media/${file}`));
     objects.delete(`/files/media/${file}`);
+    objects.set("/files/media/unrelated-sentinel", Buffer.from("retained"));
     const target = path.join(directory, "restored");
     await backups.restoreBackup(first.id, target);
     const local = createStorage({ NIVRA_DATA_DIR: target });
     assert.equal((await local.read(file)).toString(), "payload");
-    await storage.write(file, Buffer.from("payload"));
+    assert.equal((await storage.read(file)).toString(), "payload");
     await backups.startBackup();
     assert.equal((await backups.listBackups()).length, 1);
     assert.equal(
@@ -156,7 +186,8 @@ test("hybrid backups copy encrypted S3 files, paginate the destination, and reco
         }),
       /separate/,
     );
-    assert.ok(objects.has(`/files/media/${file}`));
+    assert.ok(objects.has("/files/media/unrelated-sentinel"));
+    assert.equal((await storage.read(file)).toString(), "payload");
     await assert.rejects(backupRepository().read("../escape"));
   } finally {
     db.close();

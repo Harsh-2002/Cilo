@@ -1,3 +1,4 @@
+import { installationExists } from "@/lib/server/installation";
 import { captureOAuthToken } from "@/lib/server/agent-auth";
 import { prepareOAuthRegistration } from "@/lib/server/oauth-registration";
 import { auth } from "@/lib/server/auth";
@@ -7,6 +8,8 @@ import { HttpError, readLimited, response } from "@/lib/server/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handle(request: Request) {
+  if (!installationExists())
+    return response({ error: "Complete installation setup first." }, 401);
   const startedAt = Date.now();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname.endsWith("/oauth2/authorize")) {
