@@ -74,7 +74,7 @@ export async function publishNote(note: Note, revision: number) {
     if (typeof value === "string" && ["url", "href", "preview"].includes(key)) {
       const match = value.match(
         new RegExp(
-          String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
+          String.raw`^(?:https?://[^/]+)?/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
         ),
       );
       if (match) references.add(match[1]);
@@ -88,7 +88,7 @@ export async function publishNote(note: Note, revision: number) {
       const id = randomUUID();
       await storage.write(id, await storage.read(file.storage_key));
       copies.push({ id, name: file.name, mime: file.mime, key: id });
-      links.set(file.id, `/api/nivra/published/${token}/files/${id}`);
+      links.set(file.id, `/api/v1/published/${token}/files/${id}`);
     }
     const clean = (value: unknown, key = ""): unknown => {
       if (Array.isArray(value)) return value.map((item) => clean(item));
@@ -106,7 +106,7 @@ export async function publishNote(note: Note, revision: number) {
       ) {
         const match = value.match(
           new RegExp(
-            String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
+            String.raw`^(?:https?://[^/]+)?/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?:[?#].*)?$`,
           ),
         );
         if (match) return links.get(match[1]) || "";

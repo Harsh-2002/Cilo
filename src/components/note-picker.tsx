@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ChevronsUpDown, FileText, Loader2, X } from "lucide-react";
-import { api } from "@/lib/client";
+import { apiItems } from "@/lib/client";
 import type { NoteSummary } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -29,9 +29,12 @@ export function NotePicker({
     const timer = setTimeout(() => {
       setLoading(true);
       setError("");
-      void api<NoteSummary[]>(`notes?limit=30&q=${encodeURIComponent(query)}`, {
-        signal: controller.signal,
-      })
+      void apiItems<NoteSummary>(
+        `notes?limit=30&q=${encodeURIComponent(query)}`,
+        {
+          signal: controller.signal,
+        },
+      )
         .then((items) => {
           if (!controller.signal.aborted) {
             setNotes(items);

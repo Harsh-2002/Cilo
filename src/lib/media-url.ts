@@ -3,8 +3,14 @@ export function mediaUrl(value: string, token?: string) {
   if (!/^https?:\/\//i.test(value)) return value;
   try {
     const url = new URL(value);
+    if (
+      typeof window !== "undefined" &&
+      url.origin === window.location.origin &&
+      /^\/api\/v1\/files\/[a-f0-9-]{36}$/.test(url.pathname)
+    )
+      return url.pathname + url.search;
     if (url.username || url.password || value.length > 4096) return "";
-    return `/api/nivra/${token ? `published/${token}/` : ""}media?url=${encodeURIComponent(url.href)}`;
+    return `/api/v1/${token ? `published/${token}/` : ""}media?url=${encodeURIComponent(url.href)}`;
   } catch {
     return "";
   }
@@ -18,10 +24,7 @@ export function hasPublishedMedia(document: unknown, value: string): boolean {
   if (["image", "video", "audio", "canvas"].includes(block.type || "")) {
     const source = block.props?.[block.type === "canvas" ? "preview" : "url"];
     if (source === value) return true;
-    if (
-      typeof source === "string" &&
-      source.startsWith("/api/nivra/published/")
-    ) {
+    if (typeof source === "string" && source.startsWith("/api/v1/published/")) {
       const url = new URL(source, "https://nivra.invalid");
       if (
         url.pathname.endsWith("/media") &&

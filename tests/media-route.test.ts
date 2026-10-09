@@ -8,7 +8,7 @@ import path from "node:path";
 test("private media streams from chunked storage with ranges and rejects damaged chunks", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-media-route-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
   const call = (
@@ -21,7 +21,7 @@ test("private media streams from chunked storage with ranges and rejects damaged
     } = {},
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method: options.method || "GET",
         headers: {
           host: "localhost:3000",
@@ -65,7 +65,7 @@ test("private media streams from chunked storage with ranges and rejects damaged
     const upload = await call("files", { method: "POST", body: form });
     assert.equal(upload.status, 201);
     const file = (await upload.json()) as { id: string; url: string };
-    const route = file.url.replace("/api/nivra/", "");
+    const route = new URL(file.url).pathname.replace("/api/v1/", "");
     const stored = path.join(directory, "uploads", file.id);
     assert.equal(
       (await readFile(stored)).subarray(0, 8).toString(),

@@ -83,7 +83,7 @@ export function TrashPanel({ onNavigation }: { onNavigation: () => void }) {
     notify.dismiss();
     setBusy(true);
     try {
-      await api(`trash/${item.kind}/${item.id}`, {
+      await api(`trash/${item.kind}/${item.id}${permanent ? "" : "/restore"}`, {
         method: permanent ? "DELETE" : "POST",
         body: JSON.stringify({ revision: item.revision }),
       });

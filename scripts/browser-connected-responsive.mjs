@@ -10,7 +10,7 @@ export default async function verifyConnectedResponsive(
   page.setDefaultTimeout(30000);
   page.setDefaultNavigationTimeout(30000);
   const api = async (path, method = "GET", data) => {
-    const r = await page.request.fetch(`${base}/api/nivra/${path}`, {
+    const r = await page.request.fetch(`${base}/api/v1/${path}`, {
       method,
       data,
     });

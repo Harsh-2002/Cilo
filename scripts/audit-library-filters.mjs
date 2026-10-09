@@ -20,7 +20,7 @@ const headers = {
 };
 let phase = "initialization";
 async function api(route, body) {
-  const response = await fetch(`${base}/api/nivra/${route}`, {
+  const response = await fetch(`${base}/api/v1/${route}`, {
     headers: {
       ...headers,
       ...(body ? { "content-type": "application/json" } : {}),

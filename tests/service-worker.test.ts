@@ -106,9 +106,9 @@ test("service worker only caches public static assets and falls back offline for
     ],
   );
   for (const [url, init] of [
-    ["https://nivra.test/api/nivra/notes", {}],
-    ["https://nivra.test/api/nivra/files/abc", {}],
-    ["https://nivra.test/api/nivra/published/token/files/abc", {}],
+    ["https://nivra.test/api/v1/notes", {}],
+    ["https://nivra.test/api/v1/files/abc", {}],
+    ["https://nivra.test/api/v1/published/token/files/abc", {}],
     ["https://elsewhere.test/_next/static/a.js", {}],
     ["https://nivra.test/_next/static/a.js", { method: "POST" }],
     ["https://nivra.test/share/token", {}],

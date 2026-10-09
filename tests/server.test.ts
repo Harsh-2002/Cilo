@@ -9,7 +9,7 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
 test("Nivra protects ownership and preserves notes, artifacts, and recovery", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-test-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
@@ -30,7 +30,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
     if (authenticated) headers.cookie = cookie;
     if (body && !(body instanceof FormData) && !(body instanceof Uint8Array))
       headers["content-type"] = "application/json";
-    return new Request(`http://localhost:3000/api/nivra/${route}`, {
+    return new Request(`http://localhost:3000/api/v1/${route}`, {
       method,
       headers,
       body:
@@ -47,9 +47,26 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
     body?: unknown,
     authenticated = true,
   ) =>
-    routes.GET(request(route, method, body, authenticated), {
-      params: Promise.resolve({ path: route.split("?")[0].split("/") }),
-    });
+    (() => {
+      if (/^https?:\/\//.test(route)) {
+        const url = new URL(route);
+        route = url.pathname.replace(/^\/api\/v1\//, "") + url.search;
+      }
+      return routes.GET(request(route, method, body, authenticated), {
+        params: Promise.resolve({ path: route.split("?")[0].split("/") }),
+      });
+    })();
+  const purgeNote = async (id: string) => {
+    const note = await (await call(`notes/${id}`)).json();
+    if (!note.trashedAt) {
+      const deleted = await call(`notes/${id}`, "DELETE", {
+        revision: note.revision,
+      });
+      assert.equal(deleted.status, 200);
+      note.revision++;
+    }
+    return call(`trash/note/${id}`, "DELETE", { revision: note.revision });
+  };
   try {
     await t.test(
       "concurrent onboarding creates one owner and blocks signup",
@@ -132,7 +149,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
     await t.test(
       "web note and tag changes reach the authenticated SSE stream",
       async () => {
-        const events = await call("events");
+        const events = await call("completions");
         assert.equal(events.status, 200);
         const reader = events.body!.getReader();
         const decoder = new TextDecoder();
@@ -184,7 +201,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
             ).status,
             200,
           );
-          assert.equal((await call(`notes/${note.id}`, "DELETE")).status, 200);
+          assert.equal((await purgeNote(note.id)).status, 200);
           assert.equal(
             (await call(`tags/${(await tag.json()).id}`, "DELETE")).status,
             200,
@@ -267,10 +284,13 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           "searchabl thought",
           "durrableIdea",
         ])
-          assert.equal((await (await call(`notes?q=${q}`)).json()).length, 1);
+          assert.equal(
+            (await (await call(`notes?q=${q}`)).json()).items.length,
+            1,
+          );
         assert.equal(
           (await (await call(`notes?tag=${tag.id}&view=favorites`)).json())
-            .length,
+            .items.length,
           1,
         );
         assert.equal(
@@ -295,10 +315,13 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           200,
         );
         assert.equal(
-          (await (await call("notes?q=searchable")).json()).length,
+          (await (await call("notes?q=searchable")).json()).items.length,
           0,
         );
-        assert.equal((await (await call("notes?view=trash")).json()).length, 1);
+        assert.equal(
+          (await (await call("notes?view=trash")).json()).items.length,
+          1,
+        );
         assert.equal(
           (
             await call(`notes/${noteId}`, "PATCH", {
@@ -357,7 +380,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           (await call(`files/${htmlId}`)).headers.get("content-type"),
           "application/octet-stream",
         );
-        assert.equal((await call("files/not-a-storage-key")).status, 404);
+        assert.equal((await call("files/not-a-storage-key")).status, 400);
         const oversize = request("files", "POST");
         oversize.headers.set("content-length", String(30 * 1024 * 1024));
         assert.equal(
@@ -380,7 +403,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         });
         note.document.blocks.push({
           type: "image",
-          props: { url: `/api/nivra/files/${fileId}`, name: "image.png" },
+          props: { url: `/api/v1/files/${fileId}`, name: "image.png" },
         });
         assert.equal(
           (
@@ -405,7 +428,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           duplicate.document.blocks.find(
             (b: { type: string }) => b.type === "image",
           ).props.url,
-          `/api/nivra/files/${fileId}`,
+          `/api/v1/files/${fileId}`,
         );
         assert.equal(
           (await call(`files/${duplicate.attachmentMap[fileId]}`)).status,
@@ -424,10 +447,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           ).status,
           200,
         );
-        assert.equal(
-          (await call(`notes/${duplicate.id}`, "DELETE")).status,
-          200,
-        );
+        assert.equal((await purgeNote(duplicate.id)).status, 200);
         const bundle = await call("export/bundle");
         assert.equal(bundle.status, 200);
         const imported = await call(
@@ -437,7 +457,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         );
         assert.equal(imported.status, 200);
         assert.equal((await imported.json()).imported, 1);
-        const rows = await (await call("notes")).json();
+        const rows = (await (await call("notes")).json()).items;
         assert.equal(rows.length, 2);
         const copy = await (
           await call(
@@ -452,14 +472,24 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         const url = copy.document.blocks.find(
           (b: { type: string }) => b.type === "image",
         ).props.url;
-        assert.notEqual(url, `/api/nivra/files/${fileId}`);
+        assert.notEqual(url, `/api/v1/files/${fileId}`);
         assert.ok(
           copy.document.blocks.some(
             (block: { content?: { text?: string }[] }) =>
               block.content?.some((part) => part.text === fileId),
           ),
         );
-        assert.equal((await call(url.replace("/api/nivra/", ""))).status, 200);
+        assert.equal(
+          (
+            await call(
+              new URL(url, "http://localhost:3000").pathname.replace(
+                "/api/v1/",
+                "",
+              ),
+            )
+          ).status,
+          200,
+        );
         const malformed = zipSync({
           "manifest.json": strToU8('{"format":"wrong"}'),
         });
@@ -534,7 +564,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           200,
         );
         const exported = await call(`export/markdown/${noteId}`, "POST", {
-          markdown: `![Image](/api/nivra/files/${fileId})`,
+          markdown: `![Image](/api/v1/files/${fileId})`,
         });
         assert.equal(exported.status, 200);
         const entries = unzipSync(new Uint8Array(await exported.arrayBuffer()));
@@ -549,7 +579,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           Object.entries(entries).find(([name]) => name.endsWith(".md"))![1],
         );
         assert.ok(markdown.includes(`drawings/${canvas.id}.excalidraw`));
-        assert.ok(!markdown.includes("/api/nivra/files/"));
+        assert.ok(!markdown.includes("/api/v1/files/"));
       },
     );
     await t.test(
@@ -615,10 +645,10 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           input: string | URL | Request,
           init?: RequestInit,
         ) => {
-          if (typeof input === "string" && input.startsWith("/api/nivra/")) {
+          if (typeof input === "string" && input.startsWith("/api/v1/")) {
             const body = init?.body;
             return call(
-              input.slice("/api/nivra/".length),
+              input.slice("/api/v1/".length),
               init?.method || "GET",
               body instanceof FormData
                 ? body
@@ -629,7 +659,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           }
           return originalFetch(input, init);
         }) as typeof fetch;
-        const before = (await (await call("notes")).json()).map(
+        const before = (await (await call("notes")).json()).items.map(
           (note: { id: string }) => note.id,
         );
         const resource = new File(
@@ -672,7 +702,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           );
           assert.equal(results.filter((result) => result.ok).length, 3);
           assert.equal(results.filter((result) => !result.ok).length, 1);
-          const after = await (await call("notes")).json();
+          const after = (await (await call("notes")).json()).items;
           const added = after.filter(
             (note: { id: string }) => !before.includes(note.id),
           );
@@ -684,17 +714,10 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           ).json();
           assert.match(
             imported.document.blocks[0].props.url,
-            /^\/api\/(?:nivra|nivra)\/files\//,
+            /^http:\/\/localhost:3000\/api\/v1\/files\//,
           );
           assert.equal(
-            (
-              await call(
-                imported.document.blocks[0].props.url.replace(
-                  "/api/nivra/",
-                  "",
-                ),
-              )
-            ).status,
+            (await call(imported.document.blocks[0].props.url)).status,
             200,
           );
           for (const note of added) {
@@ -702,7 +725,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
               revision: note.revision,
               trashed: true,
             });
-            await call(`notes/${note.id}`, "DELETE");
+            await purgeNote(note.id);
           }
         } finally {
           globalThis.fetch = originalFetch;
@@ -736,7 +759,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
                   ],
                 },
                 { type: "image", props: { url: attachment.url } },
-                { type: "image", props: { url: `/api/nivra/files/${fileId}` } },
+                { type: "image", props: { url: `/api/v1/files/${fileId}` } },
                 {
                   type: "canvas",
                   props: {
@@ -781,7 +804,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         assert.match(html, /Published content/);
         assert.doesNotMatch(
           html,
-          new RegExp(note.id + "|/api/nivra/files/|contenteditable"),
+          new RegExp(note.id + "|/api/v1/files/|contenteditable"),
         );
         assert.equal((await shared()).status, 200);
         assert.match(
@@ -801,7 +824,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
         assert.equal(publicData.document.blocks[3].props.scene, "");
         assert.equal(JSON.stringify(publicData).includes(note.id), false);
         const sharedFileUrl = publicData.document.blocks[1].props.url;
-        const route = sharedFileUrl.replace("/api/nivra/", "");
+        const route = sharedFileUrl.replace("/api/v1/", "");
         const file = await call(route, "GET", undefined, false);
         assert.equal(file.status, 200);
         assert.equal(file.headers.get("cache-control"), "no-store");
@@ -900,7 +923,7 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           ).status,
           404,
         );
-        await call(`notes/${note.id}`, "DELETE");
+        await purgeNote(note.id);
       },
     );
     await t.test(
@@ -1176,12 +1199,12 @@ test("Nivra protects ownership and preserves notes, artifacts, and recovery", as
           revision: wide.revision,
           trashed: true,
         });
-        await call(`notes/${note.id}`, "DELETE");
+        await purgeNote(note.id);
         assert.equal(
           (await call("import/bundle", "POST", archive)).status,
           200,
         );
-        const restored = (await (await call("notes")).json()).find(
+        const restored = (await (await call("notes")).json()).items.find(
           (item: { id: string; title: string }) =>
             item.title === "Width persistence" && item.id !== duplicate.id,
         );

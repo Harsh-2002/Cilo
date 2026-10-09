@@ -11,7 +11,7 @@ test("a fresh plaintext installation supports owner setup, authorized files and 
   );
   process.env.NIVRA_DATA_DIR = directory;
 
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { auth } = await import("../src/lib/server/auth");
   const { jobsIdle, stopJobWorker } = await import("../src/lib/server/jobs");
@@ -23,7 +23,7 @@ test("a fresh plaintext installation supports owner setup, authorized files and 
     authenticated = true,
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method,
         headers: {
           host: "localhost:3000",

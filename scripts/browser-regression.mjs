@@ -2,9 +2,7 @@ export default async function verifyNivra(page, phase) {
   const base = new URL(page.url());
   if (base.port !== "3004")
     throw new Error("Use the disposable review server on port 3004.");
-  const status = await page.request.get(
-    new URL("/api/nivra/status", base).href,
-  );
+  const status = await page.request.get(new URL("/api/v1/status", base).href);
   if ((await status.json()).owner?.name !== "Review Owner")
     throw new Error("The disposable Review Owner session is required.");
   page.setDefaultTimeout(10000);
@@ -20,10 +18,10 @@ export default async function verifyNivra(page, phase) {
   const button = (name) => page.getByRole("button", { name, exact: true });
   const textbox = (name) => page.getByRole("textbox", { name, exact: true });
   const api = async (path, method = "GET", data) => {
-    const response = await page.request.fetch(
-      `${base.origin}/api/nivra/${path}`,
-      { method, data },
-    );
+    const response = await page.request.fetch(`${base.origin}/api/v1/${path}`, {
+      method,
+      data,
+    });
     if (!response.ok())
       throw new Error(
         `Fixture API failed: ${method} ${path} ${response.status()}`,
@@ -109,7 +107,7 @@ export default async function verifyNivra(page, phase) {
             body: '{"error":"Simulated task failure"}',
           })
         : route.continue();
-    await page.route("**/api/nivra/tasks", failure);
+    await page.route("**/api/v1/tasks", failure);
     try {
       await textbox("New task").fill("Retain this failed task");
       await button("Add task").click();
@@ -122,7 +120,7 @@ export default async function verifyNivra(page, phase) {
         "Failed task creation preserves input",
       );
     } finally {
-      await page.unroute("**/api/nivra/tasks", failure);
+      await page.unroute("**/api/v1/tasks", failure);
     }
     await textbox("New task").fill("");
     await button(`Actions for ${second}`).click();
@@ -248,7 +246,7 @@ export default async function verifyNivra(page, phase) {
             body: '{"error":"Simulated note failure"}',
           })
         : route.continue();
-    await page.route(`**/api/nivra/notes/${id}`, failure);
+    await page.route(`**/api/v1/notes/${id}`, failure);
     try {
       await textbox("Note title").fill("Retain failed note edit");
       await page.locator(".save-error").waitFor();
@@ -258,7 +256,7 @@ export default async function verifyNivra(page, phase) {
         "Failed autosave preserves note draft",
       );
     } finally {
-      await page.unroute(`**/api/nivra/notes/${id}`, failure);
+      await page.unroute(`**/api/v1/notes/${id}`, failure);
     }
     await button("Try again").click();
     await page.locator(".save-status.saved").waitFor();
@@ -320,9 +318,8 @@ export default async function verifyNivra(page, phase) {
         "Anonymous sharing is readable without branding",
       );
       check(
-        (
-          await context.request.get(`${base.origin}/api/nivra/notes`)
-        ).status() === 401,
+        (await context.request.get(`${base.origin}/api/v1/notes`)).status() ===
+          401,
         "Shared reader cannot access private notes",
       );
       await button("Stop sharing").click();
@@ -330,7 +327,7 @@ export default async function verifyNivra(page, phase) {
       check(
         (
           await context.request.get(
-            `${base.origin}/api/nivra/published/${new URL(link).pathname.split("/").pop()}`,
+            `${base.origin}/api/v1/published/${new URL(link).pathname.split("/").pop()}`,
           )
         ).status() === 404,
         "Revoking share removes anonymous access",
@@ -478,22 +475,22 @@ export default async function verifyNivra(page, phase) {
       ]) {
         check(
           (
-            await context.request.get(`${base.origin}/api/nivra/${path}`)
+            await context.request.get(`${base.origin}/api/v1/${path}`)
           ).status() === 401,
           `Anonymous ${path} denied`,
         );
       }
-      const csrf = await page.request.post(`${base.origin}/api/nivra/tasks`, {
+      const csrf = await page.request.post(`${base.origin}/api/v1/tasks`, {
         headers: { origin: "https://other.invalid" },
         data: { title: "Cross-origin attempt" },
       });
       check(csrf.status() === 403, "Cross-origin mutation denied");
       const invalid = await page.request.post(
-        `${base.origin}/api/nivra/bookmarks`,
+        `${base.origin}/api/v1/bookmarks`,
         { data: { url: "javascript:alert(1)" } },
       );
       check(invalid.status() === 400, "Unsafe bookmark protocol denied");
-      const response = await page.request.get(`${base.origin}/api/nivra/notes`);
+      const response = await page.request.get(`${base.origin}/api/v1/notes`);
       check(
         response.headers()["cache-control"] === "no-store",
         "Private API forbids caching",

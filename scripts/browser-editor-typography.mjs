@@ -2,9 +2,7 @@ export default async function verifyEditorTypography(page) {
   const base = new URL(page.url()).origin;
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
-  const status = await (
-    await page.request.get(`${base}/api/nivra/status`)
-  ).json();
+  const status = await (await page.request.get(`${base}/api/v1/status`)).json();
   if (status.owner?.name !== "Heading Review Owner")
     throw new Error("Heading Review Owner required.");
   const text = (value) => [{ type: "text", text: value, styles: {} }];
@@ -51,7 +49,7 @@ export default async function verifyEditorTypography(page) {
       },
     ],
   };
-  const response = await page.request.post(`${base}/api/nivra/notes`, {
+  const response = await page.request.post(`${base}/api/v1/notes`, {
     data: { title: "Editor typography review", document },
   });
   if (!response.ok()) throw new Error("Could not create fixture.");
@@ -60,11 +58,11 @@ export default async function verifyEditorTypography(page) {
   const getNote = async () => {
     try {
       return await (
-        await page.request.get(`${base}/api/nivra/notes/${note.id}`)
+        await page.request.get(`${base}/api/v1/notes/${note.id}`)
       ).json();
     } catch {
       return await (
-        await page.request.get(`${base}/api/nivra/notes/${note.id}`)
+        await page.request.get(`${base}/api/v1/notes/${note.id}`)
       ).json();
     }
   };
@@ -87,16 +85,15 @@ export default async function verifyEditorTypography(page) {
         zoom,
       );
       for (const theme of ["light", "dark"]) {
-        const appearance = await page.request.patch(
-          `${base}/api/nivra/settings`,
-          { data: { theme } },
-        );
+        const appearance = await page.request.patch(`${base}/api/v1/settings`, {
+          data: { theme },
+        });
         if (!appearance.ok()) throw new Error("Could not set appearance.");
         for (const width of [1440, 768, 390, 320]) {
           for (const mode of ["standard", "wide"]) {
             const existing = await getNote();
             const updated = await page.request.patch(
-              `${base}/api/nivra/notes/${note.id}`,
+              `${base}/api/v1/notes/${note.id}`,
               { data: { revision: existing.revision, editorWidth: mode } },
             );
             if (!updated.ok()) throw new Error("Could not persist page width.");

@@ -26,9 +26,9 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
   timeout: 30000,
 });
-const status = await (await api.get("/api/nivra/status")).json();
+const status = await (await api.get("/api/v1/status")).json();
 if (status.setup) {
-  const setup = await api.post("/api/nivra/setup", {
+  const setup = await api.post("/api/v1/setup", {
     data: {
       name: "Layout Review Owner",
       username: "layoutreview",
@@ -38,18 +38,17 @@ if (status.setup) {
   assert.ok(setup.ok());
 }
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Layout Review Owner",
 );
 assert.ok(
-  (await api.patch("/api/nivra/settings", { data: { theme: "system" } })).ok(),
+  (await api.patch("/api/v1/settings", { data: { theme: "system" } })).ok(),
 );
-for (const item of (
-  await (await api.get("/api/nivra/artifacts?limit=100")).json()
-).items) {
+for (const item of (await (await api.get("/api/v1/artifacts?limit=100")).json())
+  .items) {
   assert.ok(
     (
-      await api.delete(`/api/nivra/artifacts/${item.id}`, {
+      await api.delete(`/api/v1/artifacts/${item.id}`, {
         data: { revision: item.revision },
       })
     ).ok(),
@@ -69,10 +68,10 @@ const text =
     (_, i) => `route ${i} via gateway\n    next hop with preserved indentation`,
   ).join("\n");
 const saved = await (
-  await api.post("/api/nivra/artifacts", { data: { text } })
+  await api.post("/api/v1/artifacts", { data: { text } })
 ).json();
 const image = await (
-  await api.post("/api/nivra/artifacts", {
+  await api.post("/api/v1/artifacts", {
     multipart: {
       file: {
         name: "Rotated invoice.png",
@@ -84,7 +83,7 @@ const image = await (
 ).json();
 const until = Date.now() + 90000;
 while (Date.now() < until) {
-  const item = await (await api.get(`/api/nivra/artifacts/${image.id}`)).json();
+  const item = await (await api.get(`/api/v1/artifacts/${image.id}`)).json();
   if (item.extraction === "done") {
     assert.match(item.content, /Northwind/);
     break;
@@ -93,11 +92,11 @@ while (Date.now() < until) {
   await new Promise((r) => setTimeout(r, 500));
 }
 assert.equal(
-  (await (await api.get(`/api/nivra/artifacts/${image.id}`)).json()).extraction,
+  (await (await api.get(`/api/v1/artifacts/${image.id}`)).json()).extraction,
   "done",
 );
 const daily = await (
-  await api.post("/api/nivra/notes/daily", { data: { date: "2026-10-06" } })
+  await api.post("/api/v1/journals", { data: { date: "2026-10-06" } })
 ).json();
 const inline = (text) => [{ type: "text", text, styles: {} }];
 const document = [
@@ -135,7 +134,7 @@ const document = [
     children: [],
   },
 ];
-const patched = await api.patch(`/api/nivra/notes/${daily.id}`, {
+const patched = await api.patch(`/api/v1/notes/${daily.id}`, {
   data: {
     revision: daily.revision,
     document: { schemaVersion: 1, blocks: document },
@@ -386,15 +385,13 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
             .getByRole("button", { name: "Close", exact: true })
             .click();
           const savedTitle = (
-            await (await api.get(`/api/nivra/artifacts/${saved.id}`)).json()
+            await (await api.get(`/api/v1/artifacts/${saved.id}`)).json()
           ).title;
           if (savedTitle !== "Long terminal text")
-            await api.patch(`/api/nivra/artifacts/${saved.id}`, {
+            await api.patch(`/api/v1/artifacts/${saved.id}`, {
               data: {
                 revision: (
-                  await (
-                    await api.get(`/api/nivra/artifacts/${saved.id}`)
-                  ).json()
+                  await (await api.get(`/api/v1/artifacts/${saved.id}`)).json()
                 ).revision,
                 title: "Long terminal text",
               },

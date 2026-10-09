@@ -36,7 +36,7 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base, Cookie: auditCookie },
   timeout: 60000,
 });
-assert.equal((await api.get("/api/nivra/notes?limit=1")).status(), 200);
+assert.equal((await api.get("/api/v1/notes?limit=1")).status(), 200);
 const report = {
   dataset: Object.fromEntries(
     Object.entries(fixtures).map(([kind, ids]) => [kind, ids.length]),
@@ -55,14 +55,14 @@ if (resume) {
   report.browser = [];
 }
 const endpoints = {
-  notes: "/api/nivra/notes?view=all&preview=1&limit=60&q=Scale%20test%20note",
+  notes: "/api/v1/notes?view=all&preview=1&limit=60&q=Scale%20test%20note",
   journals:
-    "/api/nivra/notes?view=journal&preview=1&limit=60&q=Scale%20test%20journal",
-  tasks: "/api/nivra/tasks?filter=open&limit=60&q=Scale%20test%20task",
-  bookmarks: "/api/nivra/bookmarks?limit=60&q=Scale%20test%20link",
-  artifacts: "/api/nivra/artifacts?limit=60&q=Scale%20test&context=0",
-  search: "/api/nivra/search?q=scaleprobe0999",
-  overview: "/api/nivra/overview?date=2026-10-06",
+    "/api/v1/notes?view=journal&preview=1&limit=60&q=Scale%20test%20journal",
+  tasks: "/api/v1/tasks?filter=open&limit=60&q=Scale%20test%20task",
+  bookmarks: "/api/v1/bookmarks?limit=60&q=Scale%20test%20link",
+  artifacts: "/api/v1/artifacts?limit=60&q=Scale%20test&context=0",
+  search: "/api/v1/search?q=scaleprobe0999",
+  overview: "/api/v1/overview?date=2026-10-06",
 };
 const measured = async (url) => {
   const started = performance.now();
@@ -177,9 +177,9 @@ console.log("Starting targeted security checks");
 const anon = await request.newContext({ baseURL: base });
 for (const endpoint of [
   ...Object.values(endpoints),
-  "/api/nivra/events",
-  `/api/nivra/artifacts/${fixtures.artifacts.find((_, index) => index === 950)}/file`,
-  `/api/nivra/notes/${fixtures.notes[0]}`,
+  "/api/v1/completions",
+  `/api/v1/artifacts/${fixtures.artifacts.find((_, index) => index === 950)}/file`,
+  `/api/v1/notes/${fixtures.notes[0]}`,
 ]) {
   assert.equal((await anon.get(endpoint)).status(), 401);
 }
@@ -188,7 +188,7 @@ report.security.push(
 );
 assert.equal(
   (
-    await api.post("/api/nivra/tasks", {
+    await api.post("/api/v1/tasks", {
       headers: { Origin: "https://untrusted.example" },
       data: { title: "Cross-origin denied" },
     })
@@ -207,7 +207,7 @@ for (const [endpoint, data] of [
 ]) {
   assert.ok(
     [400, 403].includes(
-      (await api.post(`/api/nivra/${endpoint}`, { data })).status(),
+      (await api.post(`/api/v1/${endpoint}`, { data })).status(),
     ),
     "Invalid inputs rejected",
   );
@@ -216,7 +216,7 @@ report.security.push(
   "Malformed documents/dates, empty artifacts and non-HTTP URL rejected",
 );
 const blockedUrl = `http://127.0.0.1:3000/nivra-scale-security-${Date.now()}`;
-const blockedSave = await api.post("/api/nivra/bookmarks", {
+const blockedSave = await api.post("/api/v1/bookmarks", {
   data: { url: blockedUrl, collection: "Scale test audit" },
 });
 assert.equal(blockedSave.status(), 201);
@@ -224,9 +224,7 @@ const blockedItem = await blockedSave.json();
 let blocked;
 for (let attempt = 0; attempt < 60; attempt++) {
   const items = await (
-    await api.get(
-      "/api/nivra/bookmarks?collection=Scale%20test%20audit&limit=60",
-    )
+    await api.get("/api/v1/bookmarks?collection=Scale%20test%20audit&limit=60")
   ).json();
   blocked = items.items.find((item) => item.id === blockedItem.id);
   if (blocked?.metadataStatus === "unavailable") break;
@@ -239,7 +237,7 @@ assert.equal(
 );
 assert.equal(
   (
-    await api.delete(`/api/nivra/bookmarks/${blocked.id}`, {
+    await api.delete(`/api/v1/bookmarks/${blocked.id}`, {
       data: { revision: blocked.revision },
     })
   ).status(),
@@ -250,7 +248,7 @@ report.security.push(
 );
 assert.equal(
   (
-    await api.post("/api/nivra/setup", {
+    await api.post("/api/v1/setup", {
       data: {
         name: "Blocked",
         username: "blocked",
@@ -281,43 +279,39 @@ for (const endpoint of [
   `artifacts/${encodeURIComponent("../../encryption.key")}/file`,
 ])
   assert.ok(
-    [400, 404].includes((await api.get(`/api/nivra/${endpoint}`)).status()),
+    [400, 404].includes((await api.get(`/api/v1/${endpoint}`)).status()),
   );
 report.security.push(
   "Missing and traversal-shaped file/item identifiers denied",
 );
-const note = await (
-  await api.get(`/api/nivra/notes/${fixtures.notes[1]}`)
-).json();
-const update = await api.patch(`/api/nivra/notes/${note.id}`, {
+const note = await (await api.get(`/api/v1/notes/${fixtures.notes[1]}`)).json();
+const update = await api.patch(`/api/v1/notes/${note.id}`, {
   data: { revision: note.revision, title: note.title },
 });
 assert.equal(update.status(), 200);
 assert.equal(
   (
-    await api.patch(`/api/nivra/notes/${note.id}`, {
+    await api.patch(`/api/v1/notes/${note.id}`, {
       data: { revision: note.revision, title: "Stale write denied" },
     })
   ).status(),
   409,
 );
 report.security.push("Stale revision write rejected (409)");
-const filePage = await measured("/api/nivra/artifacts?kind=file&limit=60");
+const filePage = await measured("/api/v1/artifacts?kind=file&limit=60");
 const fixtureFiles = new Set(fixtures.artifacts);
 const pdf = filePage.body.items.find(
   (item) => item.mime === "application/pdf" && fixtureFiles.has(item.id),
 );
 assert.ok(pdf, "A real PDF fixture exists");
-const file = await api.get(`/api/nivra/artifacts/${pdf.id}/file`);
+const file = await api.get(`/api/v1/artifacts/${pdf.id}/file`);
 assert.equal(file.status(), 200);
 assert.match(file.headers()["content-disposition"], /attachment/);
 assert.equal(file.headers()["x-content-type-options"], "nosniff");
 assert.match(file.headers()["cache-control"], /no-store/);
 report.security.push("PDF served as download with nosniff and no-store");
 for (const q of ["' OR 1=1 --", '" ) MATCH *', "<script>alert(1)</script>"]) {
-  const response = await api.get(
-    `/api/nivra/search?q=${encodeURIComponent(q)}`,
-  );
+  const response = await api.get(`/api/v1/search?q=${encodeURIComponent(q)}`);
   assert.ok([200, 400].includes(response.status()));
 }
 report.security.push(
@@ -392,8 +386,8 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
     page.on("request", (r) => {
       if (
         ["fetch", "xhr"].includes(r.resourceType()) &&
-        r.url().includes("/api/nivra/") &&
-        !r.url().includes("/events")
+        r.url().includes("/api/v1/") &&
+        !r.url().includes("/completions")
       )
         pending.add(r);
     });

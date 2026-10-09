@@ -61,6 +61,20 @@ volumes:
 
 The directory must be writable by container UID 1000. An external key file also needs a read-only container mount; set `NIVRA_ENCRYPTION_KEY_FILE` to its container path. Keep the exact existing volume or directory when upgrading. A reverse proxy must preserve the host; use HTTPS at the domain root, with WebSocket forwarding for development. Subpath hosting is unsupported.
 
+## HTTP API
+
+The versioned content API is at `/api/v1`; readiness is at `/health`. The [OpenAPI contract](docs/openapi.json) is also served at `/api/v1/openapi.json`. Browser sessions and bearer API keys use the same content services as MCP. Create a Read or Read & write key in **Settings → MCP**; OAuth stays at `/mcp`.
+
+```sh
+curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/notes?limit=20'
+curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/counts'
+curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/search?q=meeting&limit=20'
+curl -X POST -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: create-note-001' -d '{"title":"Meeting"}' 'http://localhost:3000/api/v1/notes'
+```
+
+Lists return `items` and `next`; pass the cursor as `after` with the same filters. Changes to items with revisions require the current `revision`. Content deletion moves items to Trash; restoring or permanently deleting requires the owner session. File and publication responses include canonical URLs. Queued processing returns `jobs` with IDs, status and lookup URLs. The web app listens to `/api/v1/completions` for session-authenticated SSE invalidations, then reloads affected content. JSON creation retries can use `Idempotency-Key`; multipart uploads and bundle transfers do not support that header. The retired `/api/nivra` routes have no aliases.
+
 ## Updates and recovery
 
 Create and verify an instance backup in **Settings → System**, retain the original encryption key separately, then update the checkout and run `docker compose up -d --build`. Never delete the data volume to fix startup.
@@ -102,6 +116,7 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run verify:branding
+npm run verify:api
 npm test
 npm run build
 ```

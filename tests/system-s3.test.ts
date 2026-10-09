@@ -92,7 +92,7 @@ test("System verifies a shared S3 bucket, encrypts credentials, fences verificat
     authenticated = true,
   ) =>
     handleWorkspace(
-      new Request("http://localhost:3000/api/nivra/" + route, {
+      new Request("http://localhost:3000/api/v1/" + route, {
         method,
         headers: {
           origin: "http://localhost:3000",

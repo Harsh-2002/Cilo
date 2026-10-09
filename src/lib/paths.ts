@@ -1,1 +1,1 @@
-export const apiNamespacePattern = "nivra";
+export const apiNamespacePattern = "(?:v1|nivra)";

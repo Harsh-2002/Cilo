@@ -22,6 +22,8 @@ export function rememberNotificationChoice(choice: "enabled" | "dismissed") {
 }
 
 export async function deviceNotificationsEnabled() {
+  if (!canUseDeviceNotifications() || Notification.permission !== "granted")
+    return false;
   const registration = await navigator.serviceWorker.getRegistration();
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return false;

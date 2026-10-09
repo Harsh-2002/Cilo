@@ -27,7 +27,7 @@ test("calendar recurrence preserves dates across leap years and short months", (
 test("connected workspace retains private search, recovery, journal and scheduled relationships", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-connected-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { createStorage } = await import("../src/lib/server/storage");
   const { checkpoint } = await import("../src/lib/server/note-history");
@@ -46,7 +46,7 @@ test("connected workspace retains private search, recovery, journal and schedule
     if (body && !(body instanceof FormData) && !(body instanceof Uint8Array))
       headers["content-type"] = "application/json";
     return routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method,
         headers,
         body:
@@ -64,12 +64,19 @@ test("connected workspace retains private search, recovery, journal and schedule
     method = "GET",
     body?: unknown,
   ): Promise<T> => {
+    if (route.startsWith("search?")) route += "&mode=suggest";
     const response = await call(route, method, body);
     assert.ok(
       response.ok,
       `${method} ${route}: ${response.status} ${await response.clone().text()}`,
     );
-    return response.json();
+    const result = await response.json();
+    return (
+      method === "GET" &&
+      (/^notes(?:\?|$)/.test(route) || route.startsWith("search?"))
+        ? result.items
+        : result
+    ) as T;
   };
   const allTasks = async () =>
     (
@@ -375,14 +382,18 @@ test("connected workspace retains private search, recovery, journal and schedule
         assert.equal(versions.length, 1);
         assert.equal(
           (
-            await call(`notes/${source.id}/history/${versions[0].id}`, "POST", {
-              revision: source.revision - 1,
-            })
+            await call(
+              `notes/${source.id}/history/${versions[0].id}/restore`,
+              "POST",
+              {
+                revision: source.revision - 1,
+              },
+            )
           ).status,
           409,
         );
         source = await value<Note>(
-          `notes/${source.id}/history/${versions[0].id}`,
+          `notes/${source.id}/history/${versions[0].id}/restore`,
           "POST",
           { revision: source.revision },
         );
@@ -484,7 +495,7 @@ test("connected workspace retains private search, recovery, journal and schedule
     await t.test(
       "journal entries are blank, unique per day, and listed apart from notes",
       async () => {
-        const blank = await value<Note>("notes/daily", "POST", {
+        const blank = await value<Note>("journals", "POST", {
           date: "2026-10-03",
         });
         assert.equal(blank.text.trim(), "");
@@ -495,10 +506,10 @@ test("connected workspace retains private search, recovery, journal and schedule
           trashed: true,
         });
         assert.equal(
-          (await call("notes/daily", "POST", { date: "2026-10-03" })).status,
+          (await call("journals", "POST", { date: "2026-10-03" })).status,
           409,
         );
-        await value(`notes/${blank.id}`, "DELETE", {
+        await value(`trash/journal/${blank.id}`, "DELETE", {
           revision: trashed.revision,
         });
         const form = new FormData();
@@ -520,8 +531,8 @@ test("connected workspace retains private search, recovery, journal and schedule
           },
         });
         const days = await Promise.all([
-          value<Note>("notes/daily", "POST", { date: "2026-10-04" }),
-          value<Note>("notes/daily", "POST", { date: "2026-10-04" }),
+          value<Note>("journals", "POST", { date: "2026-10-04" }),
+          value<Note>("journals", "POST", { date: "2026-10-04" }),
         ]);
         assert.equal(days[0].id, days[1].id);
         assert.equal(days[0].dailyDate, "2026-10-04");
@@ -541,7 +552,7 @@ test("connected workspace retains private search, recovery, journal and schedule
           ),
         );
         assert.equal(
-          (await call("notes/daily", "POST", { date: "2026-02-30" })).status,
+          (await call("journals", "POST", { date: "2026-02-30" })).status,
           400,
         );
         assert.equal((await call("templates")).status, 404);

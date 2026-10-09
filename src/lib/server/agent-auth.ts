@@ -44,6 +44,7 @@ export function agentChallenge(
 export async function withAgent(
   request: Request,
   handler: (p: AgentPrincipal) => Promise<Response>,
+  options: { apiKeyOnly?: boolean } = {},
 ) {
   try {
     if (!installationExists())
@@ -77,6 +78,11 @@ export async function withAgent(
         scopes: scopes.map((s) => `nivra:${s}`),
       });
     }
+    if (options.apiKeyOnly)
+      return response(
+        { error: "A bearer API key is required.", code: "unauthorized" },
+        401,
+      );
     if (
       !sqlite()
         .prepare(

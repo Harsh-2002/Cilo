@@ -16,25 +16,25 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
 });
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Artifacts Review Owner",
 );
 const axeSource = readFileSync("node_modules/axe-core/axe.min.js", "utf8");
 const longName = `document_${"x".repeat(170)}.txt`;
 async function clear() {
   for (const item of (
-    await (await api.get("/api/nivra/artifacts?limit=100")).json()
+    await (await api.get("/api/v1/artifacts?limit=100")).json()
   ).items)
     assert.ok(
       (
-        await api.delete(`/api/nivra/artifacts/${item.id}`, {
+        await api.delete(`/api/v1/artifacts/${item.id}`, {
           data: { revision: item.revision },
         })
       ).ok(),
     );
 }
 async function make(data) {
-  const r = await api.post("/api/nivra/artifacts", data);
+  const r = await api.post("/api/v1/artifacts", data);
   assert.ok(r.ok());
   return r.json();
 }
@@ -162,7 +162,7 @@ try {
       for (const [width, height] of sizes)
         for (const theme of ["light", "dark"]) {
           assert.ok(
-            (await api.patch("/api/nivra/settings", { data: { theme } })).ok(),
+            (await api.patch("/api/v1/settings", { data: { theme } })).ok(),
           );
           const context = await browser.newContext({
             storageState: state,
@@ -303,7 +303,7 @@ try {
               await page
                 .getByRole("button", { name: "Refresh artifacts", exact: true })
                 .click();
-              await page.route("**/api/nivra/artifacts", (route) =>
+              await page.route("**/api/v1/artifacts", (route) =>
                 route.request().method() === "POST"
                   ? route.fulfill({
                       status: 503,
@@ -334,19 +334,19 @@ try {
               await page.screenshot({
                 path: `${output}/chromium-320-dark-error.png`,
               });
-              await page.unroute("**/api/nivra/artifacts");
+              await page.unroute("**/api/v1/artifacts");
               await page
                 .getByRole("button", { name: "Retry", exact: true })
                 .click();
               await page.locator(".artifact-jobs").waitFor({ state: "hidden" });
               const items = (
-                await (await api.get("/api/nivra/artifacts?limit=100")).json()
+                await (await api.get("/api/v1/artifacts?limit=100")).json()
               ).items;
               const retry = items.find(
                 (i) => i.id !== file.id && i.name === longName,
               );
               assert.ok(retry);
-              await api.delete(`/api/nivra/artifacts/${retry.id}`, {
+              await api.delete(`/api/v1/artifacts/${retry.id}`, {
                 data: { revision: retry.revision },
               });
             }

@@ -15,7 +15,7 @@ import type {
 test("artifacts store anything, read text out of it, and make all of it searchable", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-artifacts-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { ocrIdle, shutdownOcr } = await import("../src/lib/server/ocr");
   let cookie = "";
@@ -30,7 +30,7 @@ test("artifacts store anything, read text out of it, and make all of it searchab
     } = {},
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method: options.method || "GET",
         headers: {
           host: "localhost:3000",
@@ -244,9 +244,11 @@ test("artifacts store anything, read text out of it, and make all of it searchab
           [image.id],
         );
         assert.match(byWord.items[0].excerpt || "", /Northwind/);
-        const hits = await value<SearchResult[]>("search?q=invoice");
+        const hits = await value<{ items: SearchResult[] }>(
+          "search?q=invoice&mode=suggest",
+        );
         assert.ok(
-          hits.some(
+          hits.items.some(
             (hit) =>
               hit.type === "artifact" &&
               hit.id === image.id &&
@@ -254,13 +256,19 @@ test("artifacts store anything, read text out of it, and make all of it searchab
           ),
         );
         assert.equal(
-          (await value<SearchResult[]>("search?q=type%3Aartifact%20invoice"))
-            .length,
+          (
+            await value<{ items: SearchResult[] }>(
+              "search?q=type%3Aartifact%20invoice&mode=suggest",
+            )
+          ).items.length,
           1,
         );
         assert.equal(
-          (await value<SearchResult[]>("search?q=type%3Anote%20invoice"))
-            .length,
+          (
+            await value<{ items: SearchResult[] }>(
+              "search?q=type%3Anote%20invoice&mode=suggest",
+            )
+          ).items.length,
           0,
         );
         const original = await call(`artifacts/${image.id}/file`, {

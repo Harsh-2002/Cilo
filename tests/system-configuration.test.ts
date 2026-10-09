@@ -25,7 +25,7 @@ test("onboarding initializes only on submission and System protects configuratio
     authenticated = true,
   ) =>
     handleWorkspace(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method,
         headers: {
           host: "localhost:3000",

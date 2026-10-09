@@ -1,6 +1,6 @@
 import { withAgent, agentChallenge } from "@/lib/server/agent-auth";
 import { handleWorkspace } from "@/lib/server/workspace-api";
-import { requestOrigin, response } from "@/lib/server/http";
+import { response } from "@/lib/server/http";
 import { completionEvent } from "@/lib/server/jobs";
 import { z } from "zod";
 export const runtime = "nodejs";
@@ -45,22 +45,8 @@ async function handle(
         { error: "This file transfer route was not found." },
         404,
       );
-    const headers = new Headers();
-    for (const name of ["content-type", "content-length", "range"])
-      if (request.headers.has(name))
-        headers.set(name, request.headers.get(name)!);
-    const internal = new Request(
-      `${requestOrigin(request)}/api/nivra/${route}`,
-      {
-        method,
-        headers,
-        body: request.body && method !== "GET" ? request.body : undefined,
-        ...(request.body ? { duplex: "half" } : {}),
-        signal: request.signal,
-      },
-    );
     const result = await handleWorkspace(
-      internal,
+      request,
       { params: Promise.resolve({ path: route.split("/") }) },
       principal,
     );

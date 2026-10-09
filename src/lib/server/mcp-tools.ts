@@ -1,3 +1,4 @@
+import { storageOperation } from "./storage-operations";
 import {
   taskBoardFields,
   boardInput,
@@ -9,7 +10,7 @@ import { eventInput, dateSchema, zoneSchema } from "../calendar";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { createHash } from "node:crypto";
-import { handleWorkspace } from "./workspace-api";
+import { executeContent } from "./content-service";
 import { type AgentPrincipal } from "./agent-access";
 import { sqlite } from "./db";
 import { HttpError } from "./http";
@@ -142,14 +143,16 @@ function params(
 function collectionPage(value: unknown) {
   const page = value as {
     items: { type: string; dailyDate?: string | null }[];
-    next: number | null;
+    next: string | number | null;
+    nextOffset?: number | null;
   };
   return {
     items: page.items.map((row) => ({
       ...row,
       type: row.type === "note" && row.dailyDate ? "journal" : row.type,
     })),
-    nextOffset: page.next,
+    nextOffset:
+      page.nextOffset ?? (typeof page.next === "number" ? page.next : null),
   };
 }
 function ownedNote(ctx: Context, id: string) {
@@ -200,11 +203,10 @@ add(
   false,
   async (i, c) =>
     (
-      (await c.call(`search?q=${encodeURIComponent(String(i.query))}`)) as {
-        type: string;
-        dailyDate?: string | null;
-      }[]
-    ).map((row) => ({
+      (await c.call(
+        `search?mode=suggest&q=${encodeURIComponent(String(i.query))}`,
+      )) as { items: { type: string; dailyDate?: string | null }[] }
+    ).items.map((row) => ({
       ...row,
       type: row.type === "note" && row.dailyDate ? "journal" : row.type,
     })),
@@ -252,13 +254,18 @@ for (const journal of [false, true]) {
         preview: "1",
         offset: String(i.offset),
       });
-      const data = (await c.call(`notes?${p}`)) as unknown[];
+      const page = (await c.call(`${journal ? "journals" : "notes"}?${p}`)) as {
+        items: unknown[];
+        next: string | null;
+        nextOffset: number | null;
+      };
+      const data = page.items;
       return {
         items: data,
         returnedCount: data.length,
-        complete: data.length < Number(i.limit),
-        nextOffset:
-          data.length === i.limit ? Number(i.offset) + Number(i.limit) : null,
+        complete: page.next === null,
+        nextOffset: page.nextOffset,
+        next: page.next,
       };
     },
   );
@@ -309,7 +316,7 @@ add(
   }),
   true,
   async (i, c) => {
-    return c.call("notes/daily", "POST", {
+    return c.call("journals", "POST", {
       date: i.date,
       document: await content(i),
     });
@@ -458,7 +465,7 @@ add(
   z.object({ id, versionId: id, revision }),
   true,
   async (i, c) =>
-    c.call(`notes/${i.id}/history/${i.versionId}`, "POST", {
+    c.call(`notes/${i.id}/history/${i.versionId}/restore`, "POST", {
       revision: i.revision,
     }),
   { destructive: true },
@@ -819,7 +826,7 @@ add(
   true,
   async (i, c) =>
     i.kind === "event"
-      ? c.call(`calendar/events/${i.id}`, "DELETE", { revision: i.revision })
+      ? c.call(`events/${i.id}`, "DELETE", { revision: i.revision })
       : ["note", "journal"].includes(String(i.kind))
         ? c.call(`notes/${i.id}`, "PATCH", {
             revision: i.revision,
@@ -1003,31 +1010,19 @@ export function createAgentServer(principal: AgentPrincipal, origin: string) {
         };
         visit(document.blocks);
       }
-      const request = new Request(`${origin}/api/nivra/${route}`, {
-        method,
-        headers:
-          body instanceof FormData
-            ? {}
-            : { "content-type": "application/json" },
-        body:
-          body === undefined
-            ? undefined
-            : body instanceof FormData
-              ? body
-              : JSON.stringify(body),
-      });
-      const result = await handleWorkspace(
-        request,
-        { params: Promise.resolve({ path: route.split("?")[0].split("/") }) },
+      const [path, search = ""] = route.split("?");
+      const result = await executeContent({
+        ownerId: principal.ownerId,
         principal,
-      );
-      const data = await result.json();
-      if (!result.ok)
-        throw new HttpError(
-          result.status,
-          data.error || "This operation failed.",
-        );
-      return data;
+        origin,
+        method,
+        path: path.split("/"),
+        query: new URLSearchParams(search),
+        input: body,
+      });
+      if ("response" in result)
+        throw new HttpError(400, "Use file_transfer for binary content.");
+      return result.data;
     },
   };
   for (const tool of tools.filter(
@@ -1101,7 +1096,9 @@ export function createAgentServer(principal: AgentPrincipal, origin: string) {
               );
             claimed = true;
           }
-          const rawData = await tool.run(input, ctx);
+          const rawData = await (tool.write
+            ? storageOperation(() => tool.run(input, ctx))
+            : tool.run(input, ctx));
           const validated = agentOutputSchema(tool.name).safeParse(
             rawData ?? null,
           );
@@ -1241,7 +1238,7 @@ add(
   z.object({ id }),
   false,
   async (i, c) => ({
-    ...((await c.call(`calendar/events/${i.id}`)) as Record<string, unknown>),
+    ...((await c.call(`events/${i.id}`)) as Record<string, unknown>),
     url: `${c.origin}/calendar?event=${i.id}`,
   }),
 );
@@ -1251,7 +1248,7 @@ add(
   z.object({ input: eventInput, ...creationKey }),
   true,
   async (i, c) => {
-    const event = (await c.call("calendar/events", "POST", i.input)) as {
+    const event = (await c.call("events", "POST", i.input)) as {
       id: string;
     };
     return { ...event, url: `${c.origin}/calendar?event=${event.id}` };
@@ -1268,7 +1265,7 @@ add(
     occurrence: z.string().max(40).optional(),
   }),
   true,
-  async ({ id, ...i }, c) => c.call(`calendar/events/${id}`, "PATCH", i),
+  async ({ id, ...i }, c) => c.call(`events/${id}`, "PATCH", i),
 );
 add(
   "trash_event",
@@ -1280,7 +1277,7 @@ add(
     occurrence: z.string().max(40).optional(),
   }),
   true,
-  async ({ id, ...i }, c) => c.call(`calendar/events/${id}`, "DELETE", i),
+  async ({ id, ...i }, c) => c.call(`events/${id}`, "DELETE", i),
   { destructive: true },
 );
 add(
@@ -1288,7 +1285,7 @@ add(
   "List recent and missed calendar reminders.",
   z.object({ offset: z.number().int().min(0).max(100000).default(0) }),
   false,
-  async (i, c) => c.call(`calendar/reminders?offset=${i.offset}`),
+  async (i, c) => c.call(`calendar/reminders?limit=50&offset=${i.offset}`),
 );
 add(
   "dismiss_reminder",
@@ -1308,7 +1305,7 @@ add(
   false,
   async (i, c) =>
     c.call(
-      `calendar/tasks?${new URLSearchParams(Object.entries(i).map(([k, v]) => [k, String(v)]))}`,
+      `calendar/tasks?limit=50&${new URLSearchParams(Object.entries(i).map(([k, v]) => [k, String(v)]))}`,
     ),
 );
 add(

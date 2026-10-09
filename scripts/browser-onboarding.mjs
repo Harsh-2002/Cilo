@@ -30,7 +30,7 @@ export default async function verifyOnboarding(browser, baseURL) {
   };
   try {
     await page.goto(baseURL);
-    const status = await context.request.get(`${baseURL}/api/nivra/status`);
+    const status = await context.request.get(`${baseURL}/api/v1/status`);
     check(
       (await status.json()).setup,
       "Fresh instance offers single-owner onboarding",
@@ -125,8 +125,7 @@ export default async function verifyOnboarding(browser, baseURL) {
     await login(password);
     await button("Verify and sign in").waitFor();
     check(
-      (await context.request.get(`${baseURL}/api/nivra/notes`)).status() ===
-        401,
+      (await context.request.get(`${baseURL}/api/v1/notes`)).status() === 401,
       "Password-only MFA challenge cannot access notes",
     );
     await button("Use a backup code").click();
@@ -145,8 +144,7 @@ export default async function verifyOnboarding(browser, baseURL) {
     await button("Verify and sign in").click();
     await page.locator(".form-error").waitFor();
     check(
-      (await context.request.get(`${baseURL}/api/nivra/notes`)).status() ===
-        401,
+      (await context.request.get(`${baseURL}/api/v1/notes`)).status() === 401,
       "Reused MFA backup code is rejected without a session",
     );
     return { passed, count: passed.length };

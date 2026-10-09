@@ -2,9 +2,7 @@ export default async function verifyInterface(page) {
   const base = new URL(page.url()).origin;
   if (new URL(base).port !== "3004")
     throw new Error("Use the disposable review instance.");
-  const status = await (
-    await page.request.get(`${base}/api/nivra/status`)
-  ).json();
+  const status = await (await page.request.get(`${base}/api/v1/status`)).json();
   if (status.owner?.name !== "Review Owner")
     throw new Error("Review Owner required.");
   const passed = [];
@@ -76,12 +74,9 @@ export default async function verifyInterface(page) {
   for (const width of [1440, 768, 390, 320])
     for (const theme of ["light", "dark"]) {
       const context = `${width}px ${theme}`;
-      const appearance = await page.request.patch(
-        `${base}/api/nivra/settings`,
-        {
-          data: { theme },
-        },
-      );
+      const appearance = await page.request.patch(`${base}/api/v1/settings`, {
+        data: { theme },
+      });
       if (!appearance.ok()) throw new Error("Could not set review theme.");
       await page.setViewportSize({ width, height: 900 });
       await page.goto(base);
@@ -221,7 +216,7 @@ export default async function verifyInterface(page) {
     .filter({ hasText: "Unable to sign out right now." })
     .waitFor();
   const retained = await (
-    await page.request.get(`${base}/api/nivra/status`)
+    await page.request.get(`${base}/api/v1/status`)
   ).json();
   check(
     Boolean(retained.owner),
@@ -231,9 +226,7 @@ export default async function verifyInterface(page) {
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   check(true, "Settings sign-out returns to login");
-  const ended = await (
-    await page.request.get(`${base}/api/nivra/status`)
-  ).json();
+  const ended = await (await page.request.get(`${base}/api/v1/status`)).json();
   check(!ended.owner, "Sign-out invalidates server session");
   return { checks: passed.length, passed };
 }

@@ -77,7 +77,7 @@ function sample() {
 }
 async function measure(endpoint) {
   const before = performance.now();
-  const response = await fetch(base + "/api/nivra" + endpoint, {
+  const response = await fetch(base + "/api/v1" + endpoint, {
     headers,
     signal: AbortSignal.timeout(60000),
   });
@@ -177,7 +177,7 @@ const report = () => {
 };
 try {
   for (const endpoint of endpoints) await measure(endpoint);
-  const sse = await fetch(base + "/api/nivra/events", {
+  const sse = await fetch(base + "/api/v1/completions", {
     headers,
     signal: abort.signal,
   });

@@ -686,7 +686,7 @@ export function ArtifactsPanel({
                           {item.kind !== "text" && (
                             <DropdownMenuItem asChild>
                               <a
-                                href={`/api/nivra/artifacts/${item.id}/file`}
+                                href={`/api/v1/artifacts/${item.id}/file`}
                                 download={item.name}
                               >
                                 <Download size={15} />

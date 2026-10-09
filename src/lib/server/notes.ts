@@ -71,7 +71,7 @@ export function listNotes(
   const bounded = params.has("limit");
   const limit = Math.max(
     1,
-    Math.min(100, Math.trunc(Number(params.get("limit"))) || 30),
+    Math.min(101, Math.trunc(Number(params.get("limit"))) || 30),
   );
   const offset = Math.max(
     0,

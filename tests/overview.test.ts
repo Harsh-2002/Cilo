@@ -8,7 +8,7 @@ import path from "node:path";
 test("overview is private, bounded, date-aware and reflects workspace changes", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-overview-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite, db } = await import("../src/lib/server/db");
   const { bookmarks } = await import("../src/lib/server/schema");
   const { workspaceOverview } = await import("../src/lib/server/overview");
@@ -20,7 +20,7 @@ test("overview is private, bounded, date-aware and reflects workspace changes", 
     authenticated = true,
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method,
         headers: {
           host: "localhost:3000",

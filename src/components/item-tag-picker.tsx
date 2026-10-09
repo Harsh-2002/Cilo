@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Tags } from "lucide-react";
 import type { Tag } from "@/lib/types";
-import { api } from "@/lib/client";
+import { api, apiItems } from "@/lib/client";
 import { sectionCache } from "@/lib/section-cache";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -34,7 +34,7 @@ export function ItemTagPicker({
     setError("");
     try {
       const [all, current] = await Promise.all([
-        api<Tag[]>("tags"),
+        apiItems<Tag>("tags"),
         api<{ revision: number; tags: Tag[] }>(`item-tags/${type}/${id}`),
       ]);
       setTags(all);

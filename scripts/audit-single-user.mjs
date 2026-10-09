@@ -64,7 +64,7 @@ const abort = new AbortController();
 let drain;
 const measure = async (url) => {
   const started = performance.now();
-  const r = await fetch(base + "/api/nivra" + url, {
+  const r = await fetch(base + "/api/v1" + url, {
     headers,
     signal: AbortSignal.timeout(60_000),
   });
@@ -74,7 +74,7 @@ const measure = async (url) => {
 };
 try {
   for (const url of Object.values(endpoints)) await measure(url);
-  const sse = await fetch(base + "/api/nivra/events", {
+  const sse = await fetch(base + "/api/v1/completions", {
     headers,
     signal: abort.signal,
   });

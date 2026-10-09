@@ -89,7 +89,7 @@ test("unified Trash authorizes, isolates, restores and permanently deletes every
   const { storage } = await import("../src/lib/server/storage");
   const { stopJobWorker, enqueueJob, claimJob, commitJob } =
     await import("../src/lib/server/jobs");
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const db = sqlite(),
     owner = randomUUID();
   try {
@@ -183,9 +183,11 @@ test("unified Trash authorizes, isolates, restores and permanently deletes every
     await assert.rejects(storage.read(key));
     for (const method of ["GET", "POST", "DELETE"]) {
       const route =
-        method === "GET" ? "trash" : `trash/bookmark/${ids.bookmark}`;
+        method === "GET"
+          ? "trash"
+          : `trash/bookmark/${ids.bookmark}${method === "POST" ? "/restore" : ""}`;
       const response = await routes.GET(
-        new Request(`http://localhost:3000/api/nivra/${route}`, {
+        new Request(`http://localhost:3000/api/v1/${route}`, {
           method,
           headers: {
             origin: "http://localhost:3000",

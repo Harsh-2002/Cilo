@@ -360,10 +360,13 @@ export function NotePane({
           onRestore={async (id) => {
             if (!(await flush()))
               throw new Error("Save your edits before restoring a version.");
-            const restored = await api<Note>(`notes/${note.id}/history/${id}`, {
-              method: "POST",
-              body: JSON.stringify({ revision: current.current.revision }),
-            });
+            const restored = await api<Note>(
+              `notes/${note.id}/history/${id}/restore`,
+              {
+                method: "POST",
+                body: JSON.stringify({ revision: current.current.revision }),
+              },
+            );
             onSaved(restored);
             onOpen(restored);
             notify.success(

@@ -27,7 +27,7 @@ test("login identifiers accept usernames and email addresses and reject invalid 
 test("email-shaped owner identifiers sign in and identity changes are blocked by both API and SQLite", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-identity-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const authRoutes = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
@@ -51,7 +51,7 @@ test("email-shaped owner identifiers sign in and identity changes are blocked by
   try {
     const created = retain(
       await routes.POST(
-        request("/api/nivra/setup", {
+        request("/api/v1/setup", {
           name: "Email Owner",
           username: "First.Last+Notes@Example.com",
           password,

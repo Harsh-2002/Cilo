@@ -18,6 +18,10 @@ export function authorizeContentPath(
   if (
     ![
       "notes",
+      "journals",
+      "events",
+      "counts",
+      "jobs",
       "tasks",
       "boards",
       "bookmarks",
@@ -48,16 +52,15 @@ export function authorizeContentPath(
   if (path[0] === "calendar" && path[1] === "subscriptions")
     throw new HttpError(403, "Enable device notifications in the app.");
   if (method !== "GET") {
-    if (
-      path[0] === "trash" ||
-      (path[0] === "notes" && path.length === 2 && method === "DELETE")
-    )
+    if (path[0] === "trash")
       throw new HttpError(
         403,
         "Agents cannot restore or permanently delete items. Trash is read-only.",
       );
     const tables: Record<string, string> = {
       notes: "notes",
+      journals: "notes",
+      events: "calendar_events",
       tasks: "tasks",
       bookmarks: "bookmarks",
       artifacts: "artifacts",

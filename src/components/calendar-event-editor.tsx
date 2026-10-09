@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Temporal } from "@js-temporal/polyfill";
-import { api } from "@/lib/client";
+import { api, apiItems } from "@/lib/client";
 import {
   addDays,
   eventInput,
@@ -139,8 +139,8 @@ export function CalendarEventEditor({
     if (!query.trim()) return;
     const abort = new AbortController();
     const timer = setTimeout(() => {
-      void api<SearchResult[]>(
-        `search?purpose=link&q=${encodeURIComponent(query)}`,
+      void apiItems<SearchResult>(
+        `search?mode=suggest&purpose=link&q=${encodeURIComponent(query)}`,
         {
           signal: abort.signal,
         },
@@ -204,7 +204,7 @@ export function CalendarEventEditor({
     }
     setBusy(true);
     try {
-      await api(event ? `calendar/events/${event.id}` : "calendar/events", {
+      await api(event ? `events/${event.id}` : "events", {
         method: event ? "PATCH" : "POST",
         body: JSON.stringify(
           event
@@ -240,7 +240,7 @@ export function CalendarEventEditor({
       return;
     setBusy(true);
     try {
-      await api(`calendar/events/${event.id}`, {
+      await api(`events/${event.id}`, {
         method: "DELETE",
         body: JSON.stringify({ revision, scope, occurrence }),
       });

@@ -1,55 +1,48 @@
 import { z } from "zod";
+import { dateSchema } from "../calendar";
+import { offsetPagination } from "./api-pagination";
+import { apiInputs, apiQueries } from "./api-schemas";
 import {
   calendarRange,
   createEvent,
-  getEvent,
   eventLinks,
-  updateEvent,
+  getEvent,
   trashEvent,
+  updateEvent,
 } from "./calendar";
-import { eventInput, dateSchema, zoneSchema } from "../calendar";
-import { json, response, HttpError } from "./http";
 import {
-  pushKeys,
-  testDeviceReminder,
-  saveSubscription,
-  removeSubscription,
-  reminderList,
   invalidateCalendarReminders,
+  pushKeys,
+  reminderList,
+  removeSubscription,
+  saveSubscription,
+  testDeviceReminder,
 } from "./calendar-reminders";
+import type { ContentCommand, ContentResult } from "./content-service";
 import { sqlite } from "./db";
-const scopeInput = z.object({
-  revision: z.number().int().positive(),
-  scope: z.enum(["series", "occurrence", "following"]).default("series"),
-  occurrence: z.string().max(40).optional(),
+import { HttpError } from "./http";
+const response = (data: unknown, status = 200): ContentResult => ({
+  data,
+  status,
 });
-export async function calendarApi(
-  request: Request,
-  owner: string,
-  session: string | null,
-  path: string[],
-) {
-  const [, area, id] = path,
-    method = request.method,
-    url = new URL(request.url);
+export async function executeCalendar(
+  command: ContentCommand,
+): Promise<ContentResult> {
+  const {
+    ownerId: owner,
+    sessionId: session,
+    method,
+    input: payload,
+  } = command;
+  const [, area, id] = command.path;
+  const query = command.query ?? new URLSearchParams();
   if (area === "range" && method === "GET") {
-    const v = z
-      .object({
-        from: dateSchema,
-        to: dateSchema,
-        timezone: zoneSchema,
-        mode: z.enum(["planning", "activity"]).default("planning"),
-        includeCompleted: z
-          .enum(["1", "0"])
-          .default("1")
-          .transform((v) => v === "1"),
-        preview: z.coerce.number().int().min(0).max(50).default(0),
-        offset: z.coerce.number().int().min(0).max(100000).default(0),
-        limit: z.coerce.number().int().min(1).max(10000).default(500),
-        tag: z.string().uuid().optional(),
-        query: z.string().max(300).optional(),
-      })
-      .parse(Object.fromEntries(url.searchParams));
+    const value = apiQueries.calendar.parse(Object.fromEntries(query));
+    const v = {
+      ...value,
+      offset: offsetPagination(query, "/calendar/range", 10000).offset,
+      includeCompleted: value.includeCompleted === "1",
+    };
     return response(calendarRange(owner, v.from, v.to, v.timezone, v));
   }
   if (area === "events") {
@@ -59,15 +52,12 @@ export async function calendarApi(
         linkedItems: eventLinks(owner, id),
       });
     if (method === "POST" && !id) {
-      const value = createEvent(owner, await json(request));
+      const value = createEvent(owner, payload);
       invalidateCalendarReminders();
       return response(value, 201);
     }
     if (id && method === "PATCH") {
-      const body = z
-        .object({ input: eventInput, ...scopeInput.shape })
-        .strict()
-        .parse(await json(request));
+      const body = apiInputs.eventUpdate.parse(payload);
       const value = updateEvent(
         owner,
         id,
@@ -80,7 +70,7 @@ export async function calendarApi(
       return response(value);
     }
     if (id && method === "DELETE") {
-      const body = scopeInput.strict().parse(await json(request));
+      const body = apiInputs.eventDelete.parse(payload);
       const value = trashEvent(
         owner,
         id,
@@ -112,15 +102,7 @@ export async function calendarApi(
     );
   }
   if (area === "task-reminders" && id && method === "PUT") {
-    const body = z
-      .object({
-        revision: z.number().int().positive(),
-        timezone: zoneSchema,
-        field: z.enum(["planned", "due"]),
-        offsets: z.array(z.number().int().min(0).max(10080)).max(3),
-      })
-      .strict()
-      .parse(await json(request));
+    const body = apiInputs.taskReminders.parse(payload);
     if (
       !sqlite()
         .prepare(
@@ -146,18 +128,17 @@ export async function calendarApi(
     return response({ ok: true });
   }
   if (area === "reminders") {
-    if (method === "GET")
-      return response(
-        reminderList(
-          owner,
-          z.coerce
-            .number()
-            .int()
-            .min(0)
-            .max(100000)
-            .parse(url.searchParams.get("offset") ?? 0),
-        ),
-      );
+    if (method === "GET") {
+      const page = offsetPagination(query, "/calendar/reminders");
+      const reminders = reminderList(owner, page.offset, page.limit);
+      return response({
+        ...reminders,
+        next:
+          reminders.nextOffset === null
+            ? null
+            : page.cursor(reminders.nextOffset),
+      });
+    }
     if (method === "PATCH" && id) {
       sqlite()
         .prepare(
@@ -188,45 +169,19 @@ export async function calendarApi(
     if (id === "test" && method === "POST")
       return response(testDeviceReminder(owner, session));
     if (method === "POST") {
-      const body = z
-        .object({
-          endpoint: z.string().url().max(4096),
-          expirationTime: z
-            .number()
-            .finite()
-            .nonnegative()
-            .nullable()
-            .optional(),
-          keys: z
-            .object({
-              p256dh: z.string().min(80).max(100),
-              auth: z.string().min(20).max(30),
-            })
-            .strict(),
-        })
-        .strict()
-        .parse(await json(request));
+      const body = apiInputs.subscription.parse(payload);
       return response(await saveSubscription(owner, session, body));
     }
     if (method === "DELETE") {
-      const body = z
-        .object({ endpoint: z.string().url().max(4096) })
-        .strict()
-        .parse(await json(request));
+      const body = apiInputs.unsubscribe.parse(payload);
       return response(removeSubscription(owner, body.endpoint));
     }
   }
   if (area === "tasks" && method === "GET") {
-    const mode = z
-        .enum(["unscheduled", "overdue"])
-        .parse(url.searchParams.get("mode")),
-      date = dateSchema.parse(url.searchParams.get("date")),
-      offset = z.coerce
-        .number()
-        .int()
-        .min(0)
-        .max(100000)
-        .parse(url.searchParams.get("offset") ?? 0);
+    const mode = z.enum(["unscheduled", "overdue"]).parse(query.get("mode")),
+      date = dateSchema.parse(query.get("date")),
+      page = offsetPagination(query, "/calendar/tasks"),
+      offset = page.offset;
     const condition =
       "owner_id=? AND trashed_at IS NULL AND completed_at IS NULL AND " +
       (mode === "unscheduled"
@@ -242,13 +197,11 @@ export async function calendarApi(
       .prepare(
         "SELECT id,title,revision,due_date AS dueDate,planned_date AS plannedDate FROM tasks WHERE " +
           condition +
-          " ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?",
+          " ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?",
       )
-      .all(...parameters, offset);
+      .all(...parameters, page.limit + 1, offset);
     return response({
-      items: rows.slice(0, 50),
-      total,
-      nextOffset: rows.length > 50 ? offset + 50 : null,
+      ...page.page(rows, total),
     });
   }
   throw new HttpError(404, "This calendar endpoint was not found.");

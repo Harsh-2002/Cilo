@@ -8,7 +8,7 @@ import { authenticator } from "./fixtures/passkey";
 test("passkey-first setup keeps cancelled and unverified accounts uncreated, preserves the single owner, and supports password, recovery and last-key protection", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-passkey-setup-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const nivra = await import("../src/app/api/nivra/[...path]/route");
+  const nivra = await import("../src/app/api/v1/[...path]/route");
   const authRoutes = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const cookies = new Map<string, string>();
@@ -37,13 +37,13 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     return retain(
       await (body === undefined ? nivra.GET : nivra.POST)(request, {
         params: Promise.resolve({
-          path: route.split("?")[0].replace("/api/nivra/", "").split("/"),
+          path: route.split("?")[0].replace("/api/v1/", "").split("/"),
         }),
       }),
     );
   }
   const begin = async () => {
-    const r = await call("/api/nivra/setup-passkey", {
+    const r = await call("/api/v1/setup-passkey", {
       name: "Passkey Owner",
       username: "Owner+Passkey@example.com",
     });
@@ -58,14 +58,14 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     return r.json();
   };
   try {
-    assert.deepEqual((await (await call("/api/nivra/status")).json()).methods, {
+    assert.deepEqual((await (await call("/api/v1/status")).json()).methods, {
       password: false,
       passkey: false,
     });
     assert.equal(
       (
         await call(
-          "/api/nivra/setup-passkey",
+          "/api/v1/setup-passkey",
           { name: "Owner", username: "owner" },
           true,
         )
@@ -85,7 +85,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     );
     assert.equal(
       (
-        await call("/api/nivra/setup-passkey/cancel", {
+        await call("/api/v1/setup-passkey/cancel", {
           context: cancelled.context,
         })
       ).status,
@@ -115,7 +115,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
         .n,
       0,
     );
-    await call("/api/nivra/setup-passkey/cancel", { context: weak.context });
+    await call("/api/v1/setup-passkey/cancel", { context: weak.context });
     const interrupted = await begin();
     const interruptedOptions = await options(interrupted.context);
     sqlite().exec(
@@ -131,7 +131,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
       500,
     );
     sqlite().exec("DROP TRIGGER fixture_passkey_insert_failure");
-    await call("/api/nivra/setup-passkey/cancel", {
+    await call("/api/v1/setup-passkey/cancel", {
       context: interrupted.context,
     });
     assert.equal(
@@ -154,7 +154,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     assert.equal(created.status, 200);
     const credential = await created.json();
     assert.ok(credential.id);
-    const status = await (await call("/api/nivra/status")).json();
+    const status = await (await call("/api/v1/status")).json();
     assert.equal(status.owner.name, "Passkey Owner");
     assert.equal(status.owner.username, "owner+passkey@example.com");
     assert.deepEqual(status.methods, { password: false, passkey: true });
@@ -181,7 +181,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     );
     assert.equal(
       (
-        await call("/api/nivra/setup", {
+        await call("/api/v1/setup", {
           name: "Second Owner",
           username: "second",
           password: "Fixture-password-only-123",
@@ -211,7 +211,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
         sqlite().prepare("DELETE FROM passkey WHERE id=?").run(credential.id),
       /last passkey/,
     );
-    const rotated = await call("/api/nivra/settings/recovery", {
+    const rotated = await call("/api/v1/settings/recovery", {
       password: "",
     });
     assert.equal(rotated.status, 200);
@@ -221,14 +221,14 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
       .run(Date.now() - 301000);
     assert.equal(
       (
-        await call("/api/nivra/account-password", {
+        await call("/api/v1/account-password", {
           password: "Fixture-password-only-123",
         })
       ).status,
       403,
     );
     assert.equal(
-      (await call("/api/nivra/settings/recovery", { password: "" })).status,
+      (await call("/api/v1/settings/recovery", { password: "" })).status,
       403,
     );
     await call("/api/auth/sign-out", {});
@@ -244,17 +244,17 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
       ).status,
       200,
     );
-    const added = await call("/api/nivra/account-password", {
+    const added = await call("/api/v1/account-password", {
       password: "Fixture-password-only-123",
     });
     assert.equal(added.status, 200);
-    assert.deepEqual((await (await call("/api/nivra/status")).json()).methods, {
+    assert.deepEqual((await (await call("/api/v1/status")).json()).methods, {
       password: true,
       passkey: true,
     });
     assert.equal(
       (
-        await call("/api/nivra/account-password", {
+        await call("/api/v1/account-password", {
           password: "Fixture-password-only-123",
         })
       ).status,
@@ -265,7 +265,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
         .status,
       200,
     );
-    assert.deepEqual((await (await call("/api/nivra/status")).json()).methods, {
+    assert.deepEqual((await (await call("/api/v1/status")).json()).methods, {
       password: true,
       passkey: false,
     });
@@ -277,7 +277,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     cookies.clear();
     assert.equal(
       (
-        await call("/api/nivra/recover", {
+        await call("/api/v1/recover", {
           code: recoveryCode,
           password: "Fixture-recovered-password-123",
         })
@@ -286,7 +286,7 @@ test("passkey-first setup keeps cancelled and unverified accounts uncreated, pre
     );
     assert.equal(
       (
-        await call("/api/nivra/recover", {
+        await call("/api/v1/recover", {
           code: recoveryCode,
           password: "Fixture-recovered-password-123",
         })

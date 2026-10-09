@@ -23,10 +23,10 @@ export function remapDocument(
     if (["url", "href", "preview"].includes(key))
       return value.replace(
         new RegExp(
-          String.raw`^/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?=[?#]|$)`,
+          String.raw`^(?:https?://[^/]+)?/api/${apiNamespacePattern}/files/([a-f0-9-]{36})(?=[?#]|$)`,
         ),
         (url, id: string) =>
-          files.has(id) ? `/api/nivra/files/${files.get(id)}` : url,
+          files.has(id) ? `/api/v1/files/${files.get(id)}` : url,
       );
     return value;
   };

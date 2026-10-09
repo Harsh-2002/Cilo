@@ -19,7 +19,7 @@ import { Input } from "./ui/input";
 import { LoadingState } from "./loading-state";
 import { SectionHeading } from "./section-heading";
 
-type Results = { items: TaggedItem[]; next: number | null };
+type Results = { items: TaggedItem[]; next: string | null };
 export function ItemCollection({
   tag,
   title,
@@ -37,7 +37,7 @@ export function ItemCollection({
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<TaggedItem[] | null>(null);
-  const [next, setNext] = useState<number | null>(null);
+  const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [moreError, setMoreError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
@@ -94,7 +94,7 @@ export function ItemCollection({
     setMoreError("");
     try {
       const result = await api<Results>(
-        `${tag ? `tags/${tag}/items` : "favorites"}?limit=60&offset=${next}&q=${encodeURIComponent(search)}`,
+        `${tag ? `tags/${tag}/items` : "favorites"}?limit=60&after=${encodeURIComponent(next)}&q=${encodeURIComponent(search)}`,
       );
       if (version !== generation.current) return;
       setRows((previous) => [

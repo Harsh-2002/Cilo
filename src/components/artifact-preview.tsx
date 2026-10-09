@@ -8,7 +8,7 @@ export function ArtifactPreview({ item }: { item: Artifact }) {
     <span className="artifact-thumb">
       {item.thumbnail && !failed ? (
         <img
-          src={`/api/nivra/artifacts/${item.id}/thumbnail?v=${item.updatedAt}`}
+          src={`/api/v1/artifacts/${item.id}/thumbnail?v=${item.updatedAt}`}
           alt=""
           loading="lazy"
           decoding="async"

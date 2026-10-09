@@ -364,7 +364,7 @@ async function main() {
       name,
     );
     const uploadStart = performance.now();
-    const result = await fetch(base + "/api/nivra/artifacts", {
+    const result = await fetch(base + "/api/v1/artifacts", {
       method: "POST",
       headers: { Cookie: cookie, Origin: base },
       body: form,

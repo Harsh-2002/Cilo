@@ -18,11 +18,11 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
 });
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Layout Review Owner",
 );
 assert.ok(
-  (await api.patch("/api/nivra/settings", { data: { theme: "system" } })).ok(),
+  (await api.patch("/api/v1/settings", { data: { theme: "system" } })).ok(),
 );
 const seeds = [];
 async function value(response) {
@@ -33,7 +33,7 @@ for (const [kind, route, data] of [
   ["note", "notes", { title: "Audit deleted note" }],
   [
     "journal",
-    "notes/daily",
+    "journals",
     {
       date: new Date(
         Date.UTC(2035, 0, 1) + Math.floor(Math.random() * 3650) * 86400000,
@@ -46,18 +46,18 @@ for (const [kind, route, data] of [
   ["bookmark", "bookmarks", { url: `http://127.0.0.1/audit-${randomUUID()}` }],
   ["artifact", "artifacts", { text: "Audit deleted artifact" }],
 ]) {
-  const item = await value(await api.post(`/api/nivra/${route}`, { data }));
+  const item = await value(await api.post(`/api/v1/${route}`, { data }));
   seeds.push({ kind, id: item.id });
   if (kind === "note" || kind === "journal")
     await value(
-      await api.patch(`/api/nivra/notes/${item.id}`, {
+      await api.patch(`/api/v1/notes/${item.id}`, {
         data: { revision: item.revision, trashed: true },
       }),
     );
   else
     await value(
       await api.delete(
-        `/api/nivra/${kind === "task" ? "tasks" : kind === "bookmark" ? "bookmarks" : "artifacts"}/${item.id}`,
+        `/api/v1/${kind === "task" ? "tasks" : kind === "bookmark" ? "bookmarks" : "artifacts"}/${item.id}`,
         { data: { revision: item.revision } },
       ),
     );
@@ -338,7 +338,7 @@ for (const [engineName, engine] of Object.entries({
       const page = await context.newPage();
       await page.goto(base);
       await nav(page, "Trash", 390);
-      const deleted = await value(await api.get("/api/nivra/trash"));
+      const deleted = await value(await api.get("/api/v1/trash"));
       const artifact = deleted.items.find(
         (i) => i.id === seeds.find((s) => s.kind === "artifact").id,
       );
@@ -349,7 +349,7 @@ for (const [engineName, engine] of Object.entries({
         .getByRole("button", { name: `Restore ${artifact.title}`, exact: true })
         .waitFor({ state: "hidden" });
       assert.equal(
-        (await api.get(`/api/nivra/artifacts/${artifact.id}`)).status(),
+        (await api.get(`/api/v1/artifacts/${artifact.id}`)).status(),
         200,
       );
       await page
@@ -369,7 +369,7 @@ for (const [engineName, engine] of Object.entries({
       await page.getByRole("alertdialog").waitFor();
       await page.getByRole("button", { name: "Cancel", exact: true }).click();
       assert.ok(
-        (await value(await api.get("/api/nivra/trash"))).items.some(
+        (await value(await api.get("/api/v1/trash"))).items.some(
           (i) => i.id === task.id,
         ),
       );

@@ -132,22 +132,21 @@ test("durable reminders deduplicate, cancel completed tasks, reject private prov
     assert.deepEqual(pushKeys(), pushKeys());
     await assert.rejects(validatedPushEndpoint("http://example.com/push"));
     await assert.rejects(validatedPushEndpoint("https://127.0.0.1/push"));
-    const { calendarApi } = await import("../src/lib/server/calendar-api");
+    const { executeCalendar } =
+      await import("../src/lib/server/calendar-service");
     const subscription = {
       endpoint: "https://127.0.0.1/push",
       keys: { p256dh: "a".repeat(87), auth: "b".repeat(22) },
     };
     const register = (body: unknown) =>
-      calendarApi(
-        new Request("https://example.com/api/nivra/calendar/subscriptions", {
-          method: "POST",
-          body: JSON.stringify(body),
-          headers: { "Content-Type": "application/json" },
-        }),
-        owner,
-        "fixture-session",
-        ["calendar", "subscriptions"],
-      );
+      executeCalendar({
+        ownerId: owner,
+        sessionId: "fixture-session",
+        origin: "https://example.com",
+        method: "POST",
+        path: ["calendar", "subscriptions"],
+        input: body,
+      });
     for (const expirationTime of [undefined, null, now + 86400000]) {
       await assert.rejects(register({ ...subscription, expirationTime }), {
         message: "The push endpoint is not public.",

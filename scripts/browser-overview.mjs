@@ -3,7 +3,7 @@ export default async function verifyOverview(page, phase, options = {}) {
   if (new URL(base).port !== "3004")
     throw new Error("Use the disposable review instance on port 3004.");
   const api = async (path, method = "GET", data) => {
-    const response = await page.request.fetch(`${base}/api/nivra/${path}`, {
+    const response = await page.request.fetch(`${base}/api/v1/${path}`, {
       method,
       data,
     });
@@ -191,7 +191,7 @@ export default async function verifyOverview(page, phase, options = {}) {
     check(true, "Unified search works from Overview");
     await page.keyboard.press("Escape");
     await page.getByRole("dialog").waitFor({ state: "hidden" });
-    await page.route("**/api/nivra/overview?*", (route) =>
+    await page.route("**/api/v1/overview?*", (route) =>
       route.fulfill({
         status: 503,
         contentType: "application/json",
@@ -204,7 +204,7 @@ export default async function verifyOverview(page, phase, options = {}) {
       await overview.getByText("Recent notes", { exact: true }).isVisible(),
       "Refresh failure keeps the last snapshot visible",
     );
-    await page.unroute("**/api/nivra/overview?*");
+    await page.unroute("**/api/v1/overview?*");
     await overview
       .getByRole("button", { name: "Try again", exact: true })
       .click();
@@ -230,7 +230,7 @@ export default async function verifyOverview(page, phase, options = {}) {
   } else if (phase === "hidden") {
     let requests = 0;
     const listener = (request) => {
-      if (request.url().includes("/api/nivra/overview?")) requests++;
+      if (request.url().includes("/api/v1/overview?")) requests++;
     };
     page.on("request", listener);
     await page.evaluate(() => {

@@ -331,7 +331,7 @@ const cases: Case[] = [
 test("every kind of file is stored safely, identified from its bytes, and searchable where text exists", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-artifact-types-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { ocrIdle, shutdownOcr } = await import("../src/lib/server/ocr");
   let cookie = "";
@@ -346,7 +346,7 @@ test("every kind of file is stored safely, identified from its bytes, and search
     } = {},
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method: options.method || "GET",
         headers: {
           host: "localhost:3000",

@@ -412,15 +412,15 @@ export async function dispatchReminders(
     }
   }
 }
-export function reminderList(owner: string, offset = 0) {
+export function reminderList(owner: string, offset = 0, limit = 50) {
   const items = sqlite()
     .prepare(
-      "SELECT id,title,scheduled_at AS scheduledAt,state,source_type AS sourceType,source_id AS sourceId,occurrence FROM calendar_reminders WHERE owner_id=? AND scheduled_at<=? AND scheduled_at>? AND dismissed=0 AND state<>'cancelled' ORDER BY scheduled_at DESC LIMIT 51 OFFSET ?",
+      "SELECT id,title,scheduled_at AS scheduledAt,state,source_type AS sourceType,source_id AS sourceId,occurrence FROM calendar_reminders WHERE owner_id=? AND scheduled_at<=? AND scheduled_at>? AND dismissed=0 AND state<>'cancelled' ORDER BY scheduled_at DESC,id DESC LIMIT ? OFFSET ?",
     )
-    .all(owner, Date.now(), Date.now() - 30 * 86400000, offset);
+    .all(owner, Date.now(), Date.now() - 30 * 86400000, limit + 1, offset);
   return {
-    items: items.slice(0, 50),
-    nextOffset: items.length > 50 ? offset + 50 : null,
+    items: items.slice(0, limit),
+    nextOffset: items.length > limit ? offset + limit : null,
   };
 }
 export function startReminderWorker(origin: string) {

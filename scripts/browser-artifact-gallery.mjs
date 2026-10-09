@@ -15,16 +15,15 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
 });
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Layout Review Owner",
 );
-await api.patch("/api/nivra/settings", { data: { theme: "system" } });
-for (const item of (
-  await (await api.get("/api/nivra/artifacts?limit=100")).json()
-).items) {
+await api.patch("/api/v1/settings", { data: { theme: "system" } });
+for (const item of (await (await api.get("/api/v1/artifacts?limit=100")).json())
+  .items) {
   assert.ok(
     (
-      await api.delete(`/api/nivra/artifacts/${item.id}`, {
+      await api.delete(`/api/v1/artifacts/${item.id}`, {
         data: { revision: item.revision },
       })
     ).ok(),
@@ -32,7 +31,7 @@ for (const item of (
 }
 const items = [];
 async function create(options) {
-  const response = await api.post("/api/nivra/artifacts", options);
+  const response = await api.post("/api/v1/artifacts", options);
   assert.ok(response.ok());
   const item = await response.json();
   items.push(item);
@@ -80,13 +79,13 @@ await create({
 const text = await create({
   data: { text: "Memo\nA saved text body that stays out of the card." },
 });
-const renamed = await api.patch(`/api/nivra/artifacts/${text.id}`, {
+const renamed = await api.patch(`/api/v1/artifacts/${text.id}`, {
   data: { revision: text.revision, title: "The memo" },
 });
 assert.ok(renamed.ok());
 const deadline = Date.now() + 90000;
 while (Date.now() < deadline) {
-  const item = await (await api.get(`/api/nivra/artifacts/${file.id}`)).json();
+  const item = await (await api.get(`/api/v1/artifacts/${file.id}`)).json();
   if (item.extraction === "done") {
     assert.ok(item.content.includes(hidden));
     break;
@@ -95,7 +94,7 @@ while (Date.now() < deadline) {
 }
 assert.ok(
   (
-    await (await api.get("/api/nivra/artifacts?q=Hiddenindexword2026")).json()
+    await (await api.get("/api/v1/artifacts?q=Hiddenindexword2026")).json()
   ).items.some((item) => item.id === file.id),
 );
 const axe = readFileSync("node_modules/axe-core/axe.min.js", "utf8");

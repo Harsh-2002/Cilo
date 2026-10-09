@@ -24,7 +24,7 @@ import { codeBlockSpec } from "./code-block";
 import { checklistBlockSpec } from "./checklist-block";
 import { audioBlockSpec, videoBlockSpec } from "./media-blocks";
 import { download } from "@/lib/client";
-import { api } from "@/lib/client";
+import { apiItems } from "@/lib/client";
 import { notify } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media-url";
 import { diagramBlockSpec } from "./diagram-block";
@@ -62,7 +62,7 @@ function CanvasPreview({
       attachmentId?: string;
     }[]) {
       if (file.attachmentId) {
-        const blob = await fetch(`/api/nivra/files/${file.attachmentId}`).then(
+        const blob = await fetch(`/api/v1/files/${file.attachmentId}`).then(
           (r) => r.blob(),
         );
         file.dataURL = await new Promise<string>((resolve) => {
@@ -224,7 +224,7 @@ export default function Editor({
       const form = new FormData();
       form.set("file", file);
       form.set("note", noteId);
-      const result = await fetch("/api/nivra/files", {
+      const result = await fetch("/api/v1/files", {
         method: "POST",
         body: form,
       });
@@ -360,7 +360,7 @@ export default function Editor({
           <SuggestionMenuController
             triggerCharacter="[["
             getItems={async (query) => {
-              const notes = await api<NoteSummary[]>(
+              const notes = await apiItems<NoteSummary>(
                 `notes?limit=20&q=${encodeURIComponent(query)}`,
               ).catch(() => {
                 notify.error(

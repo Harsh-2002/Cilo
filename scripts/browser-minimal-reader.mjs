@@ -2,9 +2,7 @@ export default async function verifyMinimalReader(page) {
   const base = new URL(page.url()).origin;
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
-  const status = await (
-    await page.request.get(`${base}/api/nivra/status`)
-  ).json();
+  const status = await (await page.request.get(`${base}/api/v1/status`)).json();
   if (status.owner?.name !== "Review Owner")
     throw new Error("Disposable Review Owner required.");
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -14,7 +12,7 @@ export default async function verifyMinimalReader(page) {
     passed.push(name);
   };
   const api = async (path, method = "GET", data) => {
-    const response = await page.request.fetch(`${base}/api/nivra/${path}`, {
+    const response = await page.request.fetch(`${base}/api/v1/${path}`, {
       method,
       data,
     });
@@ -135,13 +133,13 @@ export default async function verifyMinimalReader(page) {
           .map((animation) => animation.finished.catch(() => {})),
       ),
     );
-  await page.route("**/api/nivra/search?*", async (route) => {
+  await page.route("**/api/v1/search?*", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 400));
     await route.continue();
   });
   const input = page.getByRole("combobox");
   const searchResponse = page.waitForResponse((response) =>
-    response.url().endsWith("/api/nivra/search?q=quiet"),
+    response.url().endsWith("/api/v1/search?q=quiet"),
   );
   await input.fill("quiet");
   const pending = await page.getByRole("dialog").boundingBox();

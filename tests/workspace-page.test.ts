@@ -37,7 +37,7 @@ test("workspace routes protect private targets and fresh public errors never ini
     assert.deepEqual(await readdir(directory), []);
     const { handleWorkspace } = await import("../src/lib/server/workspace-api");
     const setup = await handleWorkspace(
-      new Request("http://localhost:3000/api/nivra/setup", {
+      new Request("http://localhost:3000/api/v1/setup", {
         method: "POST",
         headers: {
           host: "localhost:3000",

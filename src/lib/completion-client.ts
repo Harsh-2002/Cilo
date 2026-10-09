@@ -28,7 +28,7 @@ export function useCompletionStream(onRevoked: () => void) {
       connected = false;
       lastMessage = Date.now();
       if (document.visibilityState === "hidden") return;
-      stream = new EventSource("/api/nivra/events");
+      stream = new EventSource("/api/v1/completions");
       stream.addEventListener("open", () => {
         connected = true;
       });

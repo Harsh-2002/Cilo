@@ -4,6 +4,12 @@ Nivra has a Next.js application shell, client-only BlockNote/Excalidraw editors,
 
 SQLite is the only database. Drizzle defines the schema and handles model/auth mapping; prepared SQL handles FTS5, transactional updates, and ordered startup migrations. Each connection targets a 32 MiB SQLite page cache to avoid repeatedly decrypting pages during larger searches. This is a cache target, not a process memory limit.
 
+## HTTP contract
+
+`/api/v1` routes are matched against the operation registry in `api-contract.ts`. Its shared Zod request/response schemas generate [OpenAPI](openapi.json); `npm run verify:api` checks generated-contract drift and validates the specification and references. HTTP responses are checked at runtime. Content and calendar services accept structured commands; HTTP and MCP share these services without simulated browser requests. Transfer services preserve lossless bundle behavior. Account and instance operations require the owner session; bearer API keys authorize only scoped content access. `/health` is public readiness, and OAuth stays at `/mcp`.
+
+Migration 0035 updates structured attachment references in stored notes, checkpoints and publication snapshots, preserving written text and files. It advances affected note revisions and invalidates rendered publication caches. Imports also understand retired attachment references while emitting current paths.
+
 ## Data and saves
 
 Notes store a versioned BlockNote JSON document. Plain text derived from the blocks feeds FTS5. Every update includes an expected revision; a mismatch returns HTTP 409. The editor serializes saves and preserves newer local edits while a request is in flight. A failed request keeps edits in memory and warns before page unload. This release does not store offline drafts.
@@ -42,7 +48,7 @@ An ordered migration adds publications and publication files. Publishing checks 
 
 ## Overview
 
-The default Overview reads an authenticated, owner-filtered snapshot from `GET /api/nivra/overview?date=YYYY-MM-DD`. The supplied date is validated and comes from the browser’s local calendar, so due-today and overdue counts follow the owner’s device rather than the server timezone. Drizzle queries inside one SQLite read transaction count all open tasks and return bounded lists of twenty tasks, twenty recently edited active notes, and twenty recent bookmarks. Templates and trashed notes are excluded; document bodies and attachment data are not included.
+The default Overview reads an authenticated, owner-filtered snapshot from `GET /api/v1/overview?date=YYYY-MM-DD`. The supplied date is validated and comes from the browser’s local calendar, so due-today and overdue counts follow the owner’s device rather than the server timezone. Drizzle queries inside one SQLite read transaction count all open tasks and return bounded lists of twenty tasks, twenty recently edited active notes, and twenty recent bookmarks. Templates and trashed notes are excluded; document bodies and attachment data are not included.
 
 The client refreshes on mount, shared completion/resync events, window focus and inline task completion. The shared stream reconciles when disconnected; hidden tabs close the stream and suspend the minute-aligned local clock timer. Unmount aborts outstanding snapshot requests. Task mutations use existing expected-revision checks and recurrence transactions. Overview reuses guarded workspace navigation and existing creation flows; it introduces no database tables, persistent preferences, event stream, or dependencies.
 
@@ -116,7 +122,7 @@ Editor and reader audio/video blocks share a client player with styled play/paus
 
 ## Paged tasks and bookmarks
 
-`GET /api/nivra/tasks` and `GET /api/nivra/bookmarks` return `{ items, next }` pages of at most 100 rows (default 60) in a stable order; `next` is an opaque cursor for the following page, and `null` marks the end. Tasks are ordered newest-created first with an ID tie-breaker, and accept `filter` (`open`, `completed`) and `q`; bookmarks accept `q`, `favorite=1`, `collection`, and `unfiled=1`. `?summary=1` returns task open/completed counts or the bookmark total for the same filters plus the owner's collection names. Cursors are validated and rejected with 400 when malformed. Bundle export and import still read the complete sets directly on the server. The API is private to the signed-in owner; scripts that previously read a bare array must follow `next`.
+`GET /api/v1/tasks` and `GET /api/v1/bookmarks` return `{ items, next }` pages of at most 100 rows (default 60) in a stable order; `next` is an opaque cursor for the following page, and `null` marks the end. Tasks are ordered newest-created first with an ID tie-breaker, and accept `filter` (`open`, `completed`) and `q`; bookmarks accept `q`, `favorite=1`, `collection`, and `unfiled=1`. `?summary=1` returns task open/completed counts or the bookmark total for the same filters plus the owner's collection names. Cursors are validated and rejected with 400 when malformed. Bundle export and import still read the complete sets directly on the server. The API is private to the signed-in owner; scripts that previously read a bare array must follow `next`.
 
 ## Chunked file encryption
 
@@ -136,7 +142,7 @@ The Node server starts two worker slots during instrumentation startup. Thumbnai
 
 Extraction runs in a separate Node worker thread with a 100-second deadline and a 512 MiB JavaScript heap limit. File size, text, PDF page and image pixel bounds remain enforced. This heap limit does not bound all native/ArrayBuffer memory. OCR uses bundled English language data; PDFs use embedded text. No media transcription is provided. The build/dev/test setup generates `generated/processing-worker.cjs`; production tracing includes it and the existing OCR/PDF dependencies.
 
-A single authenticated `GET /api/nivra/events` stream per visible workspace sends small completion events containing an ID, kind, target ID and status. It sends no document, URL or extracted text. The server rechecks the SQLite session every second and closes revoked/expired sessions. Heartbeats run every fifteen seconds; disconnects release timers and listeners, and slow readers are disconnected instead of buffered indefinitely. The latest 1,000 events are retained in encrypted SQLite.
+A single authenticated `GET /api/v1/completions` stream per visible workspace sends small completion events containing an ID, kind, target ID and status. It sends no document, URL or extracted text. The server rechecks the SQLite session every second and closes revoked/expired sessions. Heartbeats run every fifteen seconds; disconnects release timers and listeners, and slow readers are disconnected instead of buffered indefinitely. The latest 1,000 events are retained in encrypted SQLite.
 
 Every connection sends an explicit `resync` invalidation, including reconnections with `Last-Event-ID`; the client fetches current authorized data rather than depending on replay of a potentially truncated event log. Focus also reconciles, hidden tabs close their stream, and a thirty-second fallback reconciles while disconnected or when heartbeats stop arriving. Cards, open artifact viewers, active search results, Overview and backup status subscribe to the same stream. Tasks also reconcile on focus/reconnect when their edit dialog is closed. Section headings have no manual refresh action. Refreshes preserve editor drafts and revision conflict checks. Existing backup creation keeps its own lock/recovery behavior and emits a completion invalidation; it is not an extraction/metadata queue job.
 
@@ -152,7 +158,7 @@ Migration 0014 adds owner-scoped artifacts and FTS5 indexes. SQLite stores title
 
 ## Storage identity
 
-Configuration and application URLs use `NIVRA_*` and `/api/nivra/`. The database filename is `nivra.sqlite`; ordered migrations canonicalize saved attachment routes. Cryptographic signature bytes and derivation inputs remain fixed to preserve encrypted objects. Configuration aliases and earlier product backup identifiers are not accepted.
+Configuration and application URLs use `NIVRA_*` and `/api/v1/`. The database filename is `nivra.sqlite`; ordered migrations canonicalize saved attachment routes. Cryptographic signature bytes and derivation inputs remain fixed to preserve encrypted objects. Configuration aliases and earlier product backup identifiers are not accepted.
 
 ## Calendar
 

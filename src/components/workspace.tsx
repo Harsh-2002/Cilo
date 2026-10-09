@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { api, authRequest } from "@/lib/client";
+import { api, apiItems, authRequest } from "@/lib/client";
 import type {
   Note,
   NoteSummary,
@@ -219,9 +219,11 @@ export function Workspace({
       });
       const [list, allTags] = await Promise.all([
         ["all", "journal"].includes(view) && !tag
-          ? api<NoteSummary[]>(`notes?${params}`)
+          ? apiItems<NoteSummary>(
+              `${view === "journal" ? "journals" : "notes"}?${params}`,
+            )
           : Promise.resolve([]),
-        api<Tag[]>("tags"),
+        apiItems<Tag>("tags"),
       ]);
       if (seq === loadSequence.current) {
         const loaded = list.slice(0, 60);
@@ -249,7 +251,7 @@ export function Workspace({
       void load();
     }, 150);
   });
-  useEffect(() => () => clearTimeout(completionRefresh.current), []);
+  useEffect(() => () => clearTimeout(completionRefresh.current), [load]);
   const loadMore = async () => {
     if (loadingMore || loading || !hasMore || listScope !== `${view}|${tag}`)
       return;
@@ -266,7 +268,9 @@ export function Workspace({
         offset: String(notes.length),
         ...(tag ? { tag } : {}),
       });
-      const list = await api<NoteSummary[]>(`notes?${params}`);
+      const list = await apiItems<NoteSummary>(
+        `${view === "journal" ? "journals" : "notes"}?${params}`,
+      );
       if (seq !== loadSequence.current) return;
       setNotes((previous) => [
         ...previous,
@@ -508,7 +512,7 @@ export function Workspace({
   async function today() {
     if (!(await guard.current())) return false;
     try {
-      const note = await api<Note>("notes/daily", {
+      const note = await api<Note>("journals", {
         method: "POST",
         body: JSON.stringify({ date: localDate() }),
       });
@@ -833,7 +837,7 @@ export function Workspace({
           onWriteJournal={async (date) => {
             if (!(await guard.current())) return;
             adopt(
-              await api<Note>("notes/daily", {
+              await api<Note>("journals", {
                 method: "POST",
                 body: JSON.stringify({ date }),
               }),

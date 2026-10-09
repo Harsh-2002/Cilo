@@ -5,9 +5,7 @@ export default async function verifyCaptureRetrieval(
   const base = new URL(page.url()).origin;
   if (new URL(base).port !== "3004")
     throw new Error("Disposable instance required.");
-  const status = await (
-    await page.request.get(`${base}/api/nivra/status`)
-  ).json();
+  const status = await (await page.request.get(`${base}/api/v1/status`)).json();
   if (status.owner?.name !== "Capture Review Owner")
     throw new Error("Disposable review owner required.");
   const check = (condition, message) => {
@@ -55,7 +53,7 @@ export default async function verifyCaptureRetrieval(
   for (const theme of ["light", "dark"]) {
     check(
       (
-        await page.request.patch(`${base}/api/nivra/settings`, {
+        await page.request.patch(`${base}/api/v1/settings`, {
           data: { theme },
         })
       ).ok(),
@@ -129,7 +127,7 @@ export default async function verifyCaptureRetrieval(
   await ready();
   await openCapture();
   await input().fill("Capture recovery fixture");
-  await page.route("**/api/nivra/notes", (route) =>
+  await page.route("**/api/v1/notes", (route) =>
     route.request().method() === "POST"
       ? route.fulfill({
           status: 503,
@@ -151,7 +149,7 @@ export default async function verifyCaptureRetrieval(
       path: `.impeccable/review/capture-error-${engine}.png`,
       animations: "disabled",
     });
-  await page.unroute("**/api/nivra/notes");
+  await page.unroute("**/api/v1/notes");
   await submit("Save note");
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page
@@ -169,9 +167,7 @@ export default async function verifyCaptureRetrieval(
   );
   await page.getByRole("textbox", { name: "New task", exact: true }).fill("");
   const tasks = await (
-    await page.request.get(
-      `${base}/api/nivra/tasks?q=Captured%20task%20fixture`,
-    )
+    await page.request.get(`${base}/api/v1/tasks?q=Captured%20task%20fixture`)
   ).json();
   check(
     tasks.items.some((task) => task.title === "Captured task fixture"),
@@ -182,7 +178,7 @@ export default async function verifyCaptureRetrieval(
   await input().fill(linkURL);
   await submit("Save link");
   const bookmarks = await (
-    await page.request.get(`${base}/api/nivra/bookmarks`)
+    await page.request.get(`${base}/api/v1/bookmarks`)
   ).json();
   check(
     bookmarks.items.some(
@@ -195,7 +191,7 @@ export default async function verifyCaptureRetrieval(
   await page
     .getByRole("textbox", { name: "Note title", exact: true })
     .waitFor();
-  await page.route("**/api/nivra/notes/*", (route) =>
+  await page.route("**/api/v1/notes/*", (route) =>
     route.request().method() === "PATCH"
       ? route.fulfill({
           status: 503,
@@ -221,7 +217,7 @@ export default async function verifyCaptureRetrieval(
       fixtures.otherId,
     "Capture navigated away from note",
   );
-  await page.unroute("**/api/nivra/notes/*");
+  await page.unroute("**/api/v1/notes/*");
   const retry = page.getByRole("button", { name: "Try again", exact: true });
   if (await retry.isVisible()) await retry.click();
   await page.locator(".save-status.saved").waitFor();
@@ -229,7 +225,7 @@ export default async function verifyCaptureRetrieval(
   await search().waitFor();
   const query = search().getByRole("combobox", { name: "Search everything" });
   const response = page.waitForResponse(
-    (r) => r.url().includes("/api/nivra/search?q=aurora") && r.ok(),
+    (r) => r.url().includes("/api/v1/search?q=aurora") && r.ok(),
   );
   const start = Date.now();
   await query.fill("aurora");
@@ -344,7 +340,7 @@ export default async function verifyCaptureRetrieval(
     const url = new URL(response.url());
     if (
       response.request().method() === "GET" &&
-      /^\/api\/nivra\/(tasks|bookmarks)$/.test(url.pathname)
+      /^\/api\/v1\/(tasks|bookmarks)$/.test(url.pathname)
     )
       listSizes.push(
         (await response.body().catch(() => Buffer.alloc(0))).length,
@@ -498,7 +494,7 @@ export default async function verifyCaptureRetrieval(
   await page.reload();
   const saved = await (
     await page.request.get(
-      `${base}/api/nivra/search?q=Capture%20recovery%20fixture`,
+      `${base}/api/v1/search?q=Capture%20recovery%20fixture`,
     )
   ).json();
   check(

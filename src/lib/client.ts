@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const result = await fetch(`/api/nivra/${path}`, {
+  const result = await fetch(`/api/v1/${path}`, {
     ...init,
     headers: {
       ...(init?.body instanceof FormData
@@ -26,6 +26,21 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     );
   return body;
 }
+export async function apiItems<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T[]> {
+  const page = await api<{ items: T[]; next: string | null }>(path, init);
+  if (path.split("?")[0] === "tags" && page.next) {
+    const url = new URL(path, "https://nivra.invalid");
+    url.searchParams.set("after", page.next);
+    return [
+      ...page.items,
+      ...(await apiItems<T>(url.pathname.slice(1) + url.search, init)),
+    ];
+  }
+  return page.items;
+}
 export function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -39,7 +54,7 @@ export async function downloadRequest(
   name: string,
   init?: RequestInit,
 ) {
-  const result = await fetch(`/api/nivra/${path}`, init);
+  const result = await fetch(`/api/v1/${path}`, init);
   if (!result.ok) {
     const body = await result.json();
     throw new Error(body.error);

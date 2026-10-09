@@ -120,7 +120,7 @@ test("publication media projection preserves originals and scopes relay access t
 });
 
 test("media APIs require a private session or a live publication that references the requested media", async () => {
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { stopJobWorker } = await import("../src/lib/server/jobs");
   const request = (
@@ -129,7 +129,7 @@ test("media APIs require a private session or a live publication that references
     body?: unknown,
     cookie = "",
   ) =>
-    new Request("http://localhost:3000/api/nivra/" + endpoint, {
+    new Request("http://localhost:3000/api/v1/" + endpoint, {
       method,
       headers: {
         origin: "http://localhost:3000",
@@ -223,7 +223,7 @@ test("media APIs require a private session or a live publication that references
     assert.ok(html.includes("text-align:center"));
     assert.ok(!html.includes("__NIVRA_CSP_NONCE__"));
     assert.ok(!/\sstyle=/.test(html));
-    assert.ok(html.includes(`/api/nivra/published/${token}/media?url=`));
+    assert.ok(html.includes(`/api/v1/published/${token}/media?url=`));
     const endpoint = `published/${token}/media`;
     assert.equal(
       (

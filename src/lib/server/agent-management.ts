@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { apiInputs } from "./api-schemas";
 import { auth } from "./auth";
 import { sqlite } from "./db";
 import { json, response, HttpError, requestOrigin } from "./http";
@@ -21,24 +21,7 @@ export async function agentManagement(request: Request, owner: string) {
       connections,
     });
   }
-  const input = z
-    .discriminatedUnion("action", [
-      z.object({
-        action: z.literal("create-key"),
-        name: z.string().trim().min(1).max(80),
-        access: z.enum(["read", "full"]),
-        expiresIn: z.number().int().min(60).max(31536000).optional(),
-      }),
-      z.object({
-        action: z.literal("revoke-key"),
-        id: z.string().min(1).max(200),
-      }),
-      z.object({
-        action: z.literal("revoke-oauth"),
-        clientId: z.string().min(1).max(4096),
-      }),
-    ])
-    .parse(await json(request));
+  const input = apiInputs.agentManagement.parse(await json(request));
   if (input.action === "create-key") {
     const key = await auth(request).api.createApiKey({
       body: {

@@ -11,7 +11,7 @@ test("passkeys verify signatures and user verification, enforce management fresh
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-passkeys-"));
   process.env.NIVRA_DATA_DIR = directory;
   const authRoute = await import("../src/app/api/auth/[...all]/route");
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { stopJobWorker } = await import("../src/lib/server/jobs");
   const cookies = new Map<string, string>();
@@ -43,7 +43,7 @@ test("passkeys verify signatures and user verification, enforce management fresh
     save(await authRoute.POST(request("/api/auth/" + endpoint, body, origin)));
   const nivra = async (endpoint: string, body?: unknown) =>
     save(
-      await routes.GET(request("/api/nivra/" + endpoint, body), {
+      await routes.GET(request("/api/v1/" + endpoint, body), {
         params: Promise.resolve({ path: endpoint.split("/") }),
       }),
     );

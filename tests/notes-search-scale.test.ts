@@ -8,12 +8,12 @@ import path from "node:path";
 test("ranked note search pages 1,000 matches without duplicates or journal leakage", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-note-search-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const { GET } = await import("../src/app/api/nivra/[...path]/route");
+  const { GET } = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { createNote, listNotes } = await import("../src/lib/server/notes");
   try {
     const setup = await GET(
-      new Request("http://localhost:3000/api/nivra/setup", {
+      new Request("http://localhost:3000/api/v1/setup", {
         method: "POST",
         headers: {
           host: "localhost:3000",

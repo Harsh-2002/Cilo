@@ -4,7 +4,7 @@ export default async function verifyConnected(page, phase) {
     throw new Error("Use the disposable review server.");
   page.setDefaultTimeout(10000);
   const api = async (path, method = "GET", data) => {
-    const result = await page.request.fetch(`${base}/api/nivra/${path}`, {
+    const result = await page.request.fetch(`${base}/api/v1/${path}`, {
       method,
       data,
     });
@@ -186,7 +186,7 @@ export default async function verifyConnected(page, phase) {
     await editor.click();
     const suggestions = page.waitForResponse(
       (r) =>
-        r.url().includes("/api/nivra/notes?") &&
+        r.url().includes("/api/v1/notes?") &&
         new URL(r.url()).searchParams.get("q") === target.title &&
         r.ok(),
     );
@@ -422,7 +422,7 @@ export default async function verifyConnected(page, phase) {
     const nextChecked = !(await checkbox.isChecked());
     const saved = page.waitForResponse(
       (r) =>
-        r.url().endsWith("/api/nivra/notes/" + templateId) &&
+        r.url().endsWith("/api/v1/notes/" + templateId) &&
         r.request().method() === "PATCH" &&
         r.ok(),
     );

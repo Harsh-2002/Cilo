@@ -8,7 +8,7 @@ import path from "node:path";
 test("tasks and bookmarks page by stable cursors with server-side filters", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-pagination-"));
   process.env.NIVRA_DATA_DIR = directory;
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const { sqlite } = await import("../src/lib/server/db");
   let cookie = "";
   const call = (
@@ -18,7 +18,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
     authenticated = true,
   ) =>
     routes.GET(
-      new Request(`http://localhost:3000/api/nivra/${route}`, {
+      new Request(`http://localhost:3000/api/v1/${route}`, {
         method,
         headers: {
           host: "localhost:3000",
@@ -35,6 +35,8 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
     assert.ok(response.ok, await response.clone().text());
     return response.json();
   };
+  const fixtureId = (type: "task" | "mark", index: number) =>
+    `${index.toString(16).padStart(8, "0")}-${type === "task" ? "1111" : "2222"}-4111-8111-000000000000`;
   try {
     const setup = await call(
       "setup",
@@ -64,7 +66,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
       for (let i = 0; i < 130; i++) {
         const dated = i % 7 === 0;
         insertTask.run(
-          `task-${String(i).padStart(3, "0")}`,
+          fixtureId("task", i),
           owner.id,
           i === 7 ? "École des tâches" : `Task number ${i}`,
           i % 5 === 0 ? 1000 + i : null,
@@ -74,7 +76,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
           1,
         );
         insertBookmark.run(
-          `mark-${String(i).padStart(3, "0")}`,
+          fixtureId("mark", i),
           owner.id,
           `https://example.invalid/${i}`,
           i === 11 ? "Concurrency handbook" : `Reference ${i}`,
@@ -214,10 +216,7 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
         const favorites = await walk("bookmarks?favorite=1&collection=Reading");
         assert.deepEqual(
           favorites.ids,
-          Array.from(
-            { length: 11 },
-            (_, n) => `mark-${String(120 - n * 12).padStart(3, "0")}`,
-          ),
+          Array.from({ length: 11 }, (_, n) => fixtureId("mark", 120 - n * 12)),
         );
         const found = await value("bookmarks?q=concurency");
         assert.equal(found.items[0].title, "Concurrency handbook");
@@ -264,8 +263,10 @@ test("tasks and bookmarks page by stable cursors with server-side filters", asyn
       },
     );
     await t.test("page size is bounded", async () => {
-      assert.equal((await value("bookmarks?limit=5000")).items.length, 100);
-      assert.equal((await value("tasks?limit=-3")).items.length, 1);
+      assert.equal((await call("bookmarks?limit=5000")).status, 400);
+      assert.equal((await value("bookmarks?limit=100")).items.length, 100);
+      assert.equal((await call("tasks?limit=-3")).status, 400);
+      assert.equal((await value("tasks?limit=1")).items.length, 1);
     });
   } finally {
     sqlite().close();

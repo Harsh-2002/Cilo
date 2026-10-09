@@ -12,10 +12,10 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
 });
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Layout Review Owner",
 );
-const response = await api.post("/api/nivra/notes", {
+const response = await api.post("/api/v1/notes", {
   data: { title: "Route review note" },
 });
 assert.equal(response.status(), 201);
@@ -50,8 +50,8 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
       page.on("request", (request) => {
         if (
           ["fetch", "xhr"].includes(request.resourceType()) &&
-          request.url().includes("/api/nivra/") &&
-          !request.url().includes("/events")
+          request.url().includes("/api/v1/") &&
+          !request.url().includes("/completions")
         )
           pending.add(request);
       });
@@ -166,7 +166,7 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
             .first()
             .click();
           await title.waitFor();
-          await page.route(`**/api/nivra/notes/${note.id}`, (route) =>
+          await page.route(`**/api/v1/notes/${note.id}`, (route) =>
             route.request().method() === "PATCH"
               ? route.fulfill({
                   status: 503,
@@ -180,15 +180,15 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           await page.goBack();
           await page.waitForURL(base + `/notes?note=${note.id}`);
           assert.equal(await title.inputValue(), "Unsaved route draft");
-          await page.unroute(`**/api/nivra/notes/${note.id}`);
+          await page.unroute(`**/api/v1/notes/${note.id}`);
           await page
             .getByRole("button", { name: "Try again", exact: true })
             .click();
           await page.locator(".save-status.saved").waitFor();
           const saved = await (
-            await api.get(`/api/nivra/notes/${note.id}`)
+            await api.get(`/api/v1/notes/${note.id}`)
           ).json();
-          await api.patch(`/api/nivra/notes/${note.id}`, {
+          await api.patch(`/api/v1/notes/${note.id}`, {
             data: {
               revision: saved.revision,
               title: "Route review note",
@@ -223,7 +223,7 @@ const anonymous = await request.newContext({ baseURL: base });
 for (const [, route] of routes) {
   const response = await anonymous.get(route);
   assert.equal(response.status(), 200);
-  assert.equal((await anonymous.get("/api/nivra/notes")).status(), 401);
+  assert.equal((await anonymous.get("/api/v1/notes")).status(), 401);
 }
 await anonymous.dispose();
 await api.dispose();

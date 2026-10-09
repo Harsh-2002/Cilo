@@ -9,9 +9,9 @@ export default async function review(page) {
   };
   const base = new URL(page.url()).origin;
   await page.evaluate(async () => {
-    const status = await (await fetch("/api/nivra/status")).json();
+    const status = await (await fetch("/api/v1/status")).json();
     if (!status.setup) throw new Error("Empty synthetic owner required.");
-    const setup = await fetch("/api/nivra/setup", {
+    const setup = await fetch("/api/v1/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -53,7 +53,7 @@ export default async function review(page) {
         { type: "text/plain" },
       ),
     );
-    const response = await fetch("/api/nivra/artifacts", {
+    const response = await fetch("/api/v1/artifacts", {
       method: "POST",
       body: form,
     });
@@ -131,7 +131,7 @@ export default async function review(page) {
     for (const theme of ["light", "dark"]) await snapshot(width, theme);
   const events = await page.evaluate(async () => {
     const controller = new AbortController();
-    const response = await fetch("/api/nivra/events", {
+    const response = await fetch("/api/v1/completions", {
       signal: controller.signal,
     });
     const reader = response.body.getReader();

@@ -122,10 +122,10 @@ test("jobs fence stale leases, deduplicate, cancel deletion and stream only owne
       undefined,
     );
 
-    const routes = await import("../src/app/api/nivra/[...path]/route");
+    const routes = await import("../src/app/api/v1/[...path]/route");
     const denied = await routes.GET(
-      new Request("http://localhost/api/nivra/events"),
-      { params: Promise.resolve({ path: ["events"] }) },
+      new Request("http://localhost/api/v1/completions"),
+      { params: Promise.resolve({ path: ["completions"] }) },
     );
     assert.equal(denied.status, 401);
     const bookmarks = await import("../src/lib/server/bookmarks");
@@ -224,7 +224,7 @@ test("jobs fence stale leases, deduplicate, cancel deletion and stream only owne
       Date.now(),
       owner,
     );
-    const request = new Request("http://localhost/api/nivra/events", {
+    const request = new Request("http://localhost/api/v1/completions", {
       headers: { "Last-Event-ID": "1" },
     });
     const response = completionStream(request, owner, session);

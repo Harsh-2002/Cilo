@@ -230,7 +230,7 @@ export function CalendarPanel({
     setRefresh((value) => value + 1);
     const id = editor?.event?.id;
     if (!id || dirty.current || (change.target && change.target !== id)) return;
-    void api<CalendarEvent>(`calendar/events/${encodeURIComponent(id)}`)
+    void api<CalendarEvent>(`events/${encodeURIComponent(id)}`)
       .then((event) => {
         if (dirty.current) return;
         setEditor((current) =>
@@ -246,7 +246,7 @@ export function CalendarPanel({
     const id = params.get("event");
     if (!id) return;
     const abort = new AbortController();
-    void api<CalendarEvent>(`calendar/events/${encodeURIComponent(id)}`, {
+    void api<CalendarEvent>(`events/${encodeURIComponent(id)}`, {
       signal: abort.signal,
     })
       .then((event) =>
@@ -276,9 +276,7 @@ export function CalendarPanel({
     setBusy(true);
     setError("");
     try {
-      const event = await api<CalendarEvent>(
-        `calendar/events/${item.sourceId}`,
-      );
+      const event = await api<CalendarEvent>(`events/${item.sourceId}`);
       setEditor({ event, occurrence: item.occurrence });
       const url = new URL(window.location.href);
       url.searchParams.set("event", event.id);

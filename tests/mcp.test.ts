@@ -44,7 +44,7 @@ test("MCP shares content while isolating agent credentials and account administr
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   process.env.NIVRA_PUBLIC_URL = base;
-  const browser = await import("../src/app/api/nivra/[...path]/route");
+  const browser = await import("../src/app/api/v1/[...path]/route");
   const authRoute = await import("../src/app/api/auth/[...all]/route");
   const mcp = await import("../src/app/mcp/route");
   const meta =
@@ -65,12 +65,12 @@ test("MCP shares content while isolating agent credentials and account administr
     if (p.startsWith("/api/auth/")) return authRoute.POST(r);
     if (p.startsWith("/.well-known/")) return meta.GET(r);
     return browser.GET(r, {
-      params: Promise.resolve({ path: p.slice(11).split("/") }),
+      params: Promise.resolve({ path: p.slice("/api/v1/".length).split("/") }),
     });
   };
   let cookie = "";
   const human = async (path: string, body?: unknown) => {
-    const r = await fetch(`${base}/api/nivra/${path}`, {
+    const r = await fetch(`${base}/api/v1/${path}`, {
       method: body ? "POST" : "GET",
       headers: { cookie, origin: base, "content-type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
@@ -140,7 +140,7 @@ test("MCP shares content while isolating agent credentials and account administr
           sqlite().prepare("SELECT 1 FROM apikey WHERE id=?").get(created.id),
           undefined,
         );
-        const oversized = await fetch(`${base}/api/nivra/ai-connections`, {
+        const oversized = await fetch(`${base}/api/v1/ai-connections`, {
           method: "POST",
           headers: { cookie, origin: base, "content-type": "application/json" },
           body: JSON.stringify({
@@ -150,7 +150,7 @@ test("MCP shares content while isolating agent credentials and account administr
           }),
         });
         assert.equal(oversized.status, 400);
-        const anonymous = await fetch(`${base}/api/nivra/ai-connections`, {
+        const anonymous = await fetch(`${base}/api/v1/ai-connections`, {
           method: "POST",
           headers: { origin: base, "content-type": "application/json" },
           body: JSON.stringify({
@@ -168,7 +168,7 @@ test("MCP shares content while isolating agent credentials and account administr
     let fullKey = "",
       readKey = "";
     await t.test(
-      "keys are hashed, scoped, and cannot authenticate private browser APIs",
+      "keys are hashed, scoped, and cannot administer owner settings",
       async () => {
         const full = await human("ai-connections", {
           action: "create-key",
@@ -196,10 +196,10 @@ test("MCP shares content while isolating agent credentials and account administr
           sqlite().prepare("SELECT 1 FROM apikey WHERE key=?").get(fullKey),
           undefined,
         );
-        const privateResponse = await fetch(`${base}/api/nivra/settings`, {
+        const privateResponse = await fetch(`${base}/api/v1/settings`, {
           headers: { authorization: `Bearer ${fullKey}` },
         });
-        assert.equal(privateResponse.status, 401);
+        assert.equal(privateResponse.status, 403);
         const anonymous = await fetch(`${base}/mcp`, { method: "POST" });
         assert.equal(anonymous.status, 401);
         assert.match(
@@ -1115,7 +1115,7 @@ test("MCP shares content while isolating agent credentials and account administr
         };
         const invoke = (path: string, method: string, body: unknown) =>
           handleWorkspace(
-            new Request(`${base}/api/nivra/${path}`, {
+            new Request(`${base}/api/v1/${path}`, {
               method,
               headers: { "content-type": "application/json" },
               body: JSON.stringify(body),
@@ -1188,7 +1188,7 @@ test("MCP shares content while isolating agent credentials and account administr
           ).items.some((item) => item.id === deletedNote.id),
         );
         const restored = await fetch(
-          `${base}/api/nivra/trash/task/${task.id}`,
+          `${base}/api/v1/trash/task/${task.id}/restore`,
           {
             method: "POST",
             headers: {
@@ -1205,7 +1205,7 @@ test("MCP shares content while isolating agent credentials and account administr
           "Human restoration must remain available",
         );
         const purged = await fetch(
-          `${base}/api/nivra/trash/note/${deletedNote.id}`,
+          `${base}/api/v1/trash/note/${deletedNote.id}`,
           {
             method: "DELETE",
             headers: {
@@ -1236,7 +1236,7 @@ test("MCP shares content while isolating agent credentials and account administr
           `${base}/api/auth/oauth2/register`,
         );
         assert.equal(metadata.client_id_metadata_document_supported, true);
-        const removed = await fetch(`${base}/api/nivra/ai-connections`, {
+        const removed = await fetch(`${base}/api/v1/ai-connections`, {
           method: "POST",
           headers: { cookie, origin: base, "content-type": "application/json" },
           body: JSON.stringify({
@@ -1452,6 +1452,14 @@ test("MCP shares content while isolating agent credentials and account administr
           !String(decodeJwt(token.access_token).scope).includes("nivra:write"),
         );
 
+        const directApi = await fetch(`${base}/api/v1/notes`, {
+          headers: { authorization: `Bearer ${token.access_token}` },
+        });
+        assert.equal(
+          directApi.status,
+          401,
+          "MCP OAuth tokens must not authorize the direct content API",
+        );
         const oauth = await connect(token.access_token);
         const oauthBoards = await call<{ items: unknown[] }>(
           oauth,

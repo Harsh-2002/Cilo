@@ -21,7 +21,7 @@ import {
 import { Button } from "./ui/button";
 import { SearchText } from "./search-text";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { api } from "@/lib/client";
+import { apiItems } from "@/lib/client";
 import type { SearchResult } from "@/lib/types";
 import { DialogTitle, DialogDescription } from "./ui/dialog";
 import {
@@ -86,9 +86,12 @@ export function GlobalSearch({
       () => {
         setLoading(true);
         setError("");
-        void api<SearchResult[]>(`search?q=${encodeURIComponent(query)}`, {
-          signal: controller.signal,
-        })
+        void apiItems<SearchResult>(
+          `search?mode=suggest&q=${encodeURIComponent(query)}`,
+          {
+            signal: controller.signal,
+          },
+        )
           .then((items) => {
             if (!controller.signal.aborted) {
               setResults(items);

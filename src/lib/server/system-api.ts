@@ -6,11 +6,10 @@ import {
   DeleteObjectCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
-import { z } from "zod";
+import { apiInputs } from "./api-schemas";
 import { sqlite, dataDir } from "./db";
 import { HttpError, json, response } from "./http";
 import {
-  connectionInput,
   readProfile,
   systemConfiguration,
   writeProfile,
@@ -178,17 +177,6 @@ export async function verifyConnection(
     client.destroy();
   }
 }
-const update = z
-  .object({
-    revision: z.number().int().positive(),
-    storageBackend: z.enum(["local", "s3"]),
-    s3Backups: z.boolean(),
-    uploadMiB: z.number().int().min(1).max(100),
-    backupHours: z.number().int().min(1).max(8760),
-    backupKeep: z.number().int().min(1).max(365),
-    verificationToken: z.string().min(43).max(43).optional(),
-  })
-  .strict();
 export async function systemApi(
   request: Request,
   owner: string,
@@ -198,10 +186,7 @@ export async function systemApi(
     return response(systemStatus());
   if (path.length === 2 && path[1] === "verify" && request.method === "POST") {
     const c = systemConfiguration();
-    const input = z
-      .object({ connection: connectionInput, s3Backups: z.boolean() })
-      .strict()
-      .parse(await json(request));
+    const input = apiInputs.systemVerify.parse(await json(request));
     const previous = c.s3_profile ? readProfile(c.s3_profile) : null;
     const old = previous?.backend === "s3" ? previous : undefined;
     const accessKeyId = input.connection.accessKeyId || old?.accessKeyId;
@@ -260,7 +245,7 @@ export async function systemApi(
   }
   if (path.length !== 1 || request.method !== "PATCH")
     throw new HttpError(404, "System action was not found.");
-  const input = update.parse(await json(request));
+  const input = apiInputs.systemUpdate.parse(await json(request));
   const initial = systemConfiguration();
   if (initial.revision !== input.revision)
     throw new HttpError(409, "System settings changed. Reload before saving.");

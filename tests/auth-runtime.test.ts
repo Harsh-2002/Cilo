@@ -8,7 +8,7 @@ test("reused authentication contexts preserve origin checks and immediate sessio
   const directory = await mkdtemp(path.join(tmpdir(), "nivra-auth-runtime-"));
   process.env.NIVRA_DATA_DIR = directory;
   const { auth } = await import("../src/lib/server/auth");
-  const routes = await import("../src/app/api/nivra/[...path]/route");
+  const routes = await import("../src/app/api/v1/[...path]/route");
   const authRoutes = await import("../src/app/api/auth/[...all]/route");
   const { sqlite } = await import("../src/lib/server/db");
   const { stopJobWorker } = await import("../src/lib/server/jobs");
@@ -25,7 +25,7 @@ test("reused authentication contexts preserve origin checks and immediate sessio
     });
   try {
     const setup = await routes.POST(
-      new Request(origin + "/api/nivra/setup", {
+      new Request(origin + "/api/v1/setup", {
         method: "POST",
         headers: { "content-type": "application/json", origin },
         body: JSON.stringify({

@@ -14,11 +14,11 @@ const api = await request.newContext({
   extraHTTPHeaders: { Origin: base },
 });
 assert.equal(
-  (await (await api.get("/api/nivra/status")).json()).owner?.name,
+  (await (await api.get("/api/v1/status")).json()).owner?.name,
   "Layout Review Owner",
 );
 const artifact = (
-  await (await api.get("/api/nivra/artifacts?limit=100")).json()
+  await (await api.get("/api/v1/artifacts?limit=100")).json()
 ).items.find((item) => item.name === "Field-notes.txt");
 assert.ok(artifact);
 const sections = [
@@ -75,7 +75,7 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           if (
             request.method() !== "GET" ||
             parts[0] !== "api" ||
-            parts[1] !== "nivra"
+            parts[1] !== "v1"
           )
             return null;
           if (parts[2] === "search") return "Search";
@@ -99,7 +99,7 @@ for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
           }
           return sections.find(([, area]) => area === parts[2])?.[0];
         };
-        await page.route("**/api/nivra/**", async (route) => {
+        await page.route("**/api/v1/**", async (route) => {
           const section = key(route.request());
           if (held.has(section)) {
             hits++;

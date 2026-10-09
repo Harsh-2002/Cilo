@@ -282,7 +282,7 @@ export function ArtifactViewer({
                   {/* Saved images use authenticated encrypted storage. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/nivra/artifacts/${item.id}/file`}
+                    src={`/api/v1/artifacts/${item.id}/file`}
                     alt={artifactLabel(item)}
                   />
                 </div>
@@ -291,7 +291,7 @@ export function ArtifactViewer({
                 <MediaPlayer
                   key={item.id}
                   kind={mediaKind}
-                  src={`/api/nivra/artifacts/${item.id}/file`}
+                  src={`/api/v1/artifacts/${item.id}/file`}
                   name={item.name}
                 />
               )}
@@ -414,7 +414,7 @@ export function ArtifactViewer({
             {item.kind !== "text" && (
               <Button variant="outline" asChild>
                 <a
-                  href={`/api/nivra/artifacts/${item.id}/file`}
+                  href={`/api/v1/artifacts/${item.id}/file`}
                   download={item.name}
                 >
                   <Download size={15} />
