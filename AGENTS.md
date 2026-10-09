@@ -22,9 +22,9 @@ Nivra is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its st
 | [CONTRIBUTING.md](CONTRIBUTING.md)                   | Contributor workflow, development upgrade exceptions, HTTP API examples and required checks.                           |
 | [PRODUCT.md](PRODUCT.md)                             | Confirmed product scope, requirements and deferred features; verify implementation in code and tests.                  |
 | [DESIGN.md](DESIGN.md)                               | Interface principles, tokens and responsive behavior.                                                                  |
-| [docs/architecture.md](docs/architecture.md)         | Implementation architecture, persistence, security, storage, recovery commands and shared application services.        |
+| [docs/architecture.md](docs/architecture.md)         | Implementation architecture, persistence, security, storage, Forms/public uploads, recovery and shared services.       |
 | [docs/openapi.json](docs/openapi.json)               | Generated HTTP API contract from the shared operation registry and Zod schemas; never edit manually or serve publicly. |
-| [docs/mcp.md](docs/mcp.md)                           | MCP authentication, permissions, tools and supported client integration.                                               |
+| [docs/mcp.md](docs/mcp.md)                           | MCP authentication, permissions, content/Form tools, file transfers and supported client integration.                  |
 | [docs/testing.md](docs/testing.md)                   | Automated, browser, performance and storage verification procedures and limitations.                                   |
 | [docs/third-party.md](docs/third-party.md)           | Third-party licensing and bundled asset notices.                                                                       |
 | [tests/fixtures/README.md](tests/fixtures/README.md) | Synthetic fixture provenance, supported media coverage and shipping exclusions.                                        |

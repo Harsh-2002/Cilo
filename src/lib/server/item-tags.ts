@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 import { HttpError } from "./http";
+import { completionEvent } from "./jobs";
 import { ftsQuery } from "./validation";
 import type { Tag, TaggedItem } from "../types";
 
@@ -10,6 +11,7 @@ export const taggedTypes = [
   "bookmark",
   "artifact",
   "event",
+  "form",
 ] as const;
 export type TaggedType = (typeof taggedTypes)[number];
 const tables = {
@@ -18,6 +20,7 @@ const tables = {
   bookmark: "bookmarks",
   artifact: "artifacts",
   event: "calendar_events",
+  form: "forms",
 } as const;
 export function itemTags(type: TaggedType, id: string): Tag[] {
   return sqlite()
@@ -63,6 +66,12 @@ export function assignItemTags(
       d.prepare(
         `UPDATE ${tables[type]} SET revision=revision+1,updated_at=? WHERE id=? AND owner_id=?`,
       ).run(Date.now(), id, owner);
+      completionEvent(
+        owner,
+        "content",
+        id,
+        type === "form" ? "forms" : "changed",
+      );
       return itemTagState(owner, type, id);
     })
     .immediate();
@@ -117,14 +126,14 @@ function collectionItems(
   const search = ftsQuery(query);
   if (query.trim() && !search) return { items: [], next: null };
   const values: (string | number)[] = [];
-  const types = tag ? taggedTypes : (["note", "bookmark"] as const);
+  const types = tag ? taggedTypes : (["note", "bookmark", "form"] as const);
   const unions = types.map((type) => {
     const table = tables[type];
     const fts = type === "event" ? "events_fts" : `${table}_fts`;
     const excerpt =
       type === "note"
         ? "substr(i.text,1,180)"
-        : type === "bookmark"
+        : type === "bookmark" || type === "form"
           ? "substr(i.description,1,180)"
           : "''";
     const title =
@@ -134,7 +143,7 @@ function collectionItems(
     if (tag) values.push(tag);
     values.push(owner);
     if (search) values.push(search);
-    return `SELECT '${type}' AS type,i.id,${title} AS title,${excerpt} AS excerpt,i.updated_at AS updatedAt,${type === "note" ? "i.daily_date" : "NULL"} AS dailyDate,${type === "note" || type === "bookmark" ? "i.favorite" : "0"} AS favorite,${type === "task" ? "i.completed_at IS NOT NULL" : "0"} AS completed FROM ${tag ? `${type}_tags it JOIN ${table} i ON i.id=it.${type}_id` : `${table} i`} WHERE ${tag ? "it.tag_id=? AND" : "i.favorite=1 AND"} i.owner_id=? AND i.trashed_at IS NULL ${type === "note" ? "AND i.kind='note'" : ""} ${search ? `AND i.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)` : ""}`;
+    return `SELECT '${type}' AS type,i.id,${title} AS title,${excerpt} AS excerpt,i.updated_at AS updatedAt,${type === "note" ? "i.daily_date" : "NULL"} AS dailyDate,${type === "note" || type === "bookmark" || type === "form" ? "i.favorite" : "0"} AS favorite,${type === "task" ? "i.completed_at IS NOT NULL" : "0"} AS completed FROM ${tag ? `${type}_tags it JOIN ${table} i ON i.id=it.${type}_id` : `${table} i`} WHERE ${tag ? "it.tag_id=? AND" : "i.favorite=1 AND"} i.owner_id=? AND i.trashed_at IS NULL ${type === "note" ? "AND i.kind='note'" : ""} ${search ? `AND i.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ?)` : ""}`;
   });
   const rows = d
     .prepare(

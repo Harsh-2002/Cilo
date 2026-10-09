@@ -25,8 +25,28 @@ export function validatePath(operation: ApiOperation, pathname: string) {
   const template = operation.path.split("/");
   const actual = pathname.split("/");
   for (let index = 0; index < template.length; index++) {
-    if (!["{id}", "{versionId}"].includes(template[index])) continue;
-    if (operation.path.startsWith("/api/v1/backups/"))
+    if (
+      ![
+        "{id}",
+        "{versionId}",
+        "{responseId}",
+        "{fileId}",
+        "{token}",
+        "{format}",
+      ].includes(template[index])
+    )
+      continue;
+    if (template[index] === "{token}")
+      z.string()
+        .regex(
+          operation.path.startsWith("/api/v1/published/")
+            ? /^[a-f0-9]{48}$/
+            : /^[A-Za-z0-9_-]{32}$/,
+        )
+        .parse(actual[index]);
+    else if (template[index] === "{format}")
+      z.enum(["csv", "json"]).parse(actual[index]);
+    else if (operation.path.startsWith("/api/v1/backups/"))
       z.string().min(1).max(300).parse(actual[index]);
     else if (operation.path.startsWith("/api/v1/calendar/reminders/"))
       z.string()

@@ -13,33 +13,42 @@ test("MCP shares content while isolating agent credentials and account administr
   const directory = await mkdtemp(`${tmpdir()}/nivra-mcp-`);
   process.env.NIVRA_DATA_DIR = directory;
 
-  const server = createServer(async (req, res) => {
-    try {
-      const headers = new Headers();
-      for (const [k, v] of Object.entries(req.headers))
-        if (v) headers.set(k, Array.isArray(v) ? v.join(",") : v);
-      const request = new Request(`${base}${req.url}`, {
-        method: req.method,
-        headers,
-        ...(req.method !== "GET" && req.method !== "HEAD"
-          ? {
-              body: Readable.toWeb(
-                req,
-              ) as unknown as ReadableStream<Uint8Array>,
-              duplex: "half" as const,
-            }
-          : {}),
-      });
-      const result = await dispatch(request);
-      res.writeHead(result.status, Object.fromEntries(result.headers));
-      if (result.body)
-        for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>)
-          res.write(chunk);
-      res.end();
-    } catch {
-      res.writeHead(500);
-      res.end();
-    }
+  const server = createServer(
+    { keepAliveTimeout: 60_000, keepAliveTimeoutBuffer: 5_000 },
+    async (req, res) => {
+      try {
+        const headers = new Headers();
+        for (const [k, v] of Object.entries(req.headers))
+          if (v) headers.set(k, Array.isArray(v) ? v.join(",") : v);
+        const request = new Request(`${base}${req.url}`, {
+          method: req.method,
+          headers,
+          ...(req.method !== "GET" && req.method !== "HEAD"
+            ? {
+                body: Readable.toWeb(
+                  req,
+                ) as unknown as ReadableStream<Uint8Array>,
+                duplex: "half" as const,
+              }
+            : {}),
+        });
+        const result = await dispatch(request);
+        res.writeHead(result.status, Object.fromEntries(result.headers));
+        if (result.body)
+          for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>)
+            res.write(chunk);
+        res.end();
+      } catch {
+        res.writeHead(500);
+        res.end();
+      }
+    },
+  );
+  t.after(async () => {
+    server.closeAllConnections();
+    if (server.listening)
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    await rm(directory, { recursive: true, force: true });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -226,6 +235,172 @@ test("MCP shares content while isolating agent credentials and account administr
       assert.equal(writeOnly.status, 400);
       assert.equal((await writeOnly.json()).error, "invalid_scope");
     });
+    await t.test(
+      "Forms tools publish typed definitions, count submissions and enforce scopes",
+      async () => {
+        const question = randomUUID();
+        const definition = {
+          schemaVersion: 1,
+          title: "Agent survey",
+          fields: [
+            { id: question, type: "short_text", label: "Idea", required: true },
+          ],
+        };
+        const form = await call<{ id: string; revision: number }>(
+          client,
+          "create_form",
+          {
+            definition,
+            deadline: { date: "2099-11-01", timezone: "UTC" },
+            idempotencyKey: "form-" + randomUUID(),
+          },
+        );
+        const published = await call<{
+          id: string;
+          revision: number;
+          publicToken: string;
+          publishedVersionId: string;
+          url: string;
+        }>(client, "publish_form", { id: form.id, revision: form.revision });
+        assert.equal(published.url, `${base}/form/${published.publicToken}`);
+        const result = await human(
+          `public/forms/${published.publicToken}/responses`,
+          {
+            versionId: published.publishedVersionId,
+            retryKey: randomUUID(),
+            answers: { [question]: "A helpful idea" },
+          },
+        );
+        const summary = await call<{ total: number }>(
+          client,
+          "get_form_summary",
+          { id: form.id },
+        );
+        assert.equal(summary.total, 1);
+        const page = await call<{
+          total: number;
+          items: { id: string; revision: number }[];
+        }>(client, "list_form_responses", { formId: form.id, limit: 1 });
+        assert.equal(page.total, 1);
+        assert.equal(page.items[0].id, result.id);
+        const detail = await call<{
+          answers: Record<string, string>;
+          revision: number;
+        }>(client, "get_form_response", {
+          formId: form.id,
+          responseId: result.id,
+        });
+        assert.equal(detail.answers[question], "A helpful idea");
+        const calendar = await call<{
+          items: { type: string; sourceId: string; label: string }[];
+        }>(client, "list_calendar", {
+          from: "2099-11-01",
+          to: "2099-11-02",
+          timezone: "UTC",
+        });
+        assert.ok(
+          calendar.items.some(
+            (item) =>
+              item.type === "form" &&
+              item.sourceId === form.id &&
+              item.label === "Closes",
+          ),
+        );
+        assert.equal(
+          (
+            await call<{ total: number }>(client, "list_form_responses", {
+              formId: form.id,
+              date: "2099-11-01",
+              timezone: "UTC",
+            })
+          ).total,
+          0,
+        );
+
+        const filteredExport = await call<{ url: string }>(
+          client,
+          "file_transfer",
+          {
+            target: "form-export",
+            formId: form.id,
+            format: "json",
+            date: "2099-11-01",
+            timezone: "UTC",
+          },
+        );
+        assert.equal(
+          new URL(filteredExport.url).searchParams.get("date"),
+          "2099-11-01",
+        );
+        const emptyExport = await fetch(filteredExport.url, {
+          headers: { authorization: `Bearer ${fullKey}` },
+        });
+        assert.equal(emptyExport.status, 200);
+        assert.deepEqual(await emptyExport.json(), []);
+        const reader = await connect(readKey);
+        assert.ok(
+          (await reader.listTools()).tools.some(
+            (tool) => tool.name === "get_form_summary",
+          ),
+        );
+        assert.ok(
+          !(await reader.listTools()).tools.some(
+            (tool) => tool.name === "create_form",
+          ),
+        );
+        assert.equal(
+          (
+            await call<{ total: number }>(reader, "list_form_responses", {
+              formId: form.id,
+            })
+          ).total,
+          1,
+        );
+        const trashResponse = {
+          formId: form.id,
+          responseId: result.id,
+          revision: detail.revision,
+          idempotencyKey: "response-trash-" + randomUUID(),
+        };
+        await call(client, "trash_form_response", trashResponse);
+        await call(client, "trash_form_response", trashResponse);
+        assert.equal(
+          (
+            await call<{ total: number }>(reader, "get_form_summary", {
+              id: form.id,
+            })
+          ).total,
+          0,
+        );
+        const denied = await client.callTool({
+          name: "review_form_response",
+          arguments: {
+            formId: form.id,
+            responseId: result.id,
+            revision: detail.revision + 1,
+            reviewed: true,
+          },
+        });
+        assert.equal(denied.isError, true);
+        const trashForm = {
+          id: form.id,
+          revision: published.revision,
+          idempotencyKey: "form-trash-" + randomUUID(),
+        };
+        await call(client, "trash_form", trashForm);
+        await call(client, "trash_form", trashForm);
+        const deleted = await call<{ items: { kind: string; id: string }[] }>(
+          reader,
+          "list_trash",
+          { kind: "form" },
+        );
+        assert.ok(deleted.items.some((item) => item.id === form.id));
+        const gone = await fetch(
+          `${base}/api/v1/public/forms/${published.publicToken}`,
+        );
+        assert.equal(gone.status, 404);
+      },
+    );
     await t.test(
       "Kanban tools share tasks, exact counts, ordering and scoped permissions",
       async () => {
@@ -1474,6 +1649,107 @@ test("MCP shares content while isolating agent credentials and account administr
           (await call(oauth, "get_note", { id: note.id })).id,
           note.id,
         );
+        const fileQuestion = randomUUID();
+        const fileForm = await call<{ id: string; revision: number }>(
+          client,
+          "create_form",
+          {
+            definition: {
+              schemaVersion: 1,
+              title: "OAuth attachments",
+              fields: [
+                {
+                  id: fileQuestion,
+                  type: "file",
+                  label: "Document",
+                  fileTypes: ["document"],
+                },
+              ],
+            },
+          },
+        );
+        const filePublication = await call<{
+          publicToken: string;
+          publishedVersionId: string;
+        }>(client, "publish_form", {
+          id: fileForm.id,
+          revision: fileForm.revision,
+        });
+        const fileSession = await human(
+          `public/forms/${filePublication.publicToken}/sessions`,
+          { versionId: filePublication.publishedVersionId },
+        );
+        const bytes = Buffer.from("OAuth form file");
+        const reserved = await human(
+          `public/forms/${filePublication.publicToken}/uploads`,
+          {
+            secret: fileSession.secret,
+            fieldId: fileQuestion,
+            filename: "oauth.txt",
+            size: bytes.length,
+          },
+        );
+        const uploaded = await fetch(
+          `${base}/api/v1/public/forms/${filePublication.publicToken}/uploads/${reserved.id}`,
+          {
+            method: "PUT",
+            headers: {
+              origin: base,
+              "X-Form-Upload": fileSession.secret,
+              "content-type": "application/octet-stream",
+            },
+            body: bytes,
+          },
+        );
+        assert.equal(uploaded.status, 200);
+        const submitted = await human(
+          `public/forms/${filePublication.publicToken}/responses`,
+          {
+            versionId: filePublication.publishedVersionId,
+            retryKey: randomUUID(),
+            uploadSecret: fileSession.secret,
+            answers: { [fileQuestion]: [reserved.id] },
+          },
+        );
+        const oauthResponse = await call<{ files: { url: string }[] }>(
+          oauth,
+          "get_form_response",
+          { formId: fileForm.id, responseId: submitted.id },
+        );
+        assert.equal(
+          oauthResponse.files[0].url,
+          `${base}/mcp/files/form-file/${fileForm.id}/${reserved.id}`,
+        );
+        const transfer = await call<{ url: string }>(oauth, "file_transfer", {
+          target: "form-file",
+          formId: fileForm.id,
+          id: reserved.id,
+        });
+        assert.equal(transfer.url, oauthResponse.files[0].url);
+        assert.equal((await fetch(transfer.url)).status, 401);
+        const downloaded = await fetch(transfer.url, {
+          headers: { authorization: `Bearer ${token.access_token}` },
+        });
+        assert.equal(downloaded.status, 200);
+        assert.equal(await downloaded.text(), bytes.toString());
+        const exportTransfer = await call<{ url: string }>(
+          oauth,
+          "file_transfer",
+          {
+            target: "form-export",
+            formId: fileForm.id,
+            format: "json",
+            reviewed: "new",
+          },
+        );
+        const exported = await fetch(exportTransfer.url, {
+          headers: { authorization: `Bearer ${token.access_token}` },
+        });
+        assert.equal(exported.status, 200);
+        const exportedResponses = await exported.json();
+        assert.equal(exportedResponses.length, 1);
+        assert.equal(exportedResponses[0].id, submitted.id);
+        assert.equal(exportedResponses[0].files[0].id, reserved.id);
         sqlite()
           .prepare("INSERT OR REPLACE INTO agent_rate_limits VALUES(?,?,?)")
           .run(`oauth:${c.client_id}`, Date.now(), 120);

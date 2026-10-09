@@ -26,6 +26,8 @@ const names: Record<TrashKind, string> = {
   bookmark: "Bookmark",
   artifact: "Artifact",
   event: "Event",
+  form: "Form",
+  form_response: "Form submission",
 };
 export function TrashPanel({ onNavigation }: { onNavigation: () => void }) {
   const [items, setItems] = useState<TrashItem[] | null>(null);

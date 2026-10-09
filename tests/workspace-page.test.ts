@@ -111,11 +111,38 @@ test("workspace routes protect private targets and fresh public errors never ini
       "/calendar",
       "/bookmarks",
       "/artifacts",
+      "/forms",
       "/trash",
       "/search",
       "/settings",
     ])
       assert.equal(await workspacePageState(request(route)), "ready", route);
+    const { createForm, changeFormStatus } =
+      await import("../src/lib/server/forms");
+    const form = createForm(owner, {});
+    assert.equal(
+      await workspacePageState(request(`/forms/${form.id}/build`)),
+      "ready",
+    );
+    assert.equal(
+      await workspacePageState(request(`/forms/${form.id}/share`, false)),
+      "login",
+    );
+    assert.equal(
+      await workspacePageState(request(`/forms/${randomUUID()}/build`)),
+      "missing",
+    );
+    assert.equal(
+      await workspacePageState(
+        request(`/forms/${form.id}/responses/${randomUUID()}`),
+      ),
+      "missing",
+    );
+    changeFormStatus(owner, form.id, form.revision, "trash");
+    assert.equal(
+      await workspacePageState(request(`/forms/${form.id}/build`)),
+      "missing",
+    );
     assert.equal(
       await workspacePageState(request("/tasks"), { board: board.id }),
       "ready",

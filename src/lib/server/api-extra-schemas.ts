@@ -95,6 +95,7 @@ export const extraOutputs = {
             "note",
             "bookmark",
             "artifact",
+            "form",
           ]),
           title: z.string(),
           date: z.string(),

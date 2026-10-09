@@ -2,13 +2,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
 import { api } from "@/lib/client";
 import type { Owner, Settings } from "@/lib/types";
 import { LaunchScreen } from "./launch-screen";
 import { AuthScreen, Mark } from "./auth-screen";
-import { Workspace } from "./workspace";
 import { Button } from "./ui/button";
 import type { WorkspaceView } from "@/lib/workspace-routes";
+const Workspace = dynamic(
+  () => import("./workspace").then((module) => module.Workspace),
+  {
+    ssr: false,
+    loading: () => <LaunchScreen />,
+  },
+);
 export function Nivra({
   initialView = "overview",
 }: {

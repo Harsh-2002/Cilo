@@ -133,6 +133,7 @@ const result = (data: unknown, status = 200): ContentResult => ({
   status,
 });
 export const contentAreas = new Set([
+  "forms",
   "overview",
   "search",
   "trash",
@@ -191,8 +192,12 @@ async function executeContentOperation(
     authorizeContentPath(command.principal, command.path, command.method);
   const response = await retryable(
     `http:${command.principal?.connectionId ?? "owner:" + command.ownerId}`,
-    command.method === "POST" ? command.idempotencyKey : undefined,
+    command.method === "POST" ||
+      (command.path[0] === "forms" && command.method !== "GET")
+      ? command.idempotencyKey
+      : undefined,
     {
+      method: command.method,
       path: command.path,
       query: command.query?.toString(),
       input: command.input,
@@ -265,6 +270,8 @@ async function executeContentInternal(
   validateQuery(operation, query);
   validateBody(operation, payload);
   const database = sqlite();
+  if (area === "forms")
+    return (await import("./form-service")).executeForms(command);
   if (["export", "import"].includes(area)) return executeTransfer(command);
   if (area === "journals") {
     if (method === "POST" && !id) {
@@ -354,6 +361,8 @@ async function executeContentInternal(
       "bookmark",
       "artifact",
       "event",
+      "form",
+      "form_response",
     ]);
     if (method === "GET" && !id) {
       const kind = query.get("kind");

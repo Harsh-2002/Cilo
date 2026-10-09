@@ -10,6 +10,7 @@ import {
   SquareCheckBig,
   Bookmark,
   Layers,
+  FileQuestion,
 } from "lucide-react";
 import type { TaggedItem } from "@/lib/types";
 import { api } from "@/lib/client";
@@ -127,7 +128,7 @@ export function ItemCollection({
             description={
               tag
                 ? "Items organized with this tag."
-                : "Your favorite notes, journal entries and saved links."
+                : "Your favorite items, together in one place."
             }
             onNavigation={onNavigation}
           />
@@ -172,7 +173,7 @@ export function ItemCollection({
                   ? "Try another search within this collection."
                   : tag
                     ? "Apply this tag to an item to organize it here."
-                    : "Mark a note, journal entry or bookmark as a favorite to find it here."}
+                    : "Mark an item as a favorite to find it here."}
               </p>
             </div>
           ) : (
@@ -190,7 +191,9 @@ export function ItemCollection({
                       ? SquareCheckBig
                       : item.type === "bookmark"
                         ? Bookmark
-                        : Layers;
+                        : item.type === "form"
+                          ? FileQuestion
+                          : Layers;
                 const label =
                   item.type === "note"
                     ? item.dailyDate
@@ -202,7 +205,9 @@ export function ItemCollection({
                         ? "Bookmark"
                         : item.type === "event"
                           ? "Event"
-                          : "Artifact";
+                          : item.type === "form"
+                            ? "Form"
+                            : "Artifact";
                 return (
                   <li key={`${item.type}:${item.id}`}>
                     <button

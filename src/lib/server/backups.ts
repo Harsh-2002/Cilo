@@ -118,6 +118,11 @@ export function referencedFiles(database: Database.Database): string[] {
       "SELECT 1 FROM sqlite_master WHERE type='table' AND name='artifacts'",
     )
     .get();
+  const hasForms = !!database
+    .prepare(
+      "SELECT 1 FROM sqlite_master WHERE type='table' AND name='form_files'",
+    )
+    .get();
   return (
     database
       .prepare(
@@ -127,7 +132,7 @@ export function referencedFiles(database: Database.Database): string[] {
       hasArtifacts
         ? " UNION SELECT storage_key FROM artifacts WHERE storage_key IS NOT NULL UNION SELECT thumb_key FROM artifacts WHERE thumb_key IS NOT NULL"
         : ""
-    }`,
+    }${hasForms ? " UNION SELECT storage_key FROM form_files WHERE state IN ('ready','attached') UNION SELECT thumb_key FROM form_files WHERE thumb_key IS NOT NULL AND state IN ('ready','attached')" : ""}`,
       )
       .all() as { key: string }[]
   ).map((r) => {
@@ -521,6 +526,8 @@ export async function restoreBackup(
         "tasks_fts",
         "artifacts_fts",
         "events_fts",
+        "forms_fts",
+        "form_responses_fts",
       ]) {
         if (
           database

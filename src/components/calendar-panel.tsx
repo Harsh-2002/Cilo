@@ -324,7 +324,9 @@ export function CalendarPanel({
       onClick={() => void open(item)}
       disabled={busy}
     >
-      <span className="schedule-entry-time">
+      <span
+        className={`schedule-entry-time ${item.id.startsWith("form-responses:") ? "schedule-entry-count" : ""}`}
+      >
         {item.startAt && item.label === "Event"
           ? new Date(item.startAt).toLocaleTimeString(undefined, {
               hour: "2-digit",
@@ -337,7 +339,11 @@ export function CalendarPanel({
       <span>
         <strong>{item.title}</strong>
         <small>
-          {item.type === "event" ? "Event" : item.label}
+          {item.type === "event"
+            ? "Event"
+            : item.id.startsWith("form-responses:")
+              ? "Form"
+              : item.label}
           {item.completed ? " · Completed" : ""}
         </small>
       </span>

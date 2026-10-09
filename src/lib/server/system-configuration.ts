@@ -203,9 +203,11 @@ export function systemConfiguration(): SystemConfiguration {
       UNION SELECT thumbnail_key,? FROM bookmarks WHERE thumbnail_key IS NOT NULL
       UNION SELECT icon_key,? FROM bookmarks WHERE icon_key IS NOT NULL
       UNION SELECT storage_key,? FROM artifacts WHERE storage_key IS NOT NULL
-      UNION SELECT thumb_key,? FROM artifacts WHERE thumb_key IS NOT NULL`,
+      UNION SELECT thumb_key,? FROM artifacts WHERE thumb_key IS NOT NULL
+      UNION SELECT storage_key,? FROM form_files WHERE state IN ('ready','attached')
+      UNION SELECT thumb_key,? FROM form_files WHERE thumb_key IS NOT NULL AND state IN ('ready','attached')`,
         )
-        .run(...Array(6).fill(config.media_profile));
+        .run(...Array(8).fill(config.media_profile));
       return config;
     })
     .immediate();

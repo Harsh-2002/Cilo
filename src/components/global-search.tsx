@@ -17,6 +17,7 @@ import {
   Layers,
   ListTodo,
   SlidersHorizontal,
+  FileQuestion,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { SearchText } from "./search-text";
@@ -218,7 +219,9 @@ export function GlobalSearch({
                           : Layers
                         : result.type === "event"
                           ? CalendarDays
-                          : Bookmark;
+                          : result.type === "form"
+                            ? FileQuestion
+                            : Bookmark;
                 return (
                   <CommandItem
                     disabled={busy || loading}
@@ -235,7 +238,9 @@ export function GlobalSearch({
                             ? 'input[aria-label="Search tasks"]'
                             : result.type === "artifact"
                               ? 'input[aria-label="Search artifacts"]'
-                              : 'input[aria-label="Search bookmarks"]',
+                              : result.type === "form"
+                                ? 'input[placeholder="Untitled form"]'
+                                : 'input[aria-label="Search bookmarks"]',
                       )
                     }
                   >
@@ -266,7 +271,9 @@ export function GlobalSearch({
                             ? "Artifact"
                             : result.type === "event"
                               ? "Event"
-                              : "Bookmark"}
+                              : result.type === "form"
+                                ? "Form"
+                                : "Bookmark"}
                       {result.completed ? " · done" : ""}
                     </span>
                   </CommandItem>
@@ -335,6 +342,12 @@ export function GlobalSearch({
               <dt>Artifacts</dt>
               <dd>
                 <code>type:artifact</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Forms</dt>
+              <dd>
+                <code>type:form</code>
               </dd>
             </div>
             <div>

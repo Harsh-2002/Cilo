@@ -81,6 +81,7 @@ test("bounded unified search preserves order, matched context, tags and owner is
         bookmark: "bookmarks",
         artifact: "artifacts",
         event: "calendar_events",
+        form: "forms",
       }[result.type];
       const stored = d
         .prepare(`SELECT title FROM ${table} WHERE id=?`)

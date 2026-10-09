@@ -20,6 +20,8 @@ async function initializeWorkers() {
   await preparePublicationPages();
   const { startBackupScheduler } = await import("./backups");
   startBackupScheduler();
+  const { startFormUploadCleanup } = await import("./form-uploads");
+  await startFormUploadCleanup();
   const { resumeThumbnails } = await import("./artifact-thumbnails");
   resumeThumbnails();
   const { startJobWorker } = await import("./jobs");

@@ -216,7 +216,16 @@ export const apiQueries = {
     .omit({ offset: true })
     .extend({
       kind: z
-        .enum(["note", "journal", "task", "bookmark", "artifact", "event"])
+        .enum([
+          "note",
+          "journal",
+          "task",
+          "bookmark",
+          "artifact",
+          "event",
+          "form",
+          "form_response",
+        ])
         .optional(),
     })
     .strict(),
@@ -350,6 +359,7 @@ export const apiOutputs = {
         "bookmark",
         "artifact",
         "event",
+        "form",
       ]),
     })
     .passthrough(),
@@ -364,6 +374,8 @@ export const apiOutputs = {
         "bookmark",
         "artifact",
         "event",
+        "form",
+        "form_response",
       ]),
       excerpt: z.string(),
       revision: z.number().int().positive(),

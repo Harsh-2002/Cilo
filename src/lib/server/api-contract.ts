@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formApiOperations } from "./form-api-schemas";
 import { extraOutputs } from "./api-extra-schemas";
 import {
   apiInputs,
@@ -24,10 +25,11 @@ export type ApiOperation = {
   binaryInput?: string;
   multipart?: boolean;
   optionalBody?: boolean;
+  headers?: { name: string; schema: z.ZodType; required: boolean }[];
 };
 const object = z.record(z.string(), z.unknown());
 const empty = z.object({}).strict();
-export const apiOperations: ApiOperation[] = [];
+export const apiOperations: ApiOperation[] = [...formApiOperations];
 function add(
   path: string,
   method: string,
@@ -790,11 +792,27 @@ export function openApiDocument() {
           ? { type: "string", minLength: 1, maxLength: 300 }
           : path.startsWith("/api/v1/calendar/reminders/")
             ? { type: "string", pattern: "^[a-f0-9]{64}$" }
-            : match[1] === "id" || match[1] === "versionId"
+            : ["id", "versionId", "responseId", "fileId"].includes(match[1])
               ? schema(idSchema)
-              : { type: "string" },
+              : match[1] === "token"
+                ? {
+                    type: "string",
+                    pattern: path.startsWith("/api/v1/published/")
+                      ? "^[a-f0-9]{48}$"
+                      : "^[A-Za-z0-9_-]{32}$",
+                  }
+                : match[1] === "format"
+                  ? { type: "string", enum: ["csv", "json"] }
+                  : { type: "string" },
       }),
     );
+    for (const header of operation.headers ?? [])
+      parameters.push({
+        name: header.name,
+        in: "header",
+        required: header.required,
+        schema: schema(header.schema, "input"),
+      });
     if (query) {
       const value = rawSchema(query, "input") as {
         properties?: Record<string, unknown>;
@@ -809,7 +827,9 @@ export function openApiDocument() {
         });
     }
     if (
-      method === "POST" &&
+      (method === "POST" ||
+        (path.startsWith("/api/v1/forms/") &&
+          ["PATCH", "DELETE"].includes(method))) &&
       access === "content" &&
       !operation.binary &&
       !operation.binaryInput

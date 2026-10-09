@@ -27,6 +27,7 @@ import {
   Layers,
   Trash,
   Zap,
+  FileQuestion,
 } from "lucide-react";
 import { notify } from "@/lib/feedback";
 import { Mark } from "./auth-screen";
@@ -74,6 +75,7 @@ import { TrashPanel } from "./trash-panel";
 import { CalendarPanel } from "./calendar-panel";
 import { TasksWorkspace } from "./tasks-workspace";
 import { ArtifactsPanel } from "./artifacts-panel";
+import { FormWorkspace } from "./form-workspace";
 import { useCompletion, useCompletionStream } from "@/lib/completion-client";
 import { sectionCache } from "@/lib/section-cache";
 import { matches, shortcuts } from "@/lib/shortcuts";
@@ -382,6 +384,7 @@ export function Workspace({
       window.history.pushState(null, "", url);
     else window.history.replaceState(null, "", url);
     acceptedUrl.current = url.href;
+    if (next === "forms") window.dispatchEvent(new Event("nivra:forms-route"));
     return true;
   };
   const navigateNote = useCallback(
@@ -439,6 +442,7 @@ export function Workspace({
   useEffect(() => {
     const url = cleanWorkspaceUrl(new URL(window.location.href));
     if (workspaceSurface(url.pathname)) return;
+    if (view === "forms") return;
     url.pathname = workspacePath(view);
     if (active) url.searchParams.set("note", active.id);
     else url.searchParams.delete("note");
@@ -474,6 +478,13 @@ export function Workspace({
         }
         acceptedUrl.current = target.href;
         if (
+          workspaceView(target.pathname) === "forms" &&
+          workspaceView(new URL(previous).pathname) === "forms"
+        ) {
+          window.dispatchEvent(new Event("nivra:forms-route"));
+          return;
+        }
+        if (
           workspaceView(target.pathname) === "tasks" &&
           workspaceView(new URL(previous).pathname) === "tasks"
         ) {
@@ -482,6 +493,8 @@ export function Workspace({
         }
         notify.dismiss();
         setViewState(workspaceView(target.pathname) ?? "overview");
+        if (workspaceView(target.pathname) === "forms")
+          window.dispatchEvent(new Event("nivra:forms-route"));
         if (workspaceView(target.pathname) === "calendar")
           setGeneration((n) => n + 1);
         setTag(target.searchParams.get("tag") || "");
@@ -525,6 +538,14 @@ export function Workspace({
     }
   }
   async function selectResult(result: SearchResult) {
+    if (result.type === "form") {
+      if (!(await filter("forms"))) return false;
+      const url = new URL(`/forms/${result.id}/build`, window.location.href);
+      window.history.replaceState(null, "", url);
+      acceptedUrl.current = url.href;
+      window.dispatchEvent(new Event("nivra:forms-route"));
+      return true;
+    }
     if (result.type === "note")
       return navigateNote(result.id, result.matchTerms);
     if (result.type === "event") {
@@ -666,6 +687,7 @@ export function Workspace({
             { id: "calendar", label: "Calendar", Icon: CalendarDays },
             { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
             { id: "artifacts", label: "Artifacts", Icon: Layers },
+            { id: "forms", label: "Forms", Icon: FileQuestion },
             { id: "trash", label: "Trash", Icon: Trash },
           ].map(({ id, label, Icon }) => (
             <button
@@ -847,6 +869,26 @@ export function Workspace({
             window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
           }
           onOpenItem={(item) => {
+            if (item.type === "form") {
+              void filter("forms").then((changed) => {
+                if (!changed) return;
+                const url = new URL(
+                  `/forms/${item.sourceId}/${item.label === "Closes" ? "share" : "responses"}`,
+                  window.location.href,
+                );
+                if (item.id.startsWith("form-responses:")) {
+                  url.searchParams.set("date", item.date);
+                  url.searchParams.set(
+                    "timezone",
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  );
+                }
+                window.history.replaceState(null, "", url);
+                acceptedUrl.current = url.href;
+                window.dispatchEvent(new Event("nivra:forms-route"));
+              });
+              return;
+            }
             if (item.type === "note" || item.type === "journal")
               void navigateNote(
                 item.sourceId,
@@ -871,6 +913,13 @@ export function Workspace({
                 }
               });
           }}
+        />
+      ) : view === "forms" ? (
+        <FormWorkspace
+          registerGuard={registerGuard}
+          onNavigation={() =>
+            window.innerWidth < 1024 ? setDrawer(true) : setSidebar(true)
+          }
         />
       ) : view === "tasks" ? (
         <TasksWorkspace

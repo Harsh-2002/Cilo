@@ -98,6 +98,7 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
       bookmarks: 1,
       artifacts: 1,
       events: 0,
+      forms: 0,
     });
     assert.equal(active.total, 70);
     assert.deepEqual(active.taskStatus, { open: 1, completed: 1 });
@@ -148,6 +149,7 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
         bookmarks: 0,
         artifacts: 0,
         events: 0,
+        forms: 0,
       },
     );
     assert.equal(
@@ -164,6 +166,7 @@ test("agent counts are exact beyond page size, separate journals, filter tags/fa
         bookmarks: 0,
         artifacts: 1,
         events: 0,
+        forms: 0,
       },
     );
     assert.equal(

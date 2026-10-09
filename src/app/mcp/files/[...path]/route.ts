@@ -15,6 +15,18 @@ async function handle(
     let route: string;
     const method = request.method;
     if (
+      path.length === 3 &&
+      method === "GET" &&
+      z.string().uuid().safeParse(id).success &&
+      (target === "form-file"
+        ? z.string().uuid().safeParse(path[2]).success
+        : target === "form-export" && ["csv", "json"].includes(path[2]))
+    )
+      route =
+        target === "form-file"
+          ? `forms/${id}/files/${path[2]}`
+          : `forms/${id}/export/${path[2]}`;
+    else if (
       path.length === 2 &&
       method === "GET" &&
       z.string().uuid().safeParse(id).success &&

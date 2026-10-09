@@ -14,7 +14,7 @@ export function parseSearch(input: string) {
         const value = quoted || plain;
         if (
           key.toLowerCase() === "type" &&
-          /^(notes?|journals?|tasks?|bookmarks?|artifacts?|events?)$/i.test(
+          /^(notes?|journals?|tasks?|bookmarks?|artifacts?|events?|forms?)$/i.test(
             value,
           )
         ) {
@@ -51,8 +51,9 @@ export function searchWorkspace(
     "bookmark",
     "artifact",
     "event",
+    "form",
   ] as const) {
-    if (purpose === "link" && area === "event") continue;
+    if (purpose === "link" && (area === "event" || area === "form")) continue;
     if (type && type !== area && !(type === "journal" && area === "note"))
       continue;
     const table =
@@ -64,7 +65,9 @@ export function searchWorkspace(
             ? "bookmarks"
             : area === "event"
               ? "calendar_events"
-              : "artifacts";
+              : area === "form"
+                ? "forms"
+                : "artifacts";
     const fts = area === "event" ? "events_fts" : `${table}_fts`;
     const conditions = ["owner_id=?", "trashed_at IS NULL"];
     const params: (string | number)[] = [owner];
@@ -188,7 +191,7 @@ export function searchWorkspace(
       );
     };
     collect(query);
-    if (purpose === "workspace" && query && area !== "event")
+    if (purpose === "workspace" && query && area !== "event" && area !== "form")
       fallbacks.push(() => {
         const fuzzy = fuzzyQuery(
           text,

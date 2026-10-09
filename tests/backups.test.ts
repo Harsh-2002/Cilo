@@ -18,6 +18,7 @@ import { promisify } from "node:util";
 test("encrypted full-instance backups preserve accounts, search, tasks, bookmarks, shares and files", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "nivra-backup-test-"));
   process.env.NIVRA_DATA_DIR = directory;
+  process.env.NIVRA_PUBLIC_URL = "http://localhost:3000";
   process.env.NIVRA_BACKUP_KEEP = "2";
   const { sqlite } = await import("../src/lib/server/db");
   const { masterKey, deriveKey, unseal, seal } =
@@ -153,6 +154,64 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
       1,
     );
   const originalSecret = authSecret();
+  const forms = await import("../src/lib/server/forms");
+  const uploads = await import("../src/lib/server/form-uploads");
+  const question = randomUUID(),
+    formFileField = randomUUID();
+  const draftForm = forms.createForm(owner, {
+    definition: {
+      schemaVersion: 1,
+      title: "Recovery survey",
+      fields: [
+        { id: question, type: "short_text", label: "Feedback" },
+        {
+          id: formFileField,
+          type: "file",
+          label: "Document",
+          fileTypes: ["document"],
+        },
+      ],
+    },
+  });
+  const publishedForm = forms.publishForm(
+    owner,
+    draftForm.id,
+    draftForm.revision,
+  );
+  const uploadSession = uploads.createFormUploadSession(
+    publishedForm.publicToken!,
+    publishedForm.publishedVersionId!,
+  );
+  const formBytes = new TextEncoder().encode("Form recovery file");
+  const reservation = uploads.reserveFormUpload(
+    publishedForm.publicToken!,
+    uploadSession.secret,
+    {
+      fieldId: formFileField,
+      filename: "response.txt",
+      size: formBytes.length,
+    },
+  );
+  await uploads.writeFormUpload(
+    publishedForm.publicToken!,
+    uploadSession.secret,
+    reservation.id,
+    formBytes,
+  );
+  const formResponse = forms.submitForm(publishedForm.publicToken!, {
+    versionId: publishedForm.publishedVersionId,
+    uploadSecret: uploadSession.secret,
+    retryKey: randomUUID(),
+    answers: {
+      [question]: "Recovery sentinel",
+      [formFileField]: [reservation.id],
+    },
+  });
+  const formFileKey = (
+    database
+      .prepare("SELECT storage_key FROM form_files WHERE id=?")
+      .get(reservation.id) as { storage_key: string }
+  ).storage_key;
   const passkeyId = randomUUID();
   database
     .prepare(
@@ -191,7 +250,7 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         } finally {
           storage.read = originalRead;
         }
-        assert.equal(first.files, 2);
+        assert.equal(first.files, 3);
         const state = await backups.backupStatus();
         assert.equal(state.running, false);
         assert.equal(state.backups.length, 1);
@@ -222,6 +281,53 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         restored.pragma("cipher='chacha20'");
         restored.pragma(`key='${deriveKey(key, "sqlite").toString("hex")}'`);
         try {
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT public_token FROM forms WHERE id=?")
+                .get(publishedForm.id) as { public_token: string }
+            ).public_token,
+            publishedForm.publicToken,
+          );
+          assert.equal(
+            (
+              restored
+                .prepare("SELECT version_id FROM form_responses WHERE id=?")
+                .get(formResponse.id) as { version_id: string }
+            ).version_id,
+            publishedForm.publishedVersionId,
+          );
+          assert.equal(
+            JSON.parse(
+              (
+                restored
+                  .prepare("SELECT answers FROM form_responses WHERE id=?")
+                  .get(formResponse.id) as { answers: string }
+              ).answers,
+            )[question],
+            "Recovery sentinel",
+          );
+          assert.equal(
+            (
+              restored
+                .prepare(
+                  "SELECT count(*) AS n FROM forms_fts WHERE forms_fts MATCH 'survey'",
+                )
+                .get() as { n: number }
+            ).n,
+            1,
+          );
+          assert.equal(
+            (
+              restored
+                .prepare(
+                  "SELECT count(*) AS n FROM form_responses_fts WHERE form_responses_fts MATCH 'sentinel'",
+                )
+                .get() as { n: number }
+            ).n,
+            1,
+          );
+          assert.deepEqual(restored.pragma("foreign_key_check"), []);
           assert.equal(
             (
               restored
@@ -327,6 +433,10 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         const local = createStorage({ NIVRA_DATA_DIR: target });
         assert.equal((await local.read(file)).toString(), "payload");
         assert.equal((await local.read(preview)).toString(), "preview");
+        assert.equal(
+          (await local.read(formFileKey)).toString(),
+          "Form recovery file",
+        );
         assert.equal(
           unseal(
             await readFile(path.join(target, "auth.secret")),

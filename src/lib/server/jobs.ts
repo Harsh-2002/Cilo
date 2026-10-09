@@ -93,11 +93,20 @@ export function commitJob(job: Job, write: () => string) {
           status === "failed" || status === "unavailable" ? "failed" : "done",
           job.id,
         );
+      const formFile =
+        job.kind === "thumbnail"
+          ? (sqlite()
+              .prepare(
+                "SELECT ff.form_id AS formId FROM form_files ff JOIN forms f ON f.id=ff.form_id WHERE ff.id=? AND f.owner_id=?",
+              )
+              .get(job.target_id, job.owner_id) as
+              { formId: string } | undefined)
+          : undefined;
       completionEvent(
         job.owner_id,
-        job.kind === "thumbnail" ? "artifact" : job.kind,
-        job.target_id,
-        status,
+        formFile ? "content" : job.kind === "thumbnail" ? "artifact" : job.kind,
+        formFile ? formFile.formId : job.target_id,
+        formFile ? "forms" : status,
       );
       return true;
     })
@@ -148,6 +157,12 @@ async function execute(job: Job) {
               "UPDATE bookmarks SET metadata_status='unavailable',updated_at=? WHERE id=? AND owner_id=? AND metadata_status='pending' AND trashed_at IS NULL",
             )
             .run(Date.now(), job.target_id, job.owner_id);
+        if (job.kind === "thumbnail")
+          sqlite()
+            .prepare(
+              "UPDATE form_files SET thumbnail_status='failed' WHERE id=? AND thumbnail_status='pending' AND EXISTS(SELECT 1 FROM forms WHERE id=form_files.form_id AND owner_id=?)",
+            )
+            .run(job.target_id, job.owner_id);
         return "failed";
       });
     } else

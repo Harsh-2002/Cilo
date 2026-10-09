@@ -20,6 +20,7 @@ export function agentSearch(
     ["bookmark", "bookmarks", "bookmark_tags", "bookmark_id"],
     ["artifact", "artifacts", "artifact_tags", "artifact_id"],
     ["event", "calendar_events", "event_tags", "event_id"],
+    ["form", "forms", "form_tags", "form_id"],
   ] as const) {
     if (type && type !== area && !(type === "journal" && area === "note"))
       continue;
@@ -52,7 +53,7 @@ export function agentSearch(
           ? "i.title"
           : area === "bookmark"
             ? "i.description"
-            : area === "event"
+            : area === "event" || area === "form"
               ? "i.description"
               : "i.content";
     branches.push(

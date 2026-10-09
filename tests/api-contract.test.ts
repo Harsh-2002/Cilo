@@ -144,6 +144,20 @@ test("actual v1 routes enforce schemas, scoped credentials, pagination, conflict
     );
     assert.ok(openApiDocument().paths["/api/v1/notes"]);
     assert.equal(openApiDocument().paths["/api/v1/openapi.json"], undefined);
+    for (const [route, token] of [
+      ["/api/v1/published/{token}", "a".repeat(48)],
+      ["/api/v1/public/forms/{token}", "A".repeat(32)],
+    ]) {
+      const parameters = (
+        openApiDocument().paths[route].get as {
+          parameters: { name: string; schema: { pattern: string } }[];
+        }
+      ).parameters;
+      const pattern = parameters.find((entry) => entry.name === "token")!.schema
+        .pattern;
+      assert.match(token, new RegExp(pattern));
+      assert.equal(new RegExp(pattern).test(token + "a"), false);
+    }
     assert.equal((await call("openapi.json")).status, 404);
     const noteParameters = (
       openApiDocument().paths["/api/v1/notes"].get as {

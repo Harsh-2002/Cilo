@@ -17,6 +17,7 @@ export function authorizeContentPath(
 ) {
   if (
     ![
+      "forms",
       "notes",
       "journals",
       "events",
@@ -58,6 +59,7 @@ export function authorizeContentPath(
         "Agents cannot restore or permanently delete items. Trash is read-only.",
       );
     const tables: Record<string, string> = {
+      forms: "forms",
       notes: "notes",
       journals: "notes",
       events: "calendar_events",
@@ -65,6 +67,17 @@ export function authorizeContentPath(
       bookmarks: "bookmarks",
       artifacts: "artifacts",
     };
+    if (
+      path[0] === "forms" &&
+      path[2] === "responses" &&
+      path[3] &&
+      sqlite()
+        .prepare(
+          "SELECT 1 FROM form_responses r JOIN forms f ON f.id=r.form_id WHERE r.id=? AND f.id=? AND f.owner_id=? AND r.trashed_at IS NOT NULL",
+        )
+        .get(path[3], path[1], principal.ownerId)
+    )
+      throw new HttpError(403, "Agents cannot change submissions in Trash.");
     const table = tables[path[0]];
     if (
       table &&

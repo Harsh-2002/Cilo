@@ -104,7 +104,8 @@ export type CalendarEvent = EventInput & {
 export type CalendarItem = {
   id: string;
   sourceId: string;
-  type: "event" | "task" | "journal" | "note" | "bookmark" | "artifact";
+  type:
+    "event" | "task" | "journal" | "note" | "bookmark" | "artifact" | "form";
   title: string;
   date: string;
   endDate?: string;

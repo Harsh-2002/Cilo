@@ -24,9 +24,15 @@ export function resumeThumbnails() {
     )
     .all() as { id: string; owner_id: string }[];
   for (const row of rows) enqueueJob(row.owner_id, "thumbnail", row.id);
+  const files = sqlite()
+    .prepare(
+      "SELECT ff.id,f.owner_id FROM form_files ff JOIN forms f ON f.id=ff.form_id JOIN form_responses r ON r.id=ff.response_id WHERE ff.thumbnail_status='pending' AND ff.state='attached' AND f.trashed_at IS NULL AND r.trashed_at IS NULL",
+    )
+    .all() as { id: string; owner_id: string }[];
+  for (const file of files) enqueueJob(file.owner_id, "thumbnail", file.id);
 }
 export async function processThumbnail({ job, commit }: JobContext) {
-  const row = sqlite()
+  let row = sqlite()
     .prepare(
       "SELECT storage_key,thumb_key,mime,size FROM artifacts WHERE id=? AND owner_id=? AND thumbnail_status='pending' AND trashed_at IS NULL",
     )
@@ -38,11 +44,24 @@ export async function processThumbnail({ job, commit }: JobContext) {
         size: number;
       }
     | undefined;
+  let formFile = false;
+  if (!row) {
+    row = sqlite()
+      .prepare(
+        "SELECT ff.storage_key,ff.thumb_key,ff.mime,ff.size FROM form_files ff JOIN forms f ON f.id=ff.form_id JOIN form_responses r ON r.id=ff.response_id WHERE ff.id=? AND f.owner_id=? AND f.trashed_at IS NULL AND r.trashed_at IS NULL AND ff.state='attached' AND ff.thumbnail_status='pending'",
+      )
+      .get(job.target_id, job.owner_id) as typeof row;
+    formFile = !!row;
+  }
   if (!row) {
     commit(() => "cancelled");
     return;
   }
-  if (!row.mime.startsWith("video/") && row.size > 40 * 1024 * 1024) {
+  const sourceRow = row;
+  if (
+    !sourceRow.mime.startsWith("video/") &&
+    sourceRow.size > 40 * 1024 * 1024
+  ) {
     commit(() => {
       sqlite()
         .prepare(
@@ -60,7 +79,7 @@ export async function processThumbnail({ job, commit }: JobContext) {
     const file = path.join(directory, "source");
     const handle = await open(file, "wx", 0o600);
     try {
-      const source = await storage.open(row.storage_key);
+      const source = await storage.open(sourceRow.storage_key);
       for (let offset = 0; offset < source.size; offset += 1024 * 1024)
         await handle.writeFile(
           await source.read(
@@ -81,7 +100,7 @@ export async function processThumbnail({ job, commit }: JobContext) {
           "generated/thumbnail-worker.cjs",
         ),
         {
-          workerData: { file, mime: row.mime },
+          workerData: { file, mime: sourceRow.mime },
           execArgv: [],
           resourceLimits: { maxOldGenerationSizeMb: 256 },
         },
@@ -123,6 +142,20 @@ export async function processThumbnail({ job, commit }: JobContext) {
         ? "failed"
         : result.status;
     commit(() => {
+      if (formFile) {
+        attached = !!sqlite()
+          .prepare(
+            "UPDATE form_files SET thumb_key=coalesce(?,thumb_key),thumbnail_status=? WHERE id=? AND storage_key=? AND thumbnail_status='pending' AND EXISTS(SELECT 1 FROM forms f JOIN form_responses r ON r.form_id=f.id WHERE f.id=form_files.form_id AND f.owner_id=? AND f.trashed_at IS NULL AND r.id=form_files.response_id AND r.trashed_at IS NULL)",
+          )
+          .run(
+            created || null,
+            status,
+            job.target_id,
+            sourceRow.storage_key,
+            job.owner_id,
+          ).changes;
+        return attached ? status : "cancelled";
+      }
       attached = !!sqlite()
         .prepare(
           "UPDATE artifacts SET thumb_key=coalesce(?,thumb_key),thumbnail_status=?,updated_at=? WHERE id=? AND owner_id=? AND storage_key=? AND thumbnail_status='pending' AND trashed_at IS NULL",
@@ -133,12 +166,17 @@ export async function processThumbnail({ job, commit }: JobContext) {
           Date.now(),
           job.target_id,
           job.owner_id,
-          row.storage_key,
+          sourceRow.storage_key,
         ).changes;
       return attached ? status : "cancelled";
     });
-    if (attached && created && row.thumb_key && row.thumb_key !== created)
-      await storage.delete(row.thumb_key);
+    if (
+      attached &&
+      created &&
+      sourceRow.thumb_key &&
+      sourceRow.thumb_key !== created
+    )
+      await storage.delete(sourceRow.thumb_key);
   } finally {
     if (created && !attached) await storage.delete(created);
     await rm(directory, { recursive: true, force: true });

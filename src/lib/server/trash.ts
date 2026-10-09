@@ -1,4 +1,5 @@
 import { invalidateCalendarReminders } from "./calendar-reminders";
+import { restoreFormTrash, deleteFormTrash } from "./form-trash";
 import { sqlite } from "./db";
 import { HttpError } from "./http";
 import { storage } from "./storage";
@@ -19,7 +20,9 @@ const union = `SELECT id,CASE WHEN daily_date IS NULL THEN 'note' ELSE 'journal'
 UNION ALL SELECT id,'task',title,title,revision,trashed_at FROM tasks WHERE owner_id=? AND trashed_at IS NOT NULL
 UNION ALL SELECT id,'bookmark',title,url,revision,trashed_at FROM bookmarks WHERE owner_id=? AND trashed_at IS NOT NULL
 UNION ALL SELECT id,'artifact',coalesce(nullif(title,''),nullif(name,''),'Untitled artifact'),substr(content,1,180),revision,trashed_at FROM artifacts WHERE owner_id=? AND trashed_at IS NOT NULL
-UNION ALL SELECT id,'event',title,substr(description,1,180),revision,trashed_at FROM calendar_events WHERE owner_id=? AND trashed_at IS NOT NULL`;
+UNION ALL SELECT id,'event',title,substr(description,1,180),revision,trashed_at FROM calendar_events WHERE owner_id=? AND trashed_at IS NOT NULL
+UNION ALL SELECT id,'form',title,substr(description,1,180),revision,trashed_at FROM forms WHERE owner_id=? AND trashed_at IS NOT NULL
+UNION ALL SELECT r.id,'form_response',f.title,substr(r.search_text,1,180),r.revision,r.trashed_at FROM form_responses r JOIN forms f ON f.id=r.form_id WHERE f.owner_id=? AND r.trashed_at IS NOT NULL`;
 export function listTrash(
   owner: string,
   query: string,
@@ -28,7 +31,15 @@ export function listTrash(
   pageSize = 60,
 ): Page<TrashItem> {
   const where = ["1=1"];
-  const values: (string | number)[] = [owner, owner, owner, owner, owner];
+  const values: (string | number)[] = [
+    owner,
+    owner,
+    owner,
+    owner,
+    owner,
+    owner,
+    owner,
+  ];
   if (query.trim()) {
     where.push("instr(nivra_fold(title || ' ' || excerpt),nivra_fold(?))>0");
     values.push(query.trim().slice(0, 300));
@@ -99,6 +110,8 @@ export function restoreTrash(
   id: string,
   revision: number,
 ) {
+  if (kind === "form" || kind === "form_response")
+    return restoreFormTrash(owner, kind, id, revision);
   sqlite()
     .transaction(() => {
       if (
@@ -172,6 +185,8 @@ export async function deleteTrash(
   id: string,
   revision: number,
 ) {
+  if (kind === "form" || kind === "form_response")
+    return deleteFormTrash(owner, kind, id, revision);
   if (kind === "note" || kind === "journal") {
     const note = sqlite()
       .prepare(

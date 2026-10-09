@@ -40,6 +40,7 @@ import {
   type AgentPrincipal,
 } from "./agent-access";
 import { agentManagement } from "./agent-management";
+import { publicFormApi } from "./public-form-api";
 import { contentAreas, executeContent } from "./content-service";
 import { encryptionEnabled } from "./encryption-mode";
 import {
@@ -309,6 +310,8 @@ async function handleWorkspaceInternal(
         .immediate();
       return response({ recoveryCode: code });
     }
+    if (area === "public" && id === "forms")
+      return await publicFormApi(request, path);
     const session = principal
       ? null
       : await auth(request).api.getSession({ headers: request.headers });

@@ -2,9 +2,15 @@
 import { ConfirmProvider } from "./confirm-provider";
 import { ThemeProvider } from "next-themes";
 import { InlineFeedback } from "./inline-feedback";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { setNonce } from "get-nonce";
 import { CspNonce, documentNonce } from "@/lib/csp";
+function subscribeSystemTheme(changed: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", changed);
+  return () => media.removeEventListener("change", changed);
+}
 // The server layout initializes theme; client remounts need no executable script.
 export function Providers({
   children,
@@ -14,6 +20,15 @@ export function Providers({
   nonce?: string;
 }) {
   const currentNonce = documentNonce(nonce);
+  const publicForm = usePathname().startsWith("/form/");
+  const systemTheme = useSyncExternalStore(
+    subscribeSystemTheme,
+    () =>
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light",
+    () => "light",
+  );
   if (typeof window !== "undefined" && currentNonce) setNonce(currentNonce);
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -40,6 +55,7 @@ export function Providers({
         defaultTheme="system"
         enableSystem
         storageKey="nivra-theme"
+        forcedTheme={publicForm ? systemTheme : undefined}
         scriptProps={{ type: "text/plain" }}
       >
         <InlineFeedback />

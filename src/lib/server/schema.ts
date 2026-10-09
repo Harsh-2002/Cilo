@@ -597,3 +597,102 @@ export const calendarEvents = sqliteTable("calendar_events", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const forms = sqliteTable("forms", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default(""),
+  description: text("description").notNull().default(""),
+  definition: text("definition", { mode: "json" })
+    .$type<import("../forms").FormDefinition>()
+    .notNull(),
+  status: text("status")
+    .$type<"draft" | "published" | "closed">()
+    .notNull()
+    .default("draft"),
+  publicToken: text("public_token"),
+  publishedVersionId: text("published_version_id"),
+  revision: integer("revision").notNull().default(1),
+  favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
+  uploadBudget: integer("upload_budget").notNull().default(262144000),
+  closingDate: text("closing_date"),
+  closingTimezone: text("closing_timezone"),
+  closesAt: integer("closes_at"),
+  trashedAt: integer("trashed_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+export const formVersions = sqliteTable("form_versions", {
+  id: text("id").primaryKey(),
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  revision: integer("revision").notNull(),
+  definition: text("definition", { mode: "json" })
+    .$type<import("../forms").FormDefinition>()
+    .notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+export const formResponses = sqliteTable("form_responses", {
+  id: text("id").primaryKey(),
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  versionId: text("version_id")
+    .notNull()
+    .references(() => formVersions.id),
+  answers: text("answers", { mode: "json" })
+    .$type<import("../forms").FormAnswers>()
+    .notNull(),
+  searchText: text("search_text").notNull().default(""),
+  retryKey: text("retry_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  reviewed: integer("reviewed", { mode: "boolean" }).notNull().default(false),
+  revision: integer("revision").notNull().default(1),
+  trashedAt: integer("trashed_at"),
+  createdAt: integer("created_at").notNull(),
+});
+export const formUploadSessions = sqliteTable("form_upload_sessions", {
+  id: text("id").primaryKey(),
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  versionId: text("version_id")
+    .notNull()
+    .references(() => formVersions.id),
+  secretHash: text("secret_hash").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+export const formFiles = sqliteTable("form_files", {
+  id: text("id").primaryKey(),
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").references(() => formUploadSessions.id),
+  responseId: text("response_id").references(() => formResponses.id),
+  fieldId: text("field_id").notNull(),
+  filename: text("filename").notNull(),
+  mime: text("mime").notNull(),
+  size: integer("size").notNull(),
+  storageKey: text("storage_key").notNull(),
+  thumbKey: text("thumb_key"),
+  thumbnailStatus: text("thumbnail_status")
+    .$type<"pending" | "done" | "none" | "failed">()
+    .notNull()
+    .default("none"),
+  state: text("state")
+    .$type<"reserved" | "writing" | "ready" | "attached" | "failed">()
+    .notNull()
+    .default("reserved"),
+  createdAt: integer("created_at").notNull(),
+});
+export const formTags = sqliteTable("form_tags", {
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  tagId: text("tag_id")
+    .notNull()
+    .references(() => tags.id, { onDelete: "cascade" }),
+});

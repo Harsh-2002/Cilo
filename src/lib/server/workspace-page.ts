@@ -1,7 +1,11 @@
 import { installationExists } from "./installation";
 import { auth } from "./auth";
 import { sqlite } from "./db";
-import { workspaceView, workspaceSurface } from "../workspace-routes";
+import {
+  workspaceView,
+  workspaceSurface,
+  formRoute,
+} from "../workspace-routes";
 
 type Query = Record<string, string | string[] | undefined>;
 export async function workspacePageState(request: Request, query: Query = {}) {
@@ -17,6 +21,26 @@ export async function workspacePageState(request: Request, query: Query = {}) {
     headers: request.headers,
   });
   if (!session || session.user.id !== owner.id) return "login";
+  const form = formRoute(pathname);
+  if (form) {
+    if (
+      !database
+        .prepare(
+          "SELECT id FROM forms WHERE id=? AND owner_id=? AND trashed_at IS NULL",
+        )
+        .get(form.id, owner.id)
+    )
+      return "missing";
+    if (
+      form.responseId &&
+      !database
+        .prepare(
+          "SELECT id FROM form_responses WHERE id=? AND form_id=? AND trashed_at IS NULL",
+        )
+        .get(form.responseId, form.id)
+    )
+      return "missing";
+  }
   const targets = [
     ...(view && ["all", "journal", "favorites"].includes(view)
       ? [["note", "notes", " AND trashed_at IS NULL"]]

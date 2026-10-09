@@ -27,6 +27,7 @@ const tables = {
   task: "tasks",
   bookmark: "bookmarks",
   artifact: "artifacts",
+  form: "forms",
 };
 export function getEvent(owner: string, id: string): CalendarEvent {
   const row = db()
@@ -417,6 +418,33 @@ function activity(
       completed: true,
     })),
   );
+  const days = boundaries.map((day, index) => [
+    day.date,
+    day.at,
+    boundaries[index + 1]?.at ?? b,
+  ]);
+  const responses = sqlite()
+    .prepare(
+      `WITH days(date,start,finish) AS (VALUES ${days.map(() => "(?,?,?)").join(",")}) SELECT f.id,f.title,f.revision,days.date,count(*) AS count FROM days JOIN form_responses r ON r.created_at>=days.start AND r.created_at<days.finish JOIN forms f ON f.id=r.form_id WHERE f.owner_id=? AND f.trashed_at IS NULL AND r.trashed_at IS NULL GROUP BY f.id,days.date`,
+    )
+    .all(...days.flat(), owner) as {
+    id: string;
+    title: string;
+    revision: number;
+    date: string;
+    count: number;
+  }[];
+  result.push(
+    ...responses.map((row) => ({
+      id: `form-responses:${row.id}:${row.date}`,
+      sourceId: row.id,
+      type: "form" as const,
+      title: row.title,
+      date: row.date,
+      label: `${row.count.toLocaleString()} ${row.count === 1 ? "submission" : "submissions"}`,
+      revision: row.revision,
+    })),
+  );
   return result;
 }
 export function calendarRange(
@@ -483,6 +511,30 @@ export function calendarRange(
         label: "Journal",
       })),
     );
+    if (!options.eventsOnly) {
+      const deadlines = sqlite()
+        .prepare(
+          "SELECT id,title,revision,closes_at AS closesAt FROM forms WHERE owner_id=? AND trashed_at IS NULL AND status!='draft' AND closes_at>? AND closes_at<=?",
+        )
+        .all(owner, zoneDay(from, zone), zoneDay(to, zone)) as {
+        id: string;
+        title: string;
+        revision: number;
+        closesAt: number;
+      }[];
+      items.push(
+        ...deadlines.map((row) => ({
+          id: `form-closing:${row.id}`,
+          sourceId: row.id,
+          type: "form" as const,
+          title: row.title,
+          date: localInstant(row.closesAt - 1, zone).slice(0, 10),
+          endAt: row.closesAt,
+          label: "Closes",
+          revision: row.revision,
+        })),
+      );
+    }
     const events = db()
       .select()
       .from(calendarEvents)

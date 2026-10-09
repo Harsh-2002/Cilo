@@ -8,6 +8,7 @@ Nivra brings notes, journals, tasks, bookmarks and files into one quiet workspac
 
 - **Write and collect:** rich-text notes, drawings, attachments, bookmarks, tags, favourites and searchable artifacts with background OCR and thumbnails.
 - **Plan:** daily journals, task dates, recurring tasks, Kanban boards, calendar events and push reminders.
+- **Collect responses:** build and publish forms with text, choices, amounts and file uploads; review versioned responses, summaries and CSV/JSON exports.
 - **Connect:** MCP at `/mcp`, with API keys or OAuth, read-only or read/write access, and exact counts alongside paginated tools.
 - **Keep it yours:** one owner, passkey or password login, optional TOTP, encryption at rest and encrypted backups. Use the browser or install the PWA. Editing requires a connection.
 

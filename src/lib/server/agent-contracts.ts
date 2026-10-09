@@ -1,3 +1,5 @@
+import { extraOutputs } from "./api-extra-schemas";
+import { formApiOperations } from "./form-api-schemas";
 import { eventInput, dateSchema, zoneSchema } from "../calendar";
 import { z } from "zod";
 import { documentInput } from "./validation";
@@ -53,7 +55,15 @@ const item = z
   .object({
     id: z.string().uuid(),
     title: z.string(),
-    type: z.enum(["note", "journal", "task", "bookmark", "artifact", "event"]),
+    type: z.enum([
+      "note",
+      "journal",
+      "task",
+      "bookmark",
+      "artifact",
+      "event",
+      "form",
+    ]),
   })
   .passthrough();
 const cursorPage = (row: z.ZodType) =>
@@ -92,32 +102,7 @@ const calendarEventOutput = eventInput.safeExtend({
     .optional(),
 });
 const schemas: Record<string, z.ZodType> = {
-  list_calendar: z.object({
-    items: z.array(
-      z
-        .object({
-          id: z.string(),
-          sourceId: z.string().uuid(),
-          type: z.enum([
-            "event",
-            "task",
-            "journal",
-            "note",
-            "bookmark",
-            "artifact",
-          ]),
-          title: z.string(),
-          date: z.string(),
-          revision: count,
-        })
-        .passthrough(),
-    ),
-    counts: z.record(z.string(), count),
-    total: count,
-    nextOffset: count.nullable(),
-    unscheduled: count,
-    overdue: count,
-  }),
+  list_calendar: extraOutputs.calendarRange,
   get_event: calendarEventOutput,
   create_event: calendarEventOutput,
   update_event: calendarEventOutput,
@@ -162,8 +147,10 @@ const schemas: Record<string, z.ZodType> = {
       artifacts: z.literal("/artifacts"),
       favorites: z.literal("/favorites"),
       trash: z.literal("/trash"),
+      forms: z.literal("/forms"),
     }),
     publicSharePath: z.literal("/share/{token}"),
+    publicFormPath: z.literal("/form/{token}"),
   }),
   get_publication: publication.nullable(),
   publish_note: publication,
@@ -181,6 +168,7 @@ const schemas: Record<string, z.ZodType> = {
       bookmarks: count,
       artifacts: count,
       events: count,
+      forms: count,
     }),
     total: count,
     taskStatus: z.object({ open: count, completed: count }),
@@ -235,6 +223,8 @@ const schemas: Record<string, z.ZodType> = {
           "bookmark",
           "artifact",
           "event",
+          "form",
+          "form_response",
         ]),
         title: z.string(),
         revision: z.number().int().positive(),
@@ -245,6 +235,30 @@ const schemas: Record<string, z.ZodType> = {
   file_transfer: transfer,
   upload_transfer: transfer,
 };
+for (const [name, path, method] of [
+  ["list_forms", "forms", "GET"],
+  ["get_form", "forms/{id}", "GET"],
+  ["create_form", "forms", "POST"],
+  ["update_form", "forms/{id}", "PATCH"],
+  ["duplicate_form", "forms/{id}/duplicate", "POST"],
+  ["publish_form", "forms/{id}/publish", "POST"],
+  ["close_form", "forms/{id}/close", "POST"],
+  ["reopen_form", "forms/{id}/reopen", "POST"],
+  ["unpublish_form", "forms/{id}/unpublish", "POST"],
+  ["trash_form", "forms/{id}", "DELETE"],
+  ["list_form_responses", "forms/{id}/responses", "GET"],
+  ["get_form_response", "forms/{id}/responses/{responseId}", "GET"],
+  ["get_form_summary", "forms/{id}/summary", "GET"],
+  ["review_form_response", "forms/{id}/responses/{responseId}", "PATCH"],
+  ["trash_form_response", "forms/{id}/responses/{responseId}", "DELETE"],
+]) {
+  const operation = formApiOperations.find(
+    (operation) =>
+      operation.path === `/api/v1/${path}` && operation.method === method,
+  );
+  if (!operation) throw new Error(`Missing Forms contract for ${name}`);
+  schemas[name] = operation.output;
+}
 export function agentOutputSchema(name: string) {
   return schemas[name] ?? z.union([object, z.array(object), z.null()]);
 }

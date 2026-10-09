@@ -7,6 +7,1317 @@
   },
   "servers": [{ "url": "/" }],
   "paths": {
+    "/api/v1/forms": {
+      "get": {
+        "operationId": "get_api_v1_forms",
+        "summary": "List forms, newest first",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": { "default": "", "type": "string", "maxLength": 300 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": ["all", "draft", "published", "closed"]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "maxLength": 400 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      },
+      "post": {
+        "operationId": "post_api_v1_forms",
+        "summary": "Create a draft form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_api_v1_formsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_",
+        "summary": "Read a form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_v1_forms_id_",
+        "summary": "Update a form draft with its current revision",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_v1_forms_id_",
+        "summary": "Move a form to Trash and revoke its public link",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ok" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/duplicate": {
+      "post": {
+        "operationId": "post_api_v1_forms_id_duplicate",
+        "summary": "Duplicate a definition as a new draft",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/publish": {
+      "post": {
+        "operationId": "post_api_v1_forms_id_publish",
+        "summary": "Publish a form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/close": {
+      "post": {
+        "operationId": "post_api_v1_forms_id_close",
+        "summary": "Close a form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/reopen": {
+      "post": {
+        "operationId": "post_api_v1_forms_id_reopen",
+        "summary": "Reopen a form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/unpublish": {
+      "post": {
+        "operationId": "post_api_v1_forms_id_unpublish",
+        "summary": "Unpublish a form",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_formsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/responses": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_responses",
+        "summary": "List submissions with exact filtered counts",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": { "default": "", "type": "string", "maxLength": 300 }
+          },
+          {
+            "name": "reviewed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": ["all", "new", "reviewed"]
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": { "default": "UTC", "type": "string", "maxLength": 100 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "maxLength": 400 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_forms_id_responsesResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/responses/{responseId}": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_responses_responseId_",
+        "summary": "Read a submission and its published definition",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "responseId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_forms_id_responses_responseId_Response"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_v1_forms_id_responses_responseId_",
+        "summary": "Mark a submission reviewed or new",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "responseId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_forms_id_responses_responseId_Response"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/patch_api_v1_forms_id_responses_responseId_Request"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_v1_forms_id_responses_responseId_",
+        "summary": "Move a submission to Trash",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "responseId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "8–128 characters. JSON requests only. Repeating identical input returns the original result for 24 hours; conflicting or in-progress input returns 409.",
+            "schema": { "type": "string", "minLength": 8, "maxLength": 128 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ok" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/summary": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_summary",
+        "summary": "Read submission summaries by published version",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_forms_id_summaryResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/export/{format}": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_export_format_",
+        "summary": "Export all filtered submissions as CSV or JSON",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["csv", "json"] }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": { "default": "", "type": "string", "maxLength": 300 }
+          },
+          {
+            "name": "reviewed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": ["all", "new", "reviewed"]
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": { "default": "UTC", "type": "string", "maxLength": 100 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "maxLength": 400 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": { "schema": { "type": "string" } }
+            }
+          },
+          "206": {
+            "description": "Partial content",
+            "content": {
+              "application/octet-stream": { "schema": { "type": "string" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "416": { "description": "Range not satisfiable" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/forms/{id}/files/{fileId}": {
+      "get": {
+        "operationId": "get_api_v1_forms_id_files_fileId_",
+        "summary": "Download a submission file or thumbnail",
+        "security": [{ "ownerSession": [] }, { "apiKey": [] }],
+        "x-nivra-access": "content",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          },
+          {
+            "name": "thumbnail",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["0", "1"] }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["0", "1"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": { "schema": { "type": "string" } }
+            }
+          },
+          "206": {
+            "description": "Partial content",
+            "content": {
+              "application/octet-stream": { "schema": { "type": "string" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "416": { "description": "Range not satisfiable" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/public/forms/{token}": {
+      "get": {
+        "operationId": "get_api_v1_public_forms_token_",
+        "summary": "Read a published form definition",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_v1_public_forms_token_Response"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        }
+      }
+    },
+    "/api/v1/public/forms/{token}/responses": {
+      "post": {
+        "operationId": "post_api_v1_public_forms_token_responses",
+        "summary": "Submit answers with a retry key",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_public_forms_token_responsesResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_api_v1_public_forms_token_responsesRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/forms/{token}/sessions": {
+      "post": {
+        "operationId": "post_api_v1_public_forms_token_sessions",
+        "summary": "Start a form-bound temporary upload session",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_public_forms_token_sessionsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_api_v1_public_forms_token_sessionsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/forms/{token}/uploads": {
+      "post": {
+        "operationId": "post_api_v1_public_forms_token_uploads",
+        "summary": "Reserve bounded attachment storage",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_v1_public_forms_token_uploadsResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/post_api_v1_public_forms_token_uploadsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/forms/{token}/uploads/{fileId}": {
+      "put": {
+        "operationId": "put_api_v1_public_forms_token_uploads_fileId_",
+        "summary": "Store reserved file bytes using X-Form-Upload session secret",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/put_api_v1_public_forms_token_uploads_fileId_Response"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": { "type": "string", "format": "binary" }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_v1_public_forms_token_uploads_fileId_",
+        "summary": "Remove an unsubmitted temporary file",
+        "security": [],
+        "x-nivra-access": "public",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Schema" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ok" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error400" },
+          "401": { "$ref": "#/components/responses/Error401" },
+          "403": { "$ref": "#/components/responses/Error403" },
+          "404": { "$ref": "#/components/responses/Error404" },
+          "405": { "$ref": "#/components/responses/Error405" },
+          "409": { "$ref": "#/components/responses/Error409" },
+          "413": { "$ref": "#/components/responses/Error413" },
+          "415": { "$ref": "#/components/responses/Error415" },
+          "422": { "$ref": "#/components/responses/Error422" },
+          "429": { "$ref": "#/components/responses/Error429" },
+          "500": { "$ref": "#/components/responses/Error500" },
+          "503": { "$ref": "#/components/responses/Error503" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/delete_api_v1_public_forms_token_uploads_fileId_Request"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes": {
       "get": {
         "operationId": "get_api_v1_notes",
@@ -270,7 +1581,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -540,7 +1851,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -820,7 +2131,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -1323,7 +2634,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -1378,7 +2689,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -1714,7 +3025,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -2503,7 +3814,9 @@
                 "task",
                 "bookmark",
                 "artifact",
-                "event"
+                "event",
+                "form",
+                "form_response"
               ]
             }
           }
@@ -2581,7 +3894,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -2635,7 +3948,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -3194,7 +4507,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -3472,7 +4785,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/delete_api_v1_notes_id_Request"
+                "$ref": "#/components/schemas/delete_api_v1_forms_id_Request"
               }
             }
           }
@@ -4966,7 +6279,7 @@
             "name": "token",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{48}$" }
           }
         ],
         "responses": {
@@ -5006,7 +6319,7 @@
             "name": "token",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{48}$" }
           },
           {
             "name": "id",
@@ -5055,7 +6368,7 @@
             "name": "token",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{48}$" }
           },
           {
             "name": "url",
@@ -5845,7 +7158,15 @@
           "title": { "type": "string" },
           "type": {
             "type": "string",
-            "enum": ["note", "journal", "task", "bookmark", "artifact", "event"]
+            "enum": [
+              "note",
+              "journal",
+              "task",
+              "bookmark",
+              "artifact",
+              "event",
+              "form"
+            ]
           }
         },
         "required": ["id", "title", "type"],
@@ -5862,7 +7183,16 @@
           "title": { "type": "string" },
           "kind": {
             "type": "string",
-            "enum": ["note", "journal", "task", "bookmark", "artifact", "event"]
+            "enum": [
+              "note",
+              "journal",
+              "task",
+              "bookmark",
+              "artifact",
+              "event",
+              "form",
+              "form_response"
+            ]
           },
           "excerpt": { "type": "string" },
           "revision": {
@@ -6722,6 +8052,1380 @@
         },
         "required": ["password", "code"]
       },
+      "get_api_v1_formsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "title": { "type": "string" },
+                "description": { "type": "string" },
+                "status": {
+                  "type": "string",
+                  "enum": ["draft", "published", "closed"]
+                },
+                "revision": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "favorite": { "type": "boolean" },
+                "createdAt": { "type": "number" },
+                "updatedAt": { "type": "number" },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "newCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "lastSubmittedAt": { "type": ["number", "null"] },
+                "closesAt": { "type": ["number", "null"] }
+              },
+              "required": [
+                "id",
+                "title",
+                "description",
+                "status",
+                "revision",
+                "favorite",
+                "createdAt",
+                "updatedAt",
+                "total",
+                "newCount",
+                "lastSubmittedAt",
+                "closesAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "next": { "type": ["string", "null"] },
+          "nextOffset": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["items", "total", "next", "nextOffset"],
+        "additionalProperties": false
+      },
+      "post_api_v1_formsResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "closed"]
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "favorite": { "type": "boolean" },
+          "createdAt": { "type": "number" },
+          "updatedAt": { "type": "number" },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "newCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lastSubmittedAt": { "type": ["number", "null"] },
+          "closesAt": { "type": ["number", "null"] },
+          "ownerId": { "type": "string" },
+          "definition": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": { "type": "number", "const": 1 },
+              "title": { "type": "string", "maxLength": 300 },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 5000
+              },
+              "confirmation": {
+                "default": "Thank you. Your response has been submitted.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Post-submission text. Insert an answer with {{field:QUESTION_UUID}}; references must identify a non-file answer field in this definition."
+              },
+              "fields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "short_text",
+                        "long_text",
+                        "email",
+                        "phone",
+                        "url",
+                        "number",
+                        "amount",
+                        "rating",
+                        "single_choice",
+                        "multiple_choice",
+                        "dropdown",
+                        "yes_no",
+                        "date",
+                        "time",
+                        "file",
+                        "consent",
+                        "heading",
+                        "description",
+                        "section"
+                      ]
+                    },
+                    "label": { "type": "string", "maxLength": 300 },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "required": { "default": false, "type": "boolean" },
+                    "choices": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "minimum": { "type": "number" },
+                    "maximum": { "type": "number" },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "maxLength": {
+                      "default": 2000,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxFiles": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    },
+                    "fileTypes": {
+                      "default": ["image", "document"],
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["image", "document", "audio", "video"]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "label",
+                    "description",
+                    "required",
+                    "choices",
+                    "currency",
+                    "maxLength",
+                    "maxFiles",
+                    "fileTypes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "title",
+              "description",
+              "confirmation",
+              "fields"
+            ],
+            "additionalProperties": false
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": { "type": "string" },
+                "color": { "type": "string" }
+              },
+              "required": ["id", "name", "color"],
+              "additionalProperties": false
+            }
+          },
+          "publishedRevision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              { "type": "null" }
+            ]
+          },
+          "hasUnpublishedChanges": { "type": "boolean" },
+          "publicToken": { "type": ["string", "null"] },
+          "publishedVersionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ]
+          },
+          "uploadBudget": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string" },
+                  "timezone": { "type": "string", "maxLength": 100 }
+                },
+                "required": ["date", "timezone"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "trashedAt": { "type": ["number", "null"] },
+          "url": {
+            "anyOf": [{ "type": "string", "format": "uri" }, { "type": "null" }]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "revision",
+          "favorite",
+          "createdAt",
+          "updatedAt",
+          "total",
+          "newCount",
+          "lastSubmittedAt",
+          "closesAt",
+          "ownerId",
+          "definition",
+          "tags",
+          "publishedRevision",
+          "hasUnpublishedChanges",
+          "publicToken",
+          "publishedVersionId",
+          "uploadBudget",
+          "deadline",
+          "trashedAt",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "post_api_v1_formsRequest": {
+        "type": "object",
+        "properties": {
+          "definition": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": { "type": "number", "const": 1 },
+              "title": { "type": "string", "maxLength": 300 },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 5000
+              },
+              "confirmation": {
+                "default": "Thank you. Your response has been submitted.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Post-submission text. Insert an answer with {{field:QUESTION_UUID}}; references must identify a non-file answer field in this definition."
+              },
+              "fields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "short_text",
+                        "long_text",
+                        "email",
+                        "phone",
+                        "url",
+                        "number",
+                        "amount",
+                        "rating",
+                        "single_choice",
+                        "multiple_choice",
+                        "dropdown",
+                        "yes_no",
+                        "date",
+                        "time",
+                        "file",
+                        "consent",
+                        "heading",
+                        "description",
+                        "section"
+                      ]
+                    },
+                    "label": { "type": "string", "maxLength": 300 },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "required": { "default": false, "type": "boolean" },
+                    "choices": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "minimum": { "type": "number" },
+                    "maximum": { "type": "number" },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "maxLength": {
+                      "default": 2000,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxFiles": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    },
+                    "fileTypes": {
+                      "default": ["image", "document"],
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["image", "document", "audio", "video"]
+                      }
+                    }
+                  },
+                  "required": ["id", "type", "label"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["schemaVersion", "title", "fields"],
+            "additionalProperties": false
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string" },
+                  "timezone": { "type": "string", "maxLength": 100 }
+                },
+                "required": ["date", "timezone"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Schema": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "patch_api_v1_forms_id_Request": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "definition": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": { "type": "number", "const": 1 },
+              "title": { "type": "string", "maxLength": 300 },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 5000
+              },
+              "confirmation": {
+                "default": "Thank you. Your response has been submitted.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Post-submission text. Insert an answer with {{field:QUESTION_UUID}}; references must identify a non-file answer field in this definition."
+              },
+              "fields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "short_text",
+                        "long_text",
+                        "email",
+                        "phone",
+                        "url",
+                        "number",
+                        "amount",
+                        "rating",
+                        "single_choice",
+                        "multiple_choice",
+                        "dropdown",
+                        "yes_no",
+                        "date",
+                        "time",
+                        "file",
+                        "consent",
+                        "heading",
+                        "description",
+                        "section"
+                      ]
+                    },
+                    "label": { "type": "string", "maxLength": 300 },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "required": { "default": false, "type": "boolean" },
+                    "choices": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "minimum": { "type": "number" },
+                    "maximum": { "type": "number" },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "maxLength": {
+                      "default": 2000,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxFiles": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    },
+                    "fileTypes": {
+                      "default": ["image", "document"],
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["image", "document", "audio", "video"]
+                      }
+                    }
+                  },
+                  "required": ["id", "type", "label"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["schemaVersion", "title", "fields"],
+            "additionalProperties": false
+          },
+          "favorite": { "type": "boolean" },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string" },
+                  "timezone": { "type": "string", "maxLength": 100 }
+                },
+                "required": ["date", "timezone"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "uploadBudget": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10737418240
+          }
+        },
+        "required": ["revision"],
+        "additionalProperties": false
+      },
+      "delete_api_v1_forms_id_Request": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["revision"],
+        "additionalProperties": false
+      },
+      "get_api_v1_forms_id_responsesResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "versionId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "reviewed": { "type": "boolean" },
+                "revision": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": { "type": "number" },
+                "preview": { "type": "string" }
+              },
+              "required": [
+                "id",
+                "versionId",
+                "reviewed",
+                "revision",
+                "createdAt",
+                "preview"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "next": { "type": ["string", "null"] },
+          "nextOffset": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["items", "total", "next", "nextOffset"],
+        "additionalProperties": false
+      },
+      "get_api_v1_forms_id_responses_responseId_Response": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reviewed": { "type": "boolean" },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": { "type": "number" },
+          "formId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "definition": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": { "type": "number", "const": 1 },
+              "title": { "type": "string", "maxLength": 300 },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 5000
+              },
+              "confirmation": {
+                "default": "Thank you. Your response has been submitted.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Post-submission text. Insert an answer with {{field:QUESTION_UUID}}; references must identify a non-file answer field in this definition."
+              },
+              "fields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "short_text",
+                        "long_text",
+                        "email",
+                        "phone",
+                        "url",
+                        "number",
+                        "amount",
+                        "rating",
+                        "single_choice",
+                        "multiple_choice",
+                        "dropdown",
+                        "yes_no",
+                        "date",
+                        "time",
+                        "file",
+                        "consent",
+                        "heading",
+                        "description",
+                        "section"
+                      ]
+                    },
+                    "label": { "type": "string", "maxLength": 300 },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "required": { "default": false, "type": "boolean" },
+                    "choices": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "minimum": { "type": "number" },
+                    "maximum": { "type": "number" },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "maxLength": {
+                      "default": 2000,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxFiles": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    },
+                    "fileTypes": {
+                      "default": ["image", "document"],
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["image", "document", "audio", "video"]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "label",
+                    "description",
+                    "required",
+                    "choices",
+                    "currency",
+                    "maxLength",
+                    "maxFiles",
+                    "fileTypes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "title",
+              "description",
+              "confirmation",
+              "fields"
+            ],
+            "additionalProperties": false
+          },
+          "answers": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                { "type": "string", "maxLength": 10000 },
+                { "type": "number" },
+                { "type": "boolean" },
+                {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 300 }
+                }
+              ]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "fieldId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "filename": { "type": "string" },
+                "mime": { "type": "string" },
+                "size": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "hasThumbnail": { "type": "boolean" },
+                "url": { "type": "string", "format": "uri" }
+              },
+              "required": [
+                "id",
+                "fieldId",
+                "filename",
+                "mime",
+                "size",
+                "hasThumbnail",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "versionId",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "formId",
+          "definition",
+          "answers",
+          "files"
+        ],
+        "additionalProperties": false
+      },
+      "patch_api_v1_forms_id_responses_responseId_Request": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reviewed": { "type": "boolean" }
+        },
+        "required": ["revision", "reviewed"],
+        "additionalProperties": false
+      },
+      "get_api_v1_forms_id_summaryResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "newCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "title": { "type": "string" },
+                "createdAt": { "type": "number" },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "label": { "type": "string" },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "short_text",
+                          "long_text",
+                          "email",
+                          "phone",
+                          "url",
+                          "number",
+                          "amount",
+                          "rating",
+                          "single_choice",
+                          "multiple_choice",
+                          "dropdown",
+                          "yes_no",
+                          "date",
+                          "time",
+                          "file",
+                          "consent",
+                          "heading",
+                          "description",
+                          "section"
+                        ]
+                      },
+                      "choices": {
+                        "default": [],
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            }
+                          },
+                          "required": ["id", "label"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "currency": { "type": "string" },
+                      "answered": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "distribution": {
+                        "type": "object",
+                        "propertyNames": { "type": "string" },
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "sum": { "type": ["string", "number"] },
+                      "average": { "type": ["number", "null"] },
+                      "minimum": { "type": ["number", "null"] },
+                      "maximum": { "type": ["number", "null"] },
+                      "fileCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "type",
+                      "choices",
+                      "currency",
+                      "answered",
+                      "distribution"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["id", "title", "createdAt", "total", "fields"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["total", "newCount", "versions"],
+        "additionalProperties": false
+      },
+      "get_api_v1_public_forms_token_Response": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["published", "closed"] },
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "definition": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": { "type": "number", "const": 1 },
+              "title": { "type": "string", "maxLength": 300 },
+              "description": {
+                "default": "",
+                "type": "string",
+                "maxLength": 5000
+              },
+              "confirmation": {
+                "default": "Thank you. Your response has been submitted.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Post-submission text. Insert an answer with {{field:QUESTION_UUID}}; references must identify a non-file answer field in this definition."
+              },
+              "fields": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "short_text",
+                        "long_text",
+                        "email",
+                        "phone",
+                        "url",
+                        "number",
+                        "amount",
+                        "rating",
+                        "single_choice",
+                        "multiple_choice",
+                        "dropdown",
+                        "yes_no",
+                        "date",
+                        "time",
+                        "file",
+                        "consent",
+                        "heading",
+                        "description",
+                        "section"
+                      ]
+                    },
+                    "label": { "type": "string", "maxLength": 300 },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "required": { "default": false, "type": "boolean" },
+                    "choices": {
+                      "default": [],
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "minimum": { "type": "number" },
+                    "maximum": { "type": "number" },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "maxLength": {
+                      "default": 2000,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "maxFiles": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    },
+                    "fileTypes": {
+                      "default": ["image", "document"],
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["image", "document", "audio", "video"]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "label",
+                    "description",
+                    "required",
+                    "choices",
+                    "currency",
+                    "maxLength",
+                    "maxFiles",
+                    "fileTypes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "title",
+              "description",
+              "confirmation",
+              "fields"
+            ],
+            "additionalProperties": false
+          },
+          "maxFileBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "maxResponseBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "status",
+          "versionId",
+          "definition",
+          "maxFileBytes",
+          "maxResponseBytes"
+        ],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_responsesResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirmation": {
+            "type": "string",
+            "maxLength": 20000,
+            "description": "Plain-text confirmation rendered from the submitted published version and validated answers."
+          }
+        },
+        "required": ["id", "confirmation"],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_responsesRequest": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "retryKey": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "answers": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                { "type": "string", "maxLength": 10000 },
+                { "type": "number" },
+                { "type": "boolean" },
+                {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 300 }
+                }
+              ]
+            }
+          },
+          "uploadSecret": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+        },
+        "required": ["versionId", "retryKey", "answers"],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_sessionsResponse": {
+        "type": "object",
+        "properties": {
+          "secret": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+          "expiresAt": { "type": "number" }
+        },
+        "required": ["secret", "expiresAt"],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_sessionsRequest": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["versionId"],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_uploadsResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["id", "size"],
+        "additionalProperties": false
+      },
+      "post_api_v1_public_forms_token_uploadsRequest": {
+        "type": "object",
+        "properties": {
+          "secret": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+          "fieldId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "filename": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 10485760
+          }
+        },
+        "required": ["secret", "fieldId", "filename", "size"],
+        "additionalProperties": false
+      },
+      "put_api_v1_public_forms_token_uploads_fileId_Response": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "filename": { "type": "string" },
+          "mime": { "type": "string" },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["id", "filename", "mime", "size"],
+        "additionalProperties": false
+      },
+      "delete_api_v1_public_forms_token_uploads_fileId_Request": {
+        "type": "object",
+        "properties": {
+          "secret": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+        },
+        "required": ["secret"],
+        "additionalProperties": false
+      },
       "get_api_v1_notesResponse": {
         "type": "object",
         "properties": {
@@ -6858,23 +9562,6 @@
         },
         "required": ["items", "next"],
         "additionalProperties": {}
-      },
-      "Schema": {
-        "type": "string",
-        "format": "uuid",
-        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-      },
-      "delete_api_v1_notes_id_Request": {
-        "type": "object",
-        "properties": {
-          "revision": {
-            "type": "integer",
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": ["revision"],
-        "additionalProperties": false
       },
       "get_api_v1_tasksResponse": {
         "anyOf": [
@@ -7414,7 +10101,8 @@
                     "task",
                     "bookmark",
                     "artifact",
-                    "event"
+                    "event",
+                    "form"
                   ]
                 }
               },
@@ -7575,7 +10263,9 @@
                     "task",
                     "bookmark",
                     "artifact",
-                    "event"
+                    "event",
+                    "form",
+                    "form_response"
                   ]
                 },
                 "excerpt": { "type": "string" },
@@ -8002,7 +10692,8 @@
                     "journal",
                     "note",
                     "bookmark",
-                    "artifact"
+                    "artifact",
+                    "form"
                   ]
                 },
                 "title": { "type": "string" },

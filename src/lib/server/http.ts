@@ -65,12 +65,12 @@ export function checkOrigin(request: Request) {
     throw new HttpError(403, "Request origin is not allowed.");
 }
 const attempts = new Map<string, { count: number; expires: number }>();
-export function throttle(key: string) {
+export function throttle(key: string, limit = 10) {
   const now = Date.now();
   for (const [id, entry] of attempts)
     if (entry.expires < now) attempts.delete(id);
   const entry = attempts.get(key) || { count: 0, expires: now + 60_000 };
-  if (++entry.count > 10)
+  if (++entry.count > limit)
     throw new HttpError(429, "Too many attempts. Try again in a minute.");
   attempts.set(key, entry);
 }

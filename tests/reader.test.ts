@@ -170,6 +170,34 @@ test("initial theme survives blocked storage and honors light, dark and system b
   }
 });
 
+test("public forms use the device theme without reading or changing the owner's preference", () => {
+  for (const dark of [true, false]) {
+    const classes = new Set<string>();
+    let reads = 0;
+    const root = {
+      classList: {
+        remove: (...values: string[]) =>
+          values.forEach((value) => classes.delete(value)),
+        add: (value: string) => classes.add(value),
+      },
+      style: { colorScheme: "" },
+    };
+    runInNewContext(themeBootstrap, {
+      location: { pathname: "/form/example" },
+      document: { documentElement: root },
+      window: { matchMedia: () => ({ matches: dark }) },
+      localStorage: {
+        getItem: () => {
+          reads++;
+          return dark ? "light" : "dark";
+        },
+      },
+    });
+    assert.deepEqual([...classes], [dark ? "dark" : "light"]);
+    assert.equal(reads, 0);
+  }
+});
+
 test("reader code highlighting preserves content and both theme palettes", async () => {
   const { highlightReaderCode } = await import("../src/lib/reader-highlighter");
   const source = "const answer = 42;";
