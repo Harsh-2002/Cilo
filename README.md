@@ -63,7 +63,7 @@ The directory must be writable by container UID 1000. An external key file also 
 
 ## HTTP API
 
-The versioned content API is at `/api/v1`; readiness is at `/health`. The [OpenAPI contract](docs/openapi.json) is also served at `/api/v1/openapi.json`. Browser sessions and bearer API keys use the same content services as MCP. Create a Read or Read & write key in **Settings → MCP**; OAuth stays at `/mcp`.
+The versioned content API is at `/api/v1`; readiness is at `/health`. The [OpenAPI contract](docs/openapi.json) is maintained in this repository and is not served by the instance. Browser sessions and bearer API keys use the same content services as MCP. Create a Read or Read & write key in **Settings → MCP**; OAuth stays at `/mcp`.
 
 ```sh
 curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/notes?limit=20'

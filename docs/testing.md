@@ -7,6 +7,7 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run verify:branding
+npm run verify:api
 npm test
 npm run build
 ```

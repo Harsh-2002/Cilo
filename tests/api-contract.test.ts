@@ -126,6 +126,7 @@ test("actual v1 routes enforce schemas, scoped credentials, pagination, conflict
     return value;
   }
   try {
+    assert.equal((await call("openapi.json")).status, 404);
     const setup = await call("setup", "POST", {
       name: "Contract Owner",
       username: "contract",
@@ -142,6 +143,8 @@ test("actual v1 routes enforce schemas, scoped credentials, pagination, conflict
       apiOperations.length,
     );
     assert.ok(openApiDocument().paths["/api/v1/notes"]);
+    assert.equal(openApiDocument().paths["/api/v1/openapi.json"], undefined);
+    assert.equal((await call("openapi.json")).status, 404);
     const noteParameters = (
       openApiDocument().paths["/api/v1/notes"].get as {
         parameters: {

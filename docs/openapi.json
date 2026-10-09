@@ -7,39 +7,6 @@
   },
   "servers": [{ "url": "/" }],
   "paths": {
-    "/api/v1/openapi.json": {
-      "get": {
-        "operationId": "get_api_v1_openapi_json",
-        "summary": "Read the OpenAPI contract",
-        "security": [],
-        "x-nivra-access": "public",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/get_api_v1_openapi_jsonResponse"
-                }
-              }
-            }
-          },
-          "400": { "$ref": "#/components/responses/Error400" },
-          "401": { "$ref": "#/components/responses/Error401" },
-          "403": { "$ref": "#/components/responses/Error403" },
-          "404": { "$ref": "#/components/responses/Error404" },
-          "405": { "$ref": "#/components/responses/Error405" },
-          "409": { "$ref": "#/components/responses/Error409" },
-          "413": { "$ref": "#/components/responses/Error413" },
-          "415": { "$ref": "#/components/responses/Error415" },
-          "422": { "$ref": "#/components/responses/Error422" },
-          "429": { "$ref": "#/components/responses/Error429" },
-          "500": { "$ref": "#/components/responses/Error500" },
-          "503": { "$ref": "#/components/responses/Error503" }
-        }
-      }
-    },
     "/api/v1/notes": {
       "get": {
         "operationId": "get_api_v1_notes",
@@ -6754,11 +6721,6 @@
           "code": { "type": "string", "minLength": 30, "maxLength": 100 }
         },
         "required": ["password", "code"]
-      },
-      "get_api_v1_openapi_jsonResponse": {
-        "type": "object",
-        "propertyNames": { "type": "string" },
-        "additionalProperties": {}
       },
       "get_api_v1_notesResponse": {
         "type": "object",

@@ -6,15 +6,31 @@ These instructions apply throughout this repository. Read any more specific `AGE
 
 Nivra is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its stack is Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS v4, BlockNote, SQLite, Drizzle, Better Auth, and Excalidraw.
 
-- `PRODUCT.md`: product scope and confirmed user requirements.
-- `DESIGN.md`: interface direction, tokens, and responsive behavior.
 - `package.json` and `package-lock.json`: executable commands and dependency versions.
 - `src/app/`: routes, metadata, and application styles.
 - `src/components/`: onboarding, workspace, editor, tasks, bookmarks, drawings, and settings; `ui/` contains shadcn components.
 - `src/lib/server/`: authentication, schema, persistence, storage, and validation.
 - `migrations/`: ordered SQL migrations, including FTS5 and the single-owner invariant.
 - `tests/`: automated behavior and persistence checks.
-- `docs/`: architecture, MCP and testing references; `README.md` contains the quick start.
+
+### Documentation index
+
+| Document                                             | Purpose and authority                                                                                                  |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [README.md](README.md)                               | User quick start, Docker commands, supported environment variables, configuration and API examples.                    |
+| [AGENTS.md](AGENTS.md)                               | Repository instructions for agents, verification requirements and this documentation index.                            |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                   | Contributor workflow and links to required guidance and checks.                                                        |
+| [PRODUCT.md](PRODUCT.md)                             | Confirmed product scope, requirements and deferred features; verify implementation in code and tests.                  |
+| [DESIGN.md](DESIGN.md)                               | Interface principles, tokens and responsive behavior.                                                                  |
+| [docs/architecture.md](docs/architecture.md)         | Implementation architecture, persistence, security, storage and shared application services.                           |
+| [docs/openapi.json](docs/openapi.json)               | Generated HTTP API contract from the shared operation registry and Zod schemas; never edit manually or serve publicly. |
+| [docs/mcp.md](docs/mcp.md)                           | MCP authentication, permissions, tools and supported client integration.                                               |
+| [docs/testing.md](docs/testing.md)                   | Automated, browser, performance and storage verification procedures and limitations.                                   |
+| [docs/third-party.md](docs/third-party.md)           | Third-party licensing and bundled asset notices.                                                                       |
+| [tests/fixtures/README.md](tests/fixtures/README.md) | Synthetic fixture provenance, supported media coverage and shipping exclusions.                                        |
+| [LICENSE](LICENSE)                                   | License for Nivra's own source.                                                                                        |
+
+Keep this index current whenever documentation is added, moved, removed or changes purpose. Update the existing authoritative document rather than adding overlapping guides. Private, ignored `HANDOFF.md` is local continuation context, not published product documentation or proof of verification.
 
 Inspect the relevant implementation and `git status --short` before making changes. Treat code and executed checks as evidence of current behavior; product plans are not proof that a feature works.
 
@@ -27,7 +43,9 @@ npm ci
 npm run dev
 npm run typecheck
 npm run lint
+npm run format:check
 npm run verify:branding
+npm run verify:api
 npm test
 npm run build
 ```

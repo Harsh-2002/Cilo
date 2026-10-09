@@ -45,9 +45,6 @@ function add(
     ...options,
   });
 }
-add("openapi.json", "GET", "Read the OpenAPI contract", object, {
-  access: "public",
-});
 for (const area of ["notes", "journals"] as const) {
   add(area, "GET", `List ${area}`, listOutput(apiOutputs.noteSummary), {
     query: apiQueries.notes,
