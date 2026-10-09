@@ -61,46 +61,9 @@ volumes:
 
 The directory must be writable by container UID 1000. An external key file also needs a read-only container mount; set `NIVRA_ENCRYPTION_KEY_FILE` to its container path. Keep the exact existing volume or directory when upgrading. A reverse proxy must preserve the host; use HTTPS at the domain root, with WebSocket forwarding for development. Subpath hosting is unsupported.
 
-## HTTP API
-
-The versioned content API is at `/api/v1`; readiness is at `/health`. The [OpenAPI contract](docs/openapi.json) is maintained in this repository and is not served by the instance. Browser sessions and bearer API keys use the same content services as MCP. Create a Read or Read & write key in **Settings → MCP**; OAuth stays at `/mcp`.
-
-```sh
-curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/notes?limit=20'
-curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/counts'
-curl -H 'Authorization: Bearer YOUR_API_KEY' 'http://localhost:3000/api/v1/search?q=meeting&limit=20'
-curl -X POST -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-note-001' -d '{"title":"Meeting"}' 'http://localhost:3000/api/v1/notes'
-```
-
-Lists return `items` and `next`; pass the cursor as `after` with the same filters. Changes to items with revisions require the current `revision`. Content deletion moves items to Trash; restoring or permanently deleting requires the owner session. File and publication responses include canonical URLs. Queued processing returns `jobs` with IDs, status and lookup URLs. The web app listens to `/api/v1/completions` for session-authenticated SSE invalidations, then reloads affected content. JSON creation retries can use `Idempotency-Key`; multipart uploads and bundle transfers do not support that header. The retired `/api/nivra` routes have no aliases.
-
-## Updates and recovery
-
-Create and verify an instance backup in **Settings → System**, retain the original encryption key separately, then update the checkout and run `docker compose up -d --build`. Never delete the data volume to fix startup.
-
-For an existing development installation using the retired storage/backup environment variables, stop Nivra and run `npx tsx scripts/migrate-configuration.ts` once before restarting. Keep the original data mount and key; verify the imported settings before removing the retired variables.
-
-Instance backups preserve account security, publications, configuration and referenced files. They remain encrypted even when content encryption is disabled. The master key is never included in remote backup objects. Local backups share the server's failure risk; use S3 or a separately mounted backup directory for host-failure recovery.
-
-With Node.js 24, the recovery CLI supports:
-
-```sh
-npm run backup -- create
-npm run backup -- list
-npm run backup -- verify BACKUP_ID
-NIVRA_ENCRYPTION_KEY_FILE=/safe/original.key npm run backup -- restore BACKUP_ID /srv/nivra-restored
-```
-
-If the original database is unavailable, append `--backup-directory /safe/backups` for local recovery, or `--connection-file /safe/s3.json` for S3. The private JSON file contains `provider`, `endpoint`, `region`, `bucket`, `accessKeyId`, `secretAccessKey` and `pathStyle`, matching your saved connection. Keep it readable only by its owner.
-
-Restoration requires an empty destination and restores files locally. Content import/export bundles are separate from full-instance recovery. Keep keys, connection credentials and recovery codes outside Git.
-
-[Architecture](docs/architecture.md) · [MCP](docs/mcp.md) · [Testing](docs/testing.md)
-
-MIT licensed. See [LICENSE](LICENSE) and [third-party notices](docs/third-party.md).
-
 ## Development
+
+Nivra is built with Next.js, TypeScript, shadcn/ui, Tailwind CSS, BlockNote, SQLite/FTS5, Drizzle and Better Auth.
 
 Requires **Node.js 24** and npm. From a cloned checkout:
 
@@ -121,4 +84,8 @@ npm test
 npm run build
 ```
 
-Next.js · TypeScript · shadcn/ui · Tailwind CSS · BlockNote · SQLite/FTS5 · Drizzle · Better Auth. See [CONTRIBUTING.md](CONTRIBUTING.md) before making changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, API examples and development upgrade notes.
+
+[Architecture and recovery](docs/architecture.md) · [MCP](docs/mcp.md) · [OpenAPI contract](docs/openapi.json) · [Testing](docs/testing.md)
+
+MIT licensed. See [LICENSE](LICENSE) and [third-party notices](docs/third-party.md).

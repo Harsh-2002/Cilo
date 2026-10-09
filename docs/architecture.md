@@ -88,6 +88,23 @@ Restore authenticates the manifest and each object, checks lengths and SHA-256 h
 
 Backups read one complete database/file object at a time in memory, not an entire archive; provision RAM for the largest object and disk space for the database snapshot or verification staging. Backup schedules are periodic recovery points, not continuous replication. Run one Nivra process per data directory; horizontal replicas and distributed file-deletion leases are not supported.
 
+### Backup and recovery commands
+
+Create and verify an instance backup in **Settings → System** and retain the original encryption key separately. Local backups share the server’s failure risk; use S3 or a separately mounted backup directory for host-failure recovery.
+
+With Node.js 24, the recovery CLI supports:
+
+```sh
+npm run backup -- create
+npm run backup -- list
+npm run backup -- verify BACKUP_ID
+NIVRA_ENCRYPTION_KEY_FILE=/safe/original.key npm run backup -- restore BACKUP_ID /srv/nivra-restored
+```
+
+If the original database is unavailable, append `--backup-directory /safe/backups` for local recovery, or `--connection-file /safe/s3.json` for S3. The private JSON file contains `provider`, `endpoint`, `region`, `bucket`, `accessKeyId`, `secretAccessKey` and `pathStyle`, matching your saved connection. Keep it readable only by its owner.
+
+Restoration requires an empty destination and restores files locally. Content import/export bundles are separate from full-instance recovery. Keep keys, connection credentials and recovery codes outside Git.
+
 ## Connected workspace
 
 Migration 0008 adds note checkpoints, stable directed links, template/daily identity, task scheduling, and task FTS5 with triggers and existing-title backfill. Existing notes remain regular notes and existing tasks retain undated, nonrecurring behavior. A partial unique index enforces one daily note per owner/date; the parent-occurrence index prevents duplicate recurring successors.

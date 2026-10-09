@@ -17,12 +17,12 @@ Nivra is a single-owner, self-hosted notes, tasks, and bookmarks web app. Its st
 
 | Document                                             | Purpose and authority                                                                                                  |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [README.md](README.md)                               | User quick start, Docker commands, supported environment variables, configuration and API examples.                    |
+| [README.md](README.md)                               | User quick start, Docker commands, supported environment variables, configuration and development setup.               |
 | [AGENTS.md](AGENTS.md)                               | Repository instructions for agents, verification requirements and this documentation index.                            |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                   | Contributor workflow and links to required guidance and checks.                                                        |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                   | Contributor workflow, development upgrade exceptions, HTTP API examples and required checks.                           |
 | [PRODUCT.md](PRODUCT.md)                             | Confirmed product scope, requirements and deferred features; verify implementation in code and tests.                  |
 | [DESIGN.md](DESIGN.md)                               | Interface principles, tokens and responsive behavior.                                                                  |
-| [docs/architecture.md](docs/architecture.md)         | Implementation architecture, persistence, security, storage and shared application services.                           |
+| [docs/architecture.md](docs/architecture.md)         | Implementation architecture, persistence, security, storage, recovery commands and shared application services.        |
 | [docs/openapi.json](docs/openapi.json)               | Generated HTTP API contract from the shared operation registry and Zod schemas; never edit manually or serve publicly. |
 | [docs/mcp.md](docs/mcp.md)                           | MCP authentication, permissions, tools and supported client integration.                                               |
 | [docs/testing.md](docs/testing.md)                   | Automated, browser, performance and storage verification procedures and limitations.                                   |
