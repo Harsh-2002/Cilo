@@ -2,6 +2,7 @@ import { Worker } from "node:worker_threads";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { installationExists } from "./installation";
 import { sqlite } from "./db";
 import type { Document } from "../types";
 import { publicationMedia } from "../media-url";
@@ -64,18 +65,24 @@ export async function renderPublicationHtml(
   const data = JSON.stringify(snapshot).replace(/</g, "\\u003c");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title><meta name="description" content="${description}"><meta name="robots" content="noindex,nofollow"><meta name="nivra-nonce" content="__NIVRA_CSP_NONCE__"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><link rel="icon" href="/icon.svg?v=5"><link rel="stylesheet" href="/reader/reader.css"><script type="module" nonce="__NIVRA_CSP_NONCE__" src="/reader/main.js"></script></head><body><div id="publication-root">${markup}</div><script id="publication-data" type="application/json">${data}</script></body></html>`;
 }
+export function publicationPage(
+  token: string,
+): { status: 200; html: string } | { status: 404 | 503; html: null } {
+  if (!/^[a-f0-9]{48}$/.test(token) || !installationExists())
+    return { status: 404, html: null };
+  const row = sqlite()
+    .prepare(
+      "SELECT h.html,h.renderer_version FROM publications p LEFT JOIN publication_pages h ON h.token=p.token WHERE p.token=?",
+    )
+    .get(token) as
+    { html: string | null; renderer_version: string | null } | undefined;
+  if (!row) return { status: 404, html: null };
+  if (!row.html || row.renderer_version !== publicationRendererVersion())
+    return { status: 503, html: null };
+  return { status: 200, html: row.html };
+}
 export function cachedPublicationHtml(token: string) {
-  if (!/^[a-f0-9]{48}$/.test(token)) return null;
-  return (
-    (
-      sqlite()
-        .prepare(
-          "SELECT p.html FROM publication_pages p JOIN publications n ON n.token=p.token WHERE p.token=? AND p.renderer_version=?",
-        )
-        .get(token, publicationRendererVersion()) as
-        { html: string } | undefined
-    )?.html || null
-  );
+  return publicationPage(token).html;
 }
 export async function preparePublicationPages() {
   const d = sqlite();

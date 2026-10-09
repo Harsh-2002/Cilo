@@ -7,6 +7,7 @@ export default function GlobalError() {
     <html lang="en">
       <body>
         <SystemPage
+          code="500"
           title="Nivra couldn’t start."
           actions={
             <Button onClick={() => window.location.reload()}>Try again</Button>

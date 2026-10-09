@@ -2,7 +2,8 @@
 import { SystemSettings } from "./system-settings";
 import { brandPath, brandFramePath, brandTagline } from "@/lib/brand";
 import { MfaSettings } from "./mfa-settings";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { isLoginIdentifier } from "@/lib/login-identifier";
 import {
   passkeyAuth,
   usePasskeySupported,
@@ -116,6 +117,11 @@ export function AuthScreen({
   const [mfaEnrolled, setMfaEnrolled] = useState(false);
   const [mfaGuard, setMfaGuard] = useState(false);
   const [step, setStep] = useState(0);
+  const [setupStage, setSetupStage] = useState(0);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (setup && setupStage > 0 && step === 0) heading.current?.focus();
+  }, [setup, setupStage, step]);
   const [mfa, setMfa] = useState(false);
   const [backup, setBackup] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
@@ -136,11 +142,36 @@ export function AuthScreen({
     e.preventDefault();
     if (busy) return;
     setError("");
+    if (setup && setupStage === 0) {
+      if (!name.trim() || !isLoginIdentifier(username.trim())) {
+        setError("Enter your name and a valid username or email address.");
+        return;
+      }
+      setName(name.trim());
+      setUsername(username.trim());
+      setSetupStage(1);
+      return;
+    }
     if (
       ((setup && setupMethod === "password") || recovering) &&
       password !== confirm
     ) {
       setError("Your passwords don’t match.");
+      return;
+    }
+    if (setup && setupStage === 1) {
+      if (
+        setupMethod === "password" &&
+        (password.length < 12 || password.length > 128)
+      ) {
+        setError("Use a password between 12 and 128 characters.");
+        return;
+      }
+      if (setupMethod === "passkey" && !passkeysSupported) {
+        setError("Passkeys need a supported browser and HTTPS or localhost.");
+        return;
+      }
+      setSetupStage(2);
       return;
     }
     setBusy(true);
@@ -241,10 +272,16 @@ export function AuthScreen({
         {setup && (
           <div
             className="setup-progress"
-            aria-label={`Setup step ${step + 1} of 3`}
+            role="group"
+            aria-label={`Setup step ${step === 0 ? setupStage + 1 : step + 3} of 5`}
           >
-            {[0, 1, 2].map((i) => (
-              <span key={i} className={i <= step ? "complete" : ""} />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span
+                key={i}
+                className={
+                  i <= (step === 0 ? setupStage : step + 2) ? "complete" : ""
+                }
+              />
             ))}
           </div>
         )}
@@ -383,16 +420,24 @@ export function AuthScreen({
         ) : (
           <>
             <Mark />
-            <h1>
+            <h1 ref={heading} tabIndex={-1}>
               {setup
-                ? brandTagline
+                ? setupStage === 0
+                  ? brandTagline
+                  : setupStage === 1
+                    ? "Choose how to sign in."
+                    : "Protect your data."
                 : recovering
                   ? "Find your way back."
                   : "Welcome back."}
             </h1>
             <p className="auth-description">
               {setup
-                ? "Your notes, ideas, and everything in between. Let’s make this space yours."
+                ? setupStage === 0
+                  ? "Let’s start with your name and login identifier."
+                  : setupStage === 1
+                    ? "Choose a password or a passkey for your account."
+                    : "Choose how Nivra stores your content before creating your account."
                 : recovering
                   ? "Use your saved recovery code to set a new password. Registered passkeys stay valid; remove unwanted keys in Settings after signing in."
                   : "Pick up where your thoughts left off."}
@@ -472,7 +517,7 @@ export function AuthScreen({
             )}
             {(setup || recovering || methods.password) && (
               <form onSubmit={submit} className="auth-form">
-                {setup && (
+                {setup && setupStage === 0 && (
                   <div className="field">
                     <Label htmlFor="name">Your name</Label>
                     <Input
@@ -499,29 +544,31 @@ export function AuthScreen({
                     />
                   </div>
                 ) : (
-                  <div className="field">
-                    <Label htmlFor="username">Username or email</Label>
-                    <Input
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                      minLength={3}
-                      maxLength={254}
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      autoComplete="username"
-                      placeholder="Username or email address"
-                    />
-                    {setup && (
-                      <p className="field-hint">
-                        Use 3–30 letters, numbers, dots or underscores, or an
-                        email address.
-                      </p>
-                    )}
-                  </div>
+                  (!setup || setupStage === 0) && (
+                    <div className="field">
+                      <Label htmlFor="username">Username or email</Label>
+                      <Input
+                        id="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        minLength={3}
+                        maxLength={254}
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        autoComplete="username"
+                        placeholder="Username or email address"
+                      />
+                      {setup && (
+                        <p className="field-hint">
+                          Use 3–30 letters, numbers, dots or underscores, or an
+                          email address.
+                        </p>
+                      )}
+                    </div>
+                  )
                 )}
-                {setup && (
+                {setup && setupStage === 2 && (
                   <div className="field">
                     <label className="check-row">
                       <Checkbox
@@ -534,14 +581,16 @@ export function AuthScreen({
                     <p className="field-hint">
                       {installation?.locked
                         ? "Encryption was chosen when this installation initialized."
-                        : "Enabled by default. This choice is fixed when account setup starts."}
+                        : "Enabled by default. This choice cannot change after setup."}
                     </p>
-                    {installation?.publicUrl && (
-                      <p className="field-hint">{installation.publicUrl}</p>
-                    )}
+                    <p className="field-hint">
+                      {encrypted
+                        ? "Notes and files are encrypted on disk. Nivra decrypts them when you use the app."
+                        : "Notes and files will be stored without encryption on disk. Account secrets and backups stay encrypted."}
+                    </p>
                   </div>
                 )}
-                {setup && (
+                {setup && setupStage === 1 && (
                   <div className="setup-auth-method">
                     <Label>How would you like to sign in?</Label>
                     <div role="group" aria-label="Sign-in method">
@@ -583,7 +632,8 @@ export function AuthScreen({
                     </p>
                   </div>
                 )}
-                {(!setup || setupMethod === "password") && (
+                {(!setup ||
+                  (setupStage === 1 && setupMethod === "password")) && (
                   <div className="field">
                     <Label htmlFor="password">
                       {recovering ? "New password" : "Password"}
@@ -618,7 +668,8 @@ export function AuthScreen({
                     </div>
                   </div>
                 )}
-                {((setup && setupMethod === "password") || recovering) && (
+                {((setup && setupStage === 1 && setupMethod === "password") ||
+                  recovering) && (
                   <div className="field">
                     <Label htmlFor="confirm">Confirm password</Label>
                     <Input
@@ -643,9 +694,11 @@ export function AuthScreen({
                   ) : (
                     <>
                       {setup
-                        ? setupMethod === "passkey"
-                          ? "Create your passkey"
-                          : "Create your space"
+                        ? setupStage < 2
+                          ? "Continue"
+                          : setupMethod === "passkey"
+                            ? "Create your passkey"
+                            : "Create your space"
                         : recovering
                           ? "Reset password"
                           : "Sign in"}
@@ -653,6 +706,19 @@ export function AuthScreen({
                     </>
                   )}
                 </Button>
+                {setup && setupStage > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      setSetupStage(setupStage - 1);
+                      setError("");
+                    }}
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </Button>
+                )}
               </form>
             )}
             {!setup && (

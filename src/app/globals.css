@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../../public/system-page.css";
 @custom-variant data-open (&:is([data-state="open"], [data-open]));
 @custom-variant data-closed (&:is([data-state="closed"], [data-closed]));
 @custom-variant data-checked (&:is([data-state="checked"], [data-checked]));
@@ -3821,47 +3822,6 @@ button:disabled {
   max-width: 100%;
   height: auto;
   margin-inline: auto;
-}
-
-.system-page {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 32px 24px;
-}
-.system-page > div {
-  width: 100%;
-  max-width: 440px;
-}
-.system-page-code {
-  display: block;
-  font-size: 64px;
-  line-height: 1;
-  font-weight: 550;
-  letter-spacing: -0.04em;
-  color: var(--muted-foreground);
-  margin-bottom: 24px;
-  font-variant-numeric: tabular-nums;
-}
-.system-page h1 {
-  font-size: 28px;
-  font-weight: 550;
-  letter-spacing: -0.03em;
-  line-height: 1.3;
-  margin-bottom: 12px;
-}
-.system-page p {
-  color: var(--muted-foreground);
-  line-height: 1.7;
-}
-.system-page-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 28px;
-}
-.system-page-actions [data-slot="button"] {
-  min-height: 44px;
 }
 
 .search-progress {

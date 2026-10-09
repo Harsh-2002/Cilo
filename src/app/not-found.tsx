@@ -8,11 +8,11 @@ export default function NotFound() {
       title="Page not found."
       actions={
         <Button asChild>
-          <Link href="/">Back to workspace</Link>
+          <Link href="/">Go to Nivra</Link>
         </Button>
       }
     >
-      This page may have moved, or the link is incomplete.
+      Check the link, or return to Nivra to continue.
     </SystemPage>
   );
 }
