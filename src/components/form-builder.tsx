@@ -4,7 +4,13 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable, isSortable } from "@dnd-kit/react/sortable";
 import { SortableKeyboardPlugin } from "@dnd-kit/dom/sortable";
-import { StyleInjector, defaultPreset } from "@dnd-kit/dom";
+import {
+  StyleInjector,
+  defaultPreset,
+  KeyboardSensor,
+  PointerSensor,
+  PointerActivationConstraints,
+} from "@dnd-kit/dom";
 import { useCspNonce } from "@/lib/csp";
 import {
   ArrowDown,
@@ -12,7 +18,6 @@ import {
   Copy,
   Plus,
   Trash2,
-  GripVertical,
   MoreHorizontal,
 } from "lucide-react";
 import {
@@ -47,6 +52,18 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
+const questionSensors = [
+  PointerSensor.configure({
+    activationConstraints: () => [
+      new PointerActivationConstraints.Delay({ value: 250, tolerance: 8 }),
+    ],
+    preventActivation: (event) =>
+      event.target instanceof Element &&
+      event.target.closest("[data-no-drag]") !== null,
+  }),
+  KeyboardSensor,
+];
+
 function SortableQuestion({
   field,
   index,
@@ -76,6 +93,7 @@ function SortableQuestion({
     accept: "question",
     transition: null,
     plugins: [SortableKeyboardPlugin],
+    sensors: questionSensors,
   });
   return (
     <li
@@ -83,18 +101,15 @@ function SortableQuestion({
       data-field-id={field.id}
       className={`form-question-block ${isDragSource ? "is-dragging" : ""}`}
     >
-      <header className="form-question-header">
+      <header
+        ref={handleRef}
+        className="form-question-header form-question-handle"
+        role="group"
+        tabIndex={0}
+        aria-label={`Reorder question ${index + 1}`}
+        aria-describedby="form-reorder-help"
+      >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Button
-            ref={handleRef}
-            variant="ghost"
-            size="icon"
-            className="form-question-handle"
-            aria-label={`Reorder question ${index + 1}`}
-            aria-describedby="form-reorder-help"
-          >
-            <GripVertical />
-          </Button>
           <span className="shrink-0 text-sm font-medium">{index + 1}.</span>
           <Select
             value={field.type}
@@ -102,6 +117,7 @@ function SortableQuestion({
           >
             <SelectTrigger
               className="form-question-type"
+              data-no-drag
               aria-label={`Question ${index + 1} type`}
             >
               <SelectValue />
@@ -120,6 +136,7 @@ function SortableQuestion({
             <Button
               variant="ghost"
               size="icon"
+              data-no-drag
               aria-label={`Question ${index + 1} actions`}
             >
               <MoreHorizontal />
@@ -344,9 +361,9 @@ export function FormBuilder({
         </label>
       </div>
       <p id="form-reorder-help" className="sr-only">
-        Drag a question by its handle. With the handle focused, press Space, use
-        arrow keys to move, and press Space to drop. The question menu also has
-        Move up and Move down.
+        Hold a question header to drag. With the header focused, press Space,
+        use arrow keys to move, and press Space to drop. The question menu also
+        has Move up and Move down.
       </p>
       <DragDropProvider
         plugins={plugins}
@@ -387,7 +404,7 @@ export function FormBuilder({
           if (id)
             requestAnimationFrame(() =>
               document
-                .querySelector<HTMLButtonElement>(
+                .querySelector<HTMLElement>(
                   `[data-field-id="${id}"] .form-question-handle`,
                 )
                 ?.focus(),

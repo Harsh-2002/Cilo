@@ -254,7 +254,26 @@ try {
             colorScheme === "light" &&
             [390, 1440].includes(width)
           ) {
-            const handle = page.getByRole("button", {
+            const selector = page.getByRole("combobox", {
+              name: "Question 1 type",
+              exact: true,
+            });
+            await selector.scrollIntoViewIfNeeded();
+            const selectorBox = await selector.boundingBox();
+            await page.mouse.move(
+              selectorBox.x + selectorBox.width / 2,
+              selectorBox.y + selectorBox.height / 2,
+            );
+            await page.mouse.down();
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            assert.equal(
+              await page.locator(".form-question-block.is-dragging").count(),
+              0,
+              "Holding a question control does not start dragging",
+            );
+            await page.mouse.up();
+            await page.keyboard.press("Escape");
+            const handle = page.getByRole("group", {
               name: "Reorder question 1",
               exact: true,
             });
@@ -265,11 +284,12 @@ try {
                 .locator(".form-question-block")
                 .nth(1)
                 .boundingBox();
-              await page.mouse.move(
-                start.x + start.width / 2,
-                start.y + start.height / 2,
-              );
+              await page.mouse.move(start.x + 5, start.y + start.height / 2);
               await page.mouse.down();
+              await page.waitForFunction(
+                () =>
+                  !!document.querySelector(".form-question-block.is-dragging"),
+              );
               await page.mouse.move(
                 target.x + target.width / 2,
                 target.y + target.height / 2,
@@ -316,7 +336,7 @@ try {
               .click();
             assert.deepEqual(await questionOrder(), ["Your feedback", "Area"]);
             if (width === 390) {
-              const reorder = page.getByRole("button", {
+              const reorder = page.getByRole("group", {
                 name: "Reorder question 1",
                 exact: true,
               });

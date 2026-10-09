@@ -7004,6 +7004,15 @@ body .bn-mobile-formatting-toolbar {
 .form-question-handle {
   touch-action: none;
   cursor: grab;
+  user-select: none;
+}
+.form-question-handle:focus-visible {
+  outline: 1px solid var(--ring);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.form-question-block.is-dragging .form-question-handle {
+  cursor: grabbing;
 }
 .form-question-type[data-slot="select-trigger"] {
   min-width: 0;
