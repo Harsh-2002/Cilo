@@ -233,16 +233,18 @@ export function TasksPanel({
   async function loadMore() {
     if (!next || loadingMore) return;
     const started = view;
+    const version = loadVersion.current;
     setLoadingMore(true);
     try {
       const more = await api<Page<Task>>(
         `tasks?${taskParams(filter, query, boardId)}&after=${encodeURIComponent(next)}`,
       );
-      if (currentView.current !== started) return;
+      if (currentView.current !== started || version !== loadVersion.current)
+        return;
       setTasks((items) => mergeTasks(items, more.items));
       setNext(more.next);
     } catch (e) {
-      setError((e as Error).message);
+      if (version === loadVersion.current) setError((e as Error).message);
     } finally {
       setLoadingMore(false);
     }

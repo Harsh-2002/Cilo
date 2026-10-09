@@ -235,16 +235,18 @@ export function BookmarksPanel({
   async function loadMore() {
     if (!next || loadingMore) return;
     const started = view;
+    const version = loadVersion.current;
     setLoadingMore(true);
     try {
       const more = await api<Page<Bookmark>>(
         `bookmarks?${bookmarkParams(query, favorites, collection)}&after=${encodeURIComponent(next)}`,
       );
-      if (currentView.current !== started) return;
+      if (currentView.current !== started || version !== loadVersion.current)
+        return;
       setBookmarks((items) => mergeBookmarks(items, more.items));
       setNext(more.next);
     } catch (e) {
-      setError((e as Error).message);
+      if (version === loadVersion.current) setError((e as Error).message);
     } finally {
       setLoadingMore(false);
     }
