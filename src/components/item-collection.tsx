@@ -10,7 +10,7 @@ import {
   SquareCheckBig,
   Bookmark,
   Layers,
-  FileQuestion,
+  ClipboardList,
 } from "lucide-react";
 import type { TaggedItem } from "@/lib/types";
 import { api } from "@/lib/client";
@@ -192,7 +192,7 @@ export function ItemCollection({
                       : item.type === "bookmark"
                         ? Bookmark
                         : item.type === "form"
-                          ? FileQuestion
+                          ? ClipboardList
                           : Layers;
                 const label =
                   item.type === "note"

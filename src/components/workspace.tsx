@@ -27,7 +27,7 @@ import {
   Layers,
   Trash,
   Zap,
-  FileQuestion,
+  ClipboardList,
 } from "lucide-react";
 import { notify } from "@/lib/feedback";
 import { Mark } from "./auth-screen";
@@ -687,7 +687,7 @@ export function Workspace({
             { id: "calendar", label: "Calendar", Icon: CalendarDays },
             { id: "bookmarks", label: "Bookmarks", Icon: LibraryBig },
             { id: "artifacts", label: "Artifacts", Icon: Layers },
-            { id: "forms", label: "Forms", Icon: FileQuestion },
+            { id: "forms", label: "Forms", Icon: ClipboardList },
             { id: "trash", label: "Trash", Icon: Trash },
           ].map(({ id, label, Icon }) => (
             <button

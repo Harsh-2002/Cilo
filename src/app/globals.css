@@ -2972,6 +2972,12 @@ button:disabled {
 .note-picker-popover {
   padding: 0;
 }
+.date-picker-popover {
+  max-height: min(
+    calc(100dvh - 32px),
+    var(--radix-popover-content-available-height)
+  );
+}
 .note-picker-popover [data-slot="command-item"] {
   min-height: 44px;
 }
@@ -6972,10 +6978,14 @@ body .bn-mobile-formatting-toolbar {
   background: var(--foreground);
   border-radius: 4px;
 }
-.form-builder [data-slot="button"] {
+.form-builder :is([data-slot="button"], [data-slot="dropdown-menu-trigger"]) {
   min-height: 44px;
 }
-.form-builder [data-slot="button"][data-size^="icon"] {
+.form-builder
+  :is(
+    [data-slot="button"],
+    [data-slot="dropdown-menu-trigger"]
+  )[data-size^="icon"] {
   flex-shrink: 0;
   min-width: 44px;
 }
@@ -6985,6 +6995,27 @@ body .bn-mobile-formatting-toolbar {
 }
 .form-builder [data-slot="textarea"] {
   min-height: 80px;
+}
+.form-workspace
+  :is(
+    [data-slot="button"],
+    [data-slot="dropdown-menu-trigger"],
+    [data-slot="popover-trigger"],
+    [data-slot="select-trigger"],
+    [data-slot="input"]
+  ),
+.form-preview-dialog [data-slot="button"],
+.form-renderer :is([data-slot="button"], [data-slot="select-trigger"]) {
+  min-height: 44px;
+}
+.form-workspace
+  :is(
+    [data-slot="button"],
+    [data-slot="dropdown-menu-trigger"],
+    [data-slot="popover-trigger"]
+  )[data-size^="icon"],
+.form-preview-dialog [data-slot="button"][data-size^="icon"] {
+  min-width: 44px;
 }
 .form-question-block {
   border: 1px solid var(--border);

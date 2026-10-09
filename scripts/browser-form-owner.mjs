@@ -13,7 +13,11 @@ const owner = await request.newContext({
   extraHTTPHeaders: { origin: base },
 });
 async function api(path, data, method = data === undefined ? "GET" : "POST") {
-  const response = await owner.fetch(`/api/v1/${path}`, { method, data });
+  const response = await owner.fetch(`/api/v1/${path}`, {
+    method,
+    data,
+    maxRetries: method === "GET" ? 1 : 0,
+  });
   const body = await response.json();
   assert.ok(response.ok(), `${response.status()} ${JSON.stringify(body)}`);
   return body;
@@ -21,12 +25,18 @@ async function api(path, data, method = data === undefined ? "GET" : "POST") {
 const capture = process.env.NIVRA_BROWSER_REVIEW_DIR;
 if (capture) await mkdir(capture, { recursive: true });
 let checked = 0;
+const touchSized = (value) => Math.round(value * 100) / 100 >= 44;
 try {
   for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+    if (
+      process.env.NIVRA_OWNER_ENGINE &&
+      name !== process.env.NIVRA_OWNER_ENGINE
+    )
+      continue;
     const browser = await engine.launch();
     try {
       for (const width of name === "chromium"
-        ? [320, 390, 768, 1280, 1440]
+        ? [320, 390, 768, 844, 1024, 1280, 1440]
         : [390, 1440])
         for (const colorScheme of ["light", "dark"]) {
           console.log(`Checking owner ${name} ${width} ${colorScheme}`);
@@ -38,9 +48,13 @@ try {
                 ? 568
                 : width === 768
                   ? 1024
-                  : width === 1280
-                    ? 720
-                    : 900,
+                  : width === 844
+                    ? 390
+                    : width === 1024
+                      ? 768
+                      : width === 1280
+                        ? 720
+                        : 900,
           };
           const context = await browser.newContext({
             serviceWorkers: "block",
@@ -71,7 +85,7 @@ try {
           );
           for (let index = 0; index < controls.length; index++) {
             assert.ok(
-              controls[index]?.height >= 44,
+              touchSized(controls[index]?.height),
               "Form list controls remain touch-sized",
             );
             for (const other of controls.slice(index + 1)) {
@@ -93,6 +107,22 @@ try {
           await page
             .getByRole("textbox", { name: "Form title", exact: true })
             .waitFor();
+          for (const label of [
+            "Forms",
+            "Preview",
+            "Build",
+            "Responses",
+            "Share",
+          ]) {
+            const target = await page
+              .locator(".form-workspace")
+              .getByRole("button", { name: label, exact: true })
+              .boundingBox();
+            assert.ok(
+              touchSized(target.height),
+              `${label}: Forms navigation/action stays touch-sized`,
+            );
+          }
           await page.waitForFunction(
             (dark) =>
               document.documentElement.classList.contains("dark") === dark,
@@ -384,6 +414,42 @@ try {
             8,
             "Confirmation label sits directly above its field",
           );
+          const answerButton = page.getByRole("button", {
+            name: "Insert answer",
+            exact: true,
+          });
+          const answerBox = await answerButton.boundingBox();
+          const helpBox = await page
+            .locator("#form-confirmation-help")
+            .boundingBox();
+          assert.ok(
+            touchSized(answerBox.height),
+            "Answer picker stays touch-sized",
+          );
+          if (helpBox.x >= answerBox.x + answerBox.width) {
+            assert.ok(
+              Math.abs(
+                helpBox.y +
+                  helpBox.height / 2 -
+                  answerBox.y -
+                  answerBox.height / 2,
+              ) <= 1,
+              "Inline helper text is vertically centered with its action",
+            );
+          } else {
+            assert.ok(helpBox.y >= answerBox.y + answerBox.height + 12);
+            assert.equal(helpBox.x, answerBox.x);
+          }
+          const questionAction = await page
+            .getByRole("button", {
+              name: "Question 1 actions",
+              exact: true,
+            })
+            .boundingBox();
+          assert.ok(
+            touchSized(questionAction.height) &&
+              touchSized(questionAction.width),
+          );
           await message.fill("Thanks ");
           await message.press("End");
           await page
@@ -408,6 +474,20 @@ try {
             name: "Preview",
             exact: true,
           });
+          await preview.evaluate(async (element) => {
+            await Promise.all(
+              element.getAnimations().map((animation) => animation.finished),
+            );
+          });
+          assert.ok(
+            touchSized(
+              (
+                await preview
+                  .getByRole("button", { name: "Back to form", exact: true })
+                  .boundingBox()
+              ).height,
+            ),
+          );
           await preview
             .getByRole("textbox", { name: "Your feedback", exact: true })
             .fill("Preview only");
@@ -429,6 +509,20 @@ try {
           await page
             .getByRole("button", { name: "Closing date", exact: true })
             .click();
+          const datePicker = page.locator(".date-picker-popover");
+          await datePicker.evaluate(async (element) => {
+            await Promise.all(
+              element.getAnimations().map((animation) => animation.finished),
+            );
+          });
+          const dateBounds = await datePicker.boundingBox();
+          assert.ok(
+            dateBounds.x >= 11 &&
+              dateBounds.x + dateBounds.width <= viewport.width - 11 &&
+              dateBounds.y >= 11 &&
+              dateBounds.y + dateBounds.height <= viewport.height - 11,
+            `The date picker stays inside the viewport: ${JSON.stringify(dateBounds)}`,
+          );
           await page
             .getByRole("textbox", { name: "Enter closing date", exact: true })
             .fill("2099-10-31");
@@ -525,6 +619,52 @@ try {
             .getByRole("heading", { name: "Submission", exact: true })
             .waitFor();
           assert.equal(page.url(), deepUrl);
+          if (name === "chromium" && [390, 1440].includes(width)) {
+            await page
+              .getByRole("button", { name: "Responses", exact: true })
+              .click();
+            await page
+              .getByRole("button", { name: "Submissions", exact: true })
+              .click();
+            const review = page.getByRole("combobox", {
+              name: "Review status",
+              exact: true,
+            });
+            await review.click();
+            await page
+              .getByRole("option", { name: "Reviewed", exact: true })
+              .click();
+            await page
+              .getByText("1 matching submissions", { exact: true })
+              .waitFor();
+            await review.click();
+            await page
+              .getByRole("option", { name: "New", exact: true })
+              .click();
+            await page
+              .getByText("0 matching submissions", { exact: true })
+              .waitFor();
+            await review.click();
+            await page
+              .getByRole("option", { name: "All submissions", exact: true })
+              .click();
+            const search = page.getByRole("textbox", {
+              name: "Search submissions",
+              exact: true,
+            });
+            await search.fill(`no-result-${id}`);
+            await page
+              .getByText(
+                "No matching submissions. Try a different search or filter.",
+                { exact: true },
+              )
+              .waitFor();
+            await search.fill("useful");
+            await page
+              .getByText("1 matching submissions", { exact: true })
+              .waitFor();
+            await search.fill("");
+          }
           await page
             .getByRole("button", { name: "Build", exact: true })
             .click();
@@ -719,6 +859,195 @@ try {
           await page
             .getByRole("textbox", { name: "Public link", exact: true })
             .waitFor();
+          if (name === "chromium" && [390, 1440].includes(width)) {
+            const link = await page
+              .getByRole("textbox", { name: "Public link", exact: true })
+              .inputValue();
+            if (width === 1440 && colorScheme === "light") {
+              const before = await context.request.get(link);
+              assert.ok(
+                (await before.text()).includes(title),
+                "Draft edits do not alter the published snapshot",
+              );
+              await page
+                .getByRole("button", { name: "Publish changes", exact: true })
+                .click();
+              await page
+                .getByRole("button", { name: "Publish changes", exact: true })
+                .waitFor({ state: "hidden" });
+              assert.equal(
+                await page
+                  .getByRole("textbox", { name: "Public link", exact: true })
+                  .inputValue(),
+                link,
+              );
+              assert.ok(
+                (await (await context.request.get(link)).text()).includes(
+                  "Live SSE update",
+                ),
+              );
+            }
+            await page
+              .getByRole("button", { name: "Close form", exact: true })
+              .click();
+            await page
+              .getByRole("button", { name: "Reopen form", exact: true })
+              .waitFor();
+            assert.equal((await api(`forms/${id}`)).status, "closed");
+            assert.equal((await context.request.get(link)).status(), 200);
+            await page
+              .getByRole("button", { name: "Reopen form", exact: true })
+              .click();
+            await page
+              .getByRole("button", { name: "Close form", exact: true })
+              .waitFor();
+            assert.equal((await api(`forms/${id}`)).status, "published");
+            await page
+              .getByRole("button", { name: "Unpublish", exact: true })
+              .click();
+            await page
+              .getByRole("alertdialog", { name: "Unpublish form?" })
+              .getByRole("button", { name: "Unpublish", exact: true })
+              .click();
+            await page
+              .getByRole("button", { name: "Publish", exact: true })
+              .waitFor();
+            assert.equal((await context.request.get(link)).status(), 404);
+            await page
+              .getByRole("button", { name: "Publish", exact: true })
+              .click();
+            await page
+              .getByRole("textbox", { name: "Public link", exact: true })
+              .waitFor();
+            assert.notEqual(
+              await page
+                .getByRole("textbox", { name: "Public link", exact: true })
+                .inputValue(),
+              link,
+            );
+            const current = await api(`forms/${id}`);
+            await page.goto(`${base}/forms`);
+            const formSearch = page.getByRole("textbox", {
+              name: "Search forms",
+              exact: true,
+            });
+            await formSearch.fill(`no-result-${id}`);
+            if (width === 390 && colorScheme === "dark") {
+              await page.evaluate(async (target) => {
+                await new Promise((resolve) => setTimeout(resolve, 70));
+                window.dispatchEvent(
+                  new CustomEvent("nivra:completion", {
+                    detail: { kind: "content", target, status: "forms" },
+                  }),
+                );
+                await new Promise((resolve) => setTimeout(resolve, 450));
+              }, id);
+            }
+            await page
+              .getByRole("heading", { name: "No matching forms", exact: true })
+              .waitFor();
+            await page
+              .getByRole("button", { name: "Clear filters", exact: true })
+              .click();
+            await formSearch.fill(current.title);
+            await page
+              .getByRole("button", { name: current.title, exact: true })
+              .first()
+              .waitFor();
+            await page
+              .getByRole("combobox", { name: "Form status", exact: true })
+              .click();
+            await page
+              .getByRole("option", { name: "Published", exact: true })
+              .click();
+            await page
+              .getByRole("button", {
+                name: `Actions for ${current.title}`,
+                exact: true,
+              })
+              .first()
+              .click();
+            await page
+              .getByRole("menuitem", { name: "Duplicate", exact: true })
+              .click();
+            await page
+              .getByRole("textbox", { name: "Form title", exact: true })
+              .waitFor();
+            const copyId = /\/forms\/([^/]+)\/build/.exec(page.url())[1];
+            assert.notEqual(copyId, id);
+            const copy = await api(`forms/${copyId}`);
+            assert.equal(copy.status, "draft");
+            assert.equal(copy.total, 0);
+            assert.deepEqual(
+              copy.definition.fields.map((field) => [field.type, field.label]),
+              current.definition.fields.map((field) => [
+                field.type,
+                field.label,
+              ]),
+            );
+            const copyTitle = `${copy.title}-${copyId.slice(0, 8)}`;
+            await page
+              .getByRole("textbox", { name: "Form title", exact: true })
+              .fill(copyTitle);
+            await page
+              .getByLabel("Question", { exact: true })
+              .first()
+              .fill("Copied question");
+            await page.getByText("Saved", { exact: true }).waitFor();
+            assert.deepEqual(
+              (await api(`forms/${id}`)).definition,
+              current.definition,
+              "Editing a duplicate leaves the source unchanged",
+            );
+            await page.goto(`${base}/forms`);
+            await page
+              .getByRole("textbox", { name: "Search forms", exact: true })
+              .fill(copyTitle);
+            await page.getByText("1 form", { exact: true }).waitFor();
+            await page
+              .getByRole("button", {
+                name: `Actions for ${copyTitle}`,
+                exact: true,
+              })
+              .first()
+              .click();
+            await page
+              .getByRole("menuitem", { name: "Move to Trash", exact: true })
+              .click();
+            const trashed = page.waitForResponse(
+              (response) =>
+                response.url().endsWith(`/api/v1/forms/${copyId}`) &&
+                response.request().method() === "DELETE",
+            );
+            await page
+              .getByRole("alertdialog", { name: "Move form to Trash?" })
+              .getByRole("button", { name: "Move to Trash", exact: true })
+              .click();
+            assert.ok((await trashed).ok());
+            await page.goto(`${base}/trash`);
+            await page
+              .getByRole("textbox", {
+                name: "Search deleted items",
+                exact: true,
+              })
+              .fill(copyTitle);
+            const restored = page.waitForResponse(
+              (response) =>
+                response
+                  .url()
+                  .endsWith(`/api/v1/trash/form/${copyId}/restore`) &&
+                response.request().method() === "POST",
+            );
+            await page
+              .getByRole("button", {
+                name: `Restore ${copyTitle}`,
+                exact: true,
+              })
+              .first()
+              .click();
+            assert.ok((await restored).ok());
+            assert.equal((await api(`forms/${copyId}`)).status, "draft");
+          }
           if (name === "chromium" && colorScheme === "light") {
             for (const route of [
               "overview",

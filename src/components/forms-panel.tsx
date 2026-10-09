@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Copy,
-  FileQuestion,
+  ClipboardList,
   MoreHorizontal,
   Plus,
   Search,
@@ -83,6 +83,10 @@ export function FormsPanel({
     },
     [search, status],
   );
+  const latestLoad = useRef(load);
+  useEffect(() => {
+    latestLoad.current = load;
+  }, [load]);
   useEffect(() => {
     const controller = new AbortController();
     const start = setTimeout(() => {
@@ -91,6 +95,7 @@ export function FormsPanel({
     }, 0);
     return () => {
       clearTimeout(start);
+      clearTimeout(completionTimer.current);
       controller.abort();
     };
   }, [load]);
@@ -99,7 +104,7 @@ export function FormsPanel({
     if (event.target && event.status !== "forms" && event.status !== "tags")
       return;
     clearTimeout(completionTimer.current);
-    completionTimer.current = setTimeout(() => void load(), 120);
+    completionTimer.current = setTimeout(() => void latestLoad.current(), 120);
   });
   async function loadMore() {
     if (!page?.next) return;
@@ -250,7 +255,7 @@ export function FormsPanel({
             <LoadingState kind="notes" label="Loading forms" />
           ) : page && !page.items.length ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <FileQuestion
+              <ClipboardList
                 className="size-7 text-muted-foreground"
                 aria-hidden="true"
               />

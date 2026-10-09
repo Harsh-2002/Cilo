@@ -64,6 +64,19 @@ const questionSensors = [
   KeyboardSensor,
 ];
 
+function hasFieldOptions(field: FormField) {
+  return (
+    !displayField(field) &&
+    ![
+      "single_choice",
+      "multiple_choice",
+      "dropdown",
+      "yes_no",
+      "consent",
+    ].includes(field.type)
+  );
+}
+
 function SortableQuestion({
   field,
   index,
@@ -543,19 +556,21 @@ export function FormBuilder({
                       />
                       <span className="text-sm">Required</span>
                     </label>
-                    <Button
-                      variant="ghost"
-                      aria-expanded={expanded === field.id}
-                      aria-controls={`settings-${field.id}`}
-                      onClick={() =>
-                        setExpanded(expanded === field.id ? null : field.id)
-                      }
-                    >
-                      Question settings
-                    </Button>
+                    {hasFieldOptions(field) && (
+                      <Button
+                        variant="ghost"
+                        aria-expanded={expanded === field.id}
+                        aria-controls={`settings-${field.id}`}
+                        onClick={() =>
+                          setExpanded(expanded === field.id ? null : field.id)
+                        }
+                      >
+                        Field options
+                      </Button>
+                    )}
                   </div>
                 )}
-                {expanded === field.id && !displayField(field) && (
+                {expanded === field.id && hasFieldOptions(field) && (
                   <div id={`settings-${field.id}`} className="space-y-4 pt-2">
                     {["email", "phone", "url", "date", "time"].includes(
                       field.type,
@@ -747,6 +762,7 @@ export function FormBuilder({
         </label>
         <Textarea
           id="form-confirmation"
+          aria-describedby="form-confirmation-help"
           ref={confirmationInput}
           value={editableConfirmation(definition)}
           maxLength={2000}
@@ -757,11 +773,12 @@ export function FormBuilder({
             })
           }
         />
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
+                aria-describedby="form-confirmation-help"
                 disabled={
                   !confirmationVariables(definition).length ||
                   definition.confirmation.length + 46 > 2000
@@ -786,7 +803,10 @@ export function FormBuilder({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
+          <p
+            id="form-confirmation-help"
+            className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground"
+          >
             Shown after submission. Insert an answer to personalize it.
             Unanswered questions leave a blank.
           </p>

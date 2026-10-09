@@ -59,6 +59,7 @@ const ids = Object.fromEntries(
 const choices = [
   { id: randomUUID(), label: "Design" },
   { id: randomUUID(), label: "Research" },
+  { id: randomUUID(), label: "VeryLongOption".repeat(20) },
 ];
 const definition = {
   schemaVersion: 1,
@@ -110,12 +111,26 @@ try {
       engineName === "chromium" ? { channel: "chrome" } : {},
     );
     try {
-      for (const width of [390, 1440])
+      for (const width of engineName === "chromium"
+        ? [320, 390, 768, 844, 1024, 1440]
+        : [390, 1440])
         for (const colorScheme of ["light", "dark"]) {
           console.log(`Checking public ${engineName} ${width} ${colorScheme}`);
           const context = await browser.newContext({
             serviceWorkers: "block",
-            viewport: { width, height: 900 },
+            viewport: {
+              width,
+              height:
+                width === 320
+                  ? 568
+                  : width === 768
+                    ? 1024
+                    : width === 844
+                      ? 390
+                      : width === 1024
+                        ? 768
+                        : 900,
+            },
             colorScheme,
           });
           await context.addInitScript(
@@ -127,6 +142,33 @@ try {
           const failures = [];
           page.on("pageerror", (error) => failures.push(error.message));
           const response = await page.goto(`${base}/form/${form.publicToken}`);
+          await page
+            .getByRole("textbox", { name: "Project name", exact: true })
+            .waitFor();
+          const targets = await page
+            .locator(
+              '.form-renderer [data-slot="input"], .form-renderer [data-slot="textarea"], .form-renderer [data-slot="select-trigger"], .form-renderer [data-slot="button"]',
+            )
+            .evaluateAll((elements) =>
+              elements.map((element) => ({
+                slot: element.getAttribute("data-slot"),
+                height: element.getBoundingClientRect().height,
+              })),
+            );
+          assert.ok(
+            targets.every((target) => target.height >= 44),
+            `Public answer controls stay at least 44px: ${JSON.stringify(targets)}`,
+          );
+          const longChoice = page.getByRole("button", {
+            name: choices[2].label,
+            exact: true,
+          });
+          assert.ok(
+            await longChoice.evaluate(
+              (element) => element.scrollWidth <= element.clientWidth + 1,
+            ),
+            "Long choice labels wrap inside their button",
+          );
           await page.emulateMedia({ colorScheme });
           assert.equal(
             await page.evaluate(
@@ -160,7 +202,7 @@ try {
             await page.evaluate(() => localStorage.getItem("nivra-theme")),
             colorScheme === "dark" ? "light" : "dark",
           );
-          await page.mouse.move(width / 2, 500);
+          await page.mouse.move(width / 2, page.viewportSize().height / 2);
           await page.mouse.wheel(0, 650);
           await page.waitForFunction(
             () => document.querySelector(".bn-scroll-container")?.scrollTop > 0,
@@ -260,6 +302,34 @@ try {
           });
           await page.getByText("brief.txt", { exact: true }).waitFor();
           await page.getByRole("checkbox", { name: "Consent" }).click();
+          if (
+            engineName === "chromium" &&
+            width === 320 &&
+            colorScheme === "light"
+          ) {
+            for (const [id, invalid, valid] of [
+              [ids.email, "invalid-email", "reviewer@example.test"],
+              [ids.phone, "not-a-phone", "+1 555 0123"],
+              [ids.website, "ftp://example.com", "https://example.com/project"],
+              [ids.number, "11", "3"],
+              [ids.amount, "19.955", "19.95"],
+            ]) {
+              const input = page.locator(`#input-${id}`);
+              await input.fill(invalid);
+              await page
+                .getByRole("button", { name: "Submit", exact: true })
+                .click();
+              await page
+                .getByText("Enter a valid answer.", { exact: true })
+                .waitFor();
+              await page.waitForFunction(
+                (fieldId) => document.activeElement?.id === `input-${fieldId}`,
+                id,
+              );
+              assert.equal((await api(`forms/${form.id}`)).total, 0);
+              await input.fill(valid);
+            }
+          }
           const overflow = await page.evaluate(
             () => document.documentElement.scrollWidth > innerWidth + 1,
           );

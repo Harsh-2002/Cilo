@@ -63,6 +63,7 @@ export function DatePicker({
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        collisionPadding={12}
         className="date-picker-popover"
         aria-label={`Choose ${label.toLowerCase()}`}
       >

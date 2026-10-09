@@ -534,7 +534,9 @@ export function FormRenderer({
                                 aria-pressed={field.value === option.value}
                                 onClick={() => field.onChange(option.value)}
                               >
-                                {option.label}
+                                <span className="min-w-0 break-words">
+                                  {option.label}
+                                </span>
                               </Button>
                             ))}
                           </div>
@@ -579,10 +581,14 @@ export function FormRenderer({
                               }
                             >
                               <FileUp />
-                              {preview
-                                ? "Uploads unavailable in preview"
-                                : "Choose files"}
+                              Choose files
                             </Button>
+                            {preview && (
+                              <p className="text-sm text-muted-foreground">
+                                File uploads are available on the published
+                                form.
+                              </p>
+                            )}
                             {(files[question.id] ?? []).map((file) => (
                               <div
                                 key={file.id}

@@ -17,7 +17,7 @@ import {
   Layers,
   ListTodo,
   SlidersHorizontal,
-  FileQuestion,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { SearchText } from "./search-text";
@@ -220,7 +220,7 @@ export function GlobalSearch({
                         : result.type === "event"
                           ? CalendarDays
                           : result.type === "form"
-                            ? FileQuestion
+                            ? ClipboardList
                             : Bookmark;
                 return (
                   <CommandItem
