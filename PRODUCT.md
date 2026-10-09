@@ -28,7 +28,7 @@ A default Overview with a live local date/time, open tasks, recent notes and boo
 
 ## Brand Commitments
 
-Nivra: a private personal brain and search engine. Minimal black-and-white interface with neutral gray, light/dark/system themes, restrained typography and borders. Syntax and user drawings can contain color.
+Nivra: “Your thoughts, together.” A private, self-hosted workspace with search. Minimal black-and-white interface with neutral gray, light/dark/system themes, restrained typography and borders. Syntax and user drawings can contain color.
 
 ## Product Principles
 

@@ -4,6 +4,5 @@ export const brandFramePath =
 export const brandArtwork = `<path d="${brandFramePath}" fill="#111"/><path d="${brandPath}" fill="#fff"/>`;
 export const brandSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">${brandArtwork}</svg>`;
 
-export const brandTagline = "Your personal brain.";
-export const brandDescription =
-  "Your personal space for thoughts, plans, and everything worth keeping.";
+export const brandTagline = "Your thoughts, together.";
+export const brandDescription = `${brandTagline} A self-hosted workspace for notes, journals, tasks, bookmarks, and files.`;

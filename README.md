@@ -1,6 +1,6 @@
 # Nivra
 
-**Your personal brain, on your own server.**
+**Your thoughts, together.**
 
 Nivra brings notes, journals, tasks, bookmarks and files into one quiet workspace. Plan with Calendar and Kanban, find things with full-text search, and connect your AI agents through MCP.
 

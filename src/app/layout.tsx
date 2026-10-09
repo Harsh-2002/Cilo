@@ -1,14 +1,14 @@
 import "@fontsource-variable/geist";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { brandDescription } from "@/lib/brand";
+import { brandDescription, brandTagline } from "@/lib/brand";
 import { launchImages } from "@/lib/pwa.mjs";
 import { themeBootstrap } from "@/lib/theme";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nivra — your personal brain",
+  title: `Nivra — ${brandTagline}`,
   description: brandDescription,
   appleWebApp: {
     capable: true,

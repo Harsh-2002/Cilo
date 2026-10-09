@@ -32,5 +32,5 @@ test("PWA launch assets exist at their declared sizes and include both themes an
   const app = manifest();
   assert.equal(app.display, "standalone");
   assert.ok(app.icons?.some((icon) => icon.sizes === "512x512"));
-  assert.match(app.description!, /thoughts, plans/);
+  assert.match(app.description!, /^Your thoughts, together\./);
 });
