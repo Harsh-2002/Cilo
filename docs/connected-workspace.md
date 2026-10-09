@@ -69,3 +69,11 @@ Assign tags in note and journal editors, the Tags control on task and bookmark r
 ## Favorites
 
 Favorites collects starred notes, journal entries and bookmarks into searchable cards. Open a card to return to its editor or section. The collection has no creation action; create content in its own section or Quick. Refresh retains the Favorites route.
+
+## Calendar
+
+Use Calendar for dated tasks and events, with month, week, day and year views. Events support linked notes and other items, tags, recurrence and reminders. Open an existing event to read its details, then choose Edit to change it. Enable notifications per device under Settings → Account; installed iPhone PWAs and supported desktop browsers can receive backend reminders while the app is closed. Availability depends on the browser's push service.
+
+## Kanban
+
+Tasks supports List and Board views. Create a named board and move tasks through To do, In progress and Done; existing tasks can be assigned to a board without being duplicated. Desktop shows the columns together, while phones use stage tabs. Task dates, recurrence, tags and reminders remain available. Archive or reopen a board through its menu. Board, view and stage selections are reflected in the URL. MCP tools can create and update boards, list their tasks and move cards.

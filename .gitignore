@@ -41,6 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 # local state and generated assets
+/HANDOFF.md
 /data/
 /.impeccable/*
 !/.impeccable/design.json

@@ -1,0 +1,36 @@
+# Testing and verification
+
+Use Node.js 24 and install dependencies with `npm ci`. Run:
+
+```sh
+npm run typecheck
+npm run lint
+npm run format:check
+npm run verify:branding
+npm test
+npm run build
+```
+
+The automated suite uses disposable data and covers authentication, single-owner setup, recovery, passkeys, TOTP, persistence, search, pagination, revisions, files, encryption, backups, Calendar, Kanban, MCP and access restrictions. CI also builds Docker and checks health and persistence after container recreation. A passing suite is not proof of every physical browser/device behavior or an exhaustive security audit.
+
+## Browser checks
+
+Keep Playwright credentials and screenshots outside Git. Browser regression harnesses live in `scripts/browser-*.mjs`; inspect their required arguments before running them. Check desktop and narrow mobile, light/dark mode, focus and touch targets, overflow, loading/error states, unsaved edits and refresh/deep links. Test passkeys, push delivery with the app closed, and keyboard positioning on physical devices when those paths change.
+
+## Performance checks
+
+Use isolated, disposable data for benchmarks. `scripts/benchmark-library.ts`, `benchmark-boards.ts`, `benchmark-media.ts` and `benchmark-encryption.ts` provide synthetic workloads; read their argument and directory guards first. `scripts/monitor-scale.mjs` samples an explicitly supplied service cgroup. Record dataset composition, encryption mode, runtime mode, concurrent workloads and whether timings measure SQL or HTTP. Separate cold and warm results, idle CPU, service memory and worker/browser memory. SSE connection duration is not page latency. WAL permits concurrent readers with one writer, not multiple simultaneous writers.
+
+`scripts/scale-fixtures.ts` can seed or extend an explicitly authorized installation. It requires `NIVRA_SCALE_ALLOW=dev-instance-fixtures`, an absolute private output directory and one owner; inspect its command and count options before use. Never run it against a real installation without authorization. This guard is for test tooling, not a supported application setting. Keep fixture manifests, account sessions, keys, raw measurements and audit reports private. Dated execution reports are not maintained as product documentation.
+
+## S3 integration
+
+Nivra uses S3-compatible object storage for files and optional backups; SQLite remains local. See [storage configuration](self-hosting.md). Verify changes using a disposable MinIO/RustFS-compatible service, private bucket and isolated Nivra data:
+
+1. Upload and fetch a file through authenticated routes; compare the original bytes and reject anonymous private access.
+2. Check public snapshots use their copied attachments while the originals remain private.
+3. Verify encrypted object envelopes and file/backup prefix separation.
+4. Create and verify a full backup, then restore it into a new empty directory using the original key.
+5. Recreate the test storage service with its original volume and confirm files and backups remain readable.
+
+Dispose only of the test resources. Never restore over a running installation or substitute an existing storage service for a disposable test target.
