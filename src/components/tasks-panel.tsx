@@ -1,4 +1,9 @@
 "use client";
+import {
+  guardComposition,
+  returnToCreation,
+  useCreationFocus,
+} from "@/lib/input-behavior";
 import { TaskEditFields } from "./task-edit-fields";
 import { CalendarDays as ScheduleIcon } from "lucide-react";
 import { scheduleItem } from "@/lib/schedule";
@@ -166,9 +171,11 @@ export function TasksPanel({
       editPlanned !== editing.plannedDate ||
       editRepeat !== editing.recurrence ||
       editNote.id !== editing.noteId);
-  useEffect(() => {
-    if (focusCreate) input.current?.focus();
-  }, [focusCreate]);
+  useCreationFocus(
+    input,
+    !creationDisabled && !initialTaskId && !initialQuery,
+    focusCreate,
+  );
   const view = `${boardId ?? "all"}\n${filter}\n${query}`;
   const currentView = useRef(view);
   const loadVersion = useRef(0);
@@ -290,6 +297,7 @@ export function TasksPanel({
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || busy) return;
+    const submittedTitle = title;
     await mutate(async () => {
       const task = await api<Task>("tasks", {
         method: "POST",
@@ -303,13 +311,13 @@ export function TasksPanel({
       invalidate();
       if (filter === "open" && !query.trim())
         setTasks((items) => mergeTasks(items, [task]));
-      setTitle("");
+      setTitle((current) => (current === submittedTitle ? "" : current));
       setCreateDate(null);
       setCreatePlanned(null);
       setFilter("open");
       setQuery("");
       void refreshCounts();
-      input.current?.focus();
+      returnToCreation(input.current);
     });
   }
   async function update(
@@ -380,7 +388,8 @@ export function TasksPanel({
                 placeholder="What needs doing?"
                 value={title}
                 maxLength={300}
-                disabled={busy || !!editing || creationDisabled}
+                disabled={!!editing || creationDisabled}
+                onKeyDown={guardComposition}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>

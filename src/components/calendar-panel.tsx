@@ -134,7 +134,8 @@ export function CalendarPanel({
   const [from, to] = range(route.date, route.view);
   const confirm = useConfirm(),
     dirty = useRef(false),
-    cache = useRef(new Map<string, CalendarRange>());
+    cache = useRef(new Map<string, CalendarRange>()),
+    taskPageMode = useRef<string | null>(null);
   const setDirty = useCallback((value: boolean) => {
     dirty.current = value;
   }, []);
@@ -166,11 +167,11 @@ export function CalendarPanel({
   );
   useEffect(() => {
     const abort = new AbortController(),
-      key = [from, to, zone, route.mode, completed].join(":");
+      key = [from, to, zone, route.mode, completed, route.view].join(":");
     const cached = cache.current.get(key);
     const timer = setTimeout(() => {
       if (cached) setData(cached);
-      setLoading(true);
+      setLoading(!cached);
       setError("");
       void api<CalendarRange>(
         `calendar/range?${new URLSearchParams({ from, to, timezone: zone, mode: route.mode, limit: route.view === "year" ? "1" : "500", preview: route.view === "year" ? "0" : route.view === "month" ? "3" : "50", includeCompleted: completed ? "1" : "0" })}`,
@@ -211,7 +212,10 @@ export function CalendarPanel({
     if (!taskMode) return;
     const abort = new AbortController();
     const timer = setTimeout(() => {
-      setTaskPage(null);
+      if (taskPageMode.current !== taskMode) {
+        taskPageMode.current = taskMode;
+        setTaskPage(null);
+      }
       void api<TaskPage>(
         `calendar/tasks?mode=${taskMode}&date=${localDate()}`,
         { signal: abort.signal },

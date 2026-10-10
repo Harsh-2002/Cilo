@@ -1,4 +1,9 @@
 "use client";
+import {
+  guardComposition,
+  returnToCreation,
+  useCreationFocus,
+} from "@/lib/input-behavior";
 import { CalendarDays as ScheduleIcon } from "lucide-react";
 import { scheduleItem } from "@/lib/schedule";
 import { ItemTagPicker } from "./item-tag-picker";
@@ -148,9 +153,7 @@ export function BookmarksPanel({
     window.addEventListener("nivra:captured", received);
     return () => window.removeEventListener("nivra:captured", received);
   }, [unfiltered, refreshSummary]);
-  useEffect(() => {
-    if (focusCreate) input.current?.focus();
-  }, [focusCreate]);
+  useCreationFocus(input, !initialQuery, focusCreate);
   useEffect(() => {
     const leaving = (e: BeforeUnloadEvent) => {
       if (busy || url.trim() || newCollection.trim() || editing) {
@@ -281,6 +284,8 @@ export function BookmarksPanel({
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim() || busy) return;
+    const submittedUrl = url;
+    const submittedCollection = newCollection;
     await mutate(async () => {
       const saved = await api<Bookmark>("bookmarks", {
         method: "POST",
@@ -292,12 +297,14 @@ export function BookmarksPanel({
       invalidate();
       setBookmarks((list) => mergeBookmarks(list, [saved]));
       void refreshSummary();
-      setUrl("");
-      setNewCollection("");
+      setUrl((current) => (current === submittedUrl ? "" : current));
+      setNewCollection((current) =>
+        current === submittedCollection ? "" : current,
+      );
       setQuery("");
       setCollection("all");
       setFavorites(false);
-      input.current?.focus();
+      returnToCreation(input.current);
       setNotice(
         saved.metadataStatus === "pending"
           ? "Link saved. Fetching its preview in the background."
@@ -369,7 +376,8 @@ export function BookmarksPanel({
                 placeholder="https://…"
                 value={url}
                 maxLength={4096}
-                disabled={busy || !!editing}
+                disabled={!!editing}
+                onKeyDown={guardComposition}
                 onChange={(e) => setUrl(e.target.value)}
                 required
               />
@@ -383,7 +391,8 @@ export function BookmarksPanel({
                 placeholder="e.g. Reading"
                 value={newCollection}
                 maxLength={80}
-                disabled={busy || !!editing}
+                disabled={!!editing}
+                onKeyDown={guardComposition}
                 onChange={(e) => setNewCollection(e.target.value)}
               />
             </div>

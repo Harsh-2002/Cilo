@@ -54,7 +54,6 @@ export function ItemCollection({
     async (signal?: AbortSignal) => {
       const version = ++generation.current;
       setError("");
-      setRows(null);
       setLoadingMore(false);
       setMoreError("");
       try {
@@ -74,18 +73,29 @@ export function ItemCollection({
   );
   useEffect(() => {
     const controller = new AbortController();
-    const timer = setTimeout(() => void load(controller.signal), 0);
+    const timer = setTimeout(() => {
+      setRows(null);
+      void load(controller.signal);
+    }, 0);
     const changed = () => void load();
     window.addEventListener("nivra:tags-changed", changed);
     return () => {
       clearTimeout(timer);
+      clearTimeout(completionRefresh.current);
       controller.abort();
       window.removeEventListener("nivra:tags-changed", changed);
     };
   }, [load]);
+  const latestLoad = useRef(load);
+  useEffect(() => {
+    latestLoad.current = load;
+  }, [load]);
   useCompletion(undefined, () => {
     clearTimeout(completionRefresh.current);
-    completionRefresh.current = setTimeout(() => void load(), 150);
+    completionRefresh.current = setTimeout(
+      () => void latestLoad.current(),
+      150,
+    );
   });
   useEffect(() => () => clearTimeout(completionRefresh.current), []);
   async function more() {

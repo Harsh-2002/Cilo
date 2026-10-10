@@ -6,6 +6,7 @@ import {
   useState,
   type Ref,
 } from "react";
+import { guardComposition, useDesktopKeyboard } from "@/lib/input-behavior";
 import { Bookmark, FileText, ListTodo, Loader2 } from "lucide-react";
 import { notify } from "@/lib/feedback";
 import { api } from "@/lib/client";
@@ -18,8 +19,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
-
 import { shortcutParts, useIsApple } from "@/lib/shortcuts";
+
 export type CaptureHandle = { open: () => void };
 export type CapturedItem =
   | { type: "note"; item: Note }
@@ -32,6 +33,7 @@ export function QuickCapture({
   ref: Ref<CaptureHandle>;
   onCaptured: (result: CapturedItem) => void;
 }) {
+  const desktop = useDesktopKeyboard();
   const apple = useIsApple();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -40,7 +42,21 @@ export function QuickCapture({
   const [error, setError] = useState("");
   const submitting = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  useImperativeHandle(ref, () => ({ open: () => setOpen(true) }), []);
+  const opener = useRef<HTMLElement | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => {
+        const active = document.activeElement;
+        opener.current =
+          active instanceof HTMLElement && active !== document.body
+            ? active
+            : null;
+        setOpen(true);
+      },
+    }),
+    [],
+  );
   const value = text.trim();
   let url = false;
   try {
@@ -137,6 +153,13 @@ export function QuickCapture({
           event.preventDefault();
           input.current?.focus();
         }}
+        onCloseAutoFocus={(event) => {
+          if (opener.current?.isConnected) {
+            event.preventDefault();
+            opener.current.focus({ preventScroll: true });
+          }
+          opener.current = null;
+        }}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
         }}
@@ -192,7 +215,13 @@ export function QuickCapture({
               setError("");
             }}
             onKeyDown={(event) => {
-              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+              if (guardComposition(event)) return;
+              if (
+                event.key === "Enter" &&
+                (event.ctrlKey ||
+                  event.metaKey ||
+                  (!event.shiftKey && (desktop || type !== "note")))
+              ) {
                 event.preventDefault();
                 void save();
               }
@@ -220,10 +249,11 @@ export function QuickCapture({
           )}
           <div className="capture-footer">
             <span className="capture-shortcut">
-              {shortcutParts({ key: "Enter", code: "Enter" }, apple).join(
-                apple ? " " : "+",
-              )}{" "}
-              to save
+              {type === "note" && !desktop
+                ? `${shortcutParts({ key: "Enter", code: "Enter" }, apple).join(apple ? " " : "+")} to save · Enter for a new line`
+                : type === "note"
+                  ? "Enter to save · Shift+Enter for a new line"
+                  : "Enter to save"}
             </span>
             <Button type="submit" disabled={busy || !valid}>
               {busy && <Loader2 size={14} className="animate-spin" />}

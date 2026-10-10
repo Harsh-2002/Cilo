@@ -96,7 +96,13 @@ export function GlobalSearch({
           .then((items) => {
             if (!controller.signal.aborted) {
               setResults(items);
-              setSelection(items[0] ? `${items[0].type}-${items[0].id}` : "");
+              setSelection((current) =>
+                items.some((item) => `${item.type}-${item.id}` === current)
+                  ? current
+                  : items[0]
+                    ? `${items[0].type}-${items[0].id}`
+                    : "",
+              );
             }
           })
           .catch((e) => {

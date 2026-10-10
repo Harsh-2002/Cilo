@@ -45,7 +45,8 @@ export function TasksWorkspace(props: Props) {
     [boardFailed, setBoardFailed] = useState(false),
     [error, setError] = useState("");
   const guard = useRef<() => Promise<boolean>>(async () => true),
-    boardRef = useRef(board);
+    boardRef = useRef(board),
+    boardRequest = useRef(0);
   useEffect(() => {
     boardRef.current = board;
   }, [board]);
@@ -99,6 +100,7 @@ export function TasksWorkspace(props: Props) {
   }, []);
   const loadBoard = useCallback(
     async (signal?: AbortSignal) => {
+      const ticket = ++boardRequest.current;
       if (!boardId) {
         setBoard(null);
         setError("");
@@ -106,17 +108,17 @@ export function TasksWorkspace(props: Props) {
         setBoardFailed(false);
         return;
       }
-      setBoardLoading(true);
+      setBoardLoading(boardRef.current?.id !== boardId);
       setBoardFailed(false);
       try {
         const b = await api<BoardDetail>(`boards/${boardId}`, { signal });
-        if (!signal?.aborted) {
+        if (!signal?.aborted && ticket === boardRequest.current) {
           setBoard(b);
           setArchived(b.archivedAt !== null);
           setError("");
         }
       } catch (e) {
-        if (!signal?.aborted) {
+        if (!signal?.aborted && ticket === boardRequest.current) {
           if (e instanceof ApiError && e.status === 404) {
             setBoard(null);
             setBoardId(null);
@@ -132,7 +134,8 @@ export function TasksWorkspace(props: Props) {
           }
         }
       } finally {
-        if (!signal?.aborted) setBoardLoading(false);
+        if (!signal?.aborted && ticket === boardRequest.current)
+          setBoardLoading(false);
       }
     },
     [boardId],
@@ -378,7 +381,7 @@ export function TasksWorkspace(props: Props) {
       key={boardId ?? "empty"}
       board={board?.id === boardId ? board : null}
       boardLoading={
-        !!boardId && (boardLoading || board?.id !== boardId) && !boardFailed
+        !!boardId && board?.id !== boardId && (boardLoading || !boardFailed)
       }
       hideEmpty={!!form || boardFailed}
       controls={controls}

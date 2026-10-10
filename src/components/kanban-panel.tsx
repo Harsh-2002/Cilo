@@ -1,4 +1,9 @@
 "use client";
+import {
+  guardComposition,
+  returnToCreation,
+  useCreationFocus,
+} from "@/lib/input-behavior";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DragDropProvider,
@@ -277,6 +282,7 @@ export function KanbanPanel({
       done: 0,
     }),
     [loading, setLoading] = useState(true),
+    [loadedView, setLoadedView] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [announcement, setAnnouncement] = useState(""),
@@ -310,6 +316,11 @@ export function KanbanPanel({
     media.addEventListener("change", change);
     return () => media.removeEventListener("change", change);
   }, []);
+  useCreationFocus(
+    input,
+    !!board && board.archivedAt === null && !initialTaskId,
+  );
+  const view = `${id}|${query}|${small ? stage : "all"}`;
   const route = useCallback(
     (s: TaskStage, limit = 50, after?: string | null) =>
       `tasks?boardId=${id}&status=${s}&order=board&limit=${limit}&q=${encodeURIComponent(query)}${after ? `&after=${encodeURIComponent(after)}` : ""}`,
@@ -332,6 +343,7 @@ export function KanbanPanel({
           ...stages.map((s) => api<Page<Task>>(route(s), { signal })),
         ]);
         if (signal?.aborted || request.current !== generation) return;
+        setLoadedView(view);
         setCounts((summary as BoardDetail).counts);
         setPages(() => {
           const fresh = emptyPages();
@@ -349,7 +361,7 @@ export function KanbanPanel({
           setLoading(false);
       }
     },
-    [id, query, small, stage, route],
+    [id, query, small, stage, route, view],
   );
   useEffect(() => {
     const abort = new AbortController();
@@ -621,7 +633,8 @@ export function KanbanPanel({
   }
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !id) return;
+    if (!title.trim() || !id || busyRef.current) return;
+    const submittedTitle = title;
     await mutate(async () => {
       await api<Task>("tasks", {
         method: "POST",
@@ -632,10 +645,10 @@ export function KanbanPanel({
           plannedDate: planned,
         }),
       });
-      setTitle("");
+      setTitle((current) => (current === submittedTitle ? "" : current));
       setDue(null);
       setPlanned(null);
-      input.current?.focus();
+      returnToCreation(input.current);
     });
   }
   async function addExisting(task: Task) {
@@ -695,7 +708,7 @@ export function KanbanPanel({
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="What needs doing?"
                       maxLength={300}
-                      disabled={busy}
+                      onKeyDown={guardComposition}
                     />
                   </div>
                   <Button type="submit" disabled={busy || !title.trim()}>
@@ -800,7 +813,9 @@ export function KanbanPanel({
                     count={counts[s]}
                     active={stage === s}
                   >
-                    {loading && !pages[s].items.length ? (
+                    {loading &&
+                    loadedView !== view &&
+                    !pages[s].items.length ? (
                       <LoadingState
                         kind="tasks"
                         label={`Loading ${stageLabels[s]} tasks`}
