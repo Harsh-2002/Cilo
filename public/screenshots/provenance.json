@@ -1,0 +1,215 @@
+{
+  "applicationCommit": "b944c0bba485f56dcd612f1294624f49c75d18ac",
+  "assets": [
+    {
+      "file": "board-dark-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "board-dark.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "board-light-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "board-light.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "board-mobile-dark.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "board-mobile-light.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-dark-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-dark.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-light-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-light.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-mobile-dark.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "calendar-mobile-light.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-dark-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-dark.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-light-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-light.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-mobile-dark.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "forms-mobile-light.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-dark-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-dark.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-light-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-light.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-mobile-dark.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "notes-mobile-light.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-dark-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-dark.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-light-960.webp",
+      "width": 960,
+      "height": 600,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-light.webp",
+      "width": 1920,
+      "height": 1200,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-mobile-dark.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    },
+    {
+      "file": "overview-mobile-light.webp",
+      "width": 780,
+      "height": 1688,
+      "origin": "Real Nivra application screenshot, captured 2026-10-10 from commit b944c0b. Authored demo content; unrelated private tags excluded. Native desktop (1440 × 900) or mobile (390 × 844) capture, downsampled for the website.",
+      "content": "Curated demonstration content"
+    }
+  ]
+}

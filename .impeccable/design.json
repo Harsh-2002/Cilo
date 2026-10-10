@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-10T19:33:18.000Z",
+  "title": "Design System: Nivra Website",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "soft-surface": {
+        "role": "neutral",
+        "displayName": "Soft Surface",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Action",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "action-ink": {
+        "role": "neutral",
+        "displayName": "Action Ink",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      },
+      "selection": {
+        "role": "neutral",
+        "displayName": "Selection",
+        "tonalRamp": [
+          "oklch(15% 0.005 264)",
+          "oklch(26% 0.005 264)",
+          "oklch(37% 0.005 264)",
+          "oklch(48% 0.005 264)",
+          "oklch(59% 0.005 264)",
+          "oklch(70% 0.005 264)",
+          "oklch(81% 0.005 264)",
+          "oklch(92% 0.005 264)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Large landing-page lead heading."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Workflow titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and standard controls."
+      },
+      "link": {
+        "displayName": "Link",
+        "purpose": "Secondary text links."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Primary action labels."
+      },
+      "tab": {
+        "displayName": "Tab",
+        "purpose": "Workflow selector labels."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Small screenshot-window labels."
+      },
+      "mono": {
+        "displayName": "Monospace",
+        "purpose": "Docker installation commands."
+      }
+    },
+    "motion": [
+      {
+        "name": "smooth-scroll",
+        "value": "scroll-behavior: smooth; scroll-padding-top: 100px",
+        "purpose": "Smooth in-page navigation that leaves room above the destination."
+      },
+      {
+        "name": "workflow-panel-arrive",
+        "value": "0.3s cubic-bezier(0.16, 1, 0.3, 1); opacity 0.75 to 1; blur 2px to 0",
+        "purpose": "Briefly eases the newly selected workflow panel into view."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce disables smooth scroll and the workflow-panel animation",
+        "purpose": "Respects the visitor's reduced-motion preference."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact-phone", "value": "360px" },
+      { "name": "phone", "value": "600px" },
+      { "name": "navigation-and-layout", "value": "760px" },
+      { "name": "tablet-spacing", "value": "1000px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "High-priority actions use the monochrome fill with a compact label and arrow.",
+      "html": "<a class=\"ds-button-primary\" href=\"#start\">Self-host Nivra <svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M5 12h14m-6-6 6 6-6 6\" /></svg></a>",
+      "css": ".ds-button-primary { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px 20px; border: 0; border-radius: 8px; background: var(--button); color: var(--button-text); font: 550 14px Geist, sans-serif; white-space: nowrap; text-decoration: none; } .ds-button-primary:hover { opacity: 0.87; text-decoration: none; } .ds-button-primary:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } .ds-button-primary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Text Link",
+      "kind": "nav",
+      "refersTo": "text-link",
+      "description": "A low-emphasis action that stays visually light beside the primary button.",
+      "html": "<a class=\"ds-text-link\" href=\"https://github.com/Harsh-2002/Nivra\">View on GitHub <svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M7 17 17 7M7 7h10v10\" /></svg></a>",
+      "css": ".ds-text-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--fg); font: 500 14px Geist, sans-serif; text-decoration: none; } .ds-text-link:hover { text-decoration: underline; text-underline-offset: 0.25em; } .ds-text-link:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } .ds-text-link svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Icon Control",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Theme, menu, and copy controls use a clear 44px hit area and soft hover fill.",
+      "html": "<button class=\"ds-icon-button\" type=\"button\" aria-label=\"Switch to dark theme\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z\" /></svg></button>",
+      "css": ".ds-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer; } .ds-icon-button:hover { background: var(--soft); } .ds-icon-button:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } .ds-icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Responsive Navigation",
+      "kind": "nav",
+      "description": "A compact desktop link row becomes a labeled menu and stacked links on mobile.",
+      "html": "<header class=\"ds-nav-shell\"><nav class=\"ds-desktop-nav\" aria-label=\"Main navigation\"><a href=\"#product\">Product</a><a href=\"#yours\">Why Nivra</a><a href=\"https://github.com/Harsh-2002/Nivra\">GitHub <svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M7 17 17 7M7 7h10v10\" /></svg></a></nav><button class=\"ds-menu-toggle\" type=\"button\" aria-label=\"Open navigation\" aria-expanded=\"false\" aria-controls=\"ds-mobile-nav\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 7h16M4 12h16M4 17h16\" /></svg></button><nav id=\"ds-mobile-nav\" class=\"ds-mobile-nav\" aria-label=\"Mobile navigation\" hidden><a href=\"#product\">Product</a><a href=\"#yours\">Why Nivra</a><a href=\"#start\">Get started</a><a href=\"https://github.com/Harsh-2002/Nivra\">View on GitHub</a></nav></header>",
+      "css": ".ds-nav-shell { position: relative; display: flex; align-items: center; justify-content: flex-end; min-height: 80px; gap: 28px; border-bottom: 1px solid var(--line); } .ds-desktop-nav { display: flex; align-items: center; gap: 30px; color: var(--muted); font: 400 14px Geist, sans-serif; } .ds-desktop-nav a { display: flex; align-items: center; gap: 4px; min-height: 44px; color: inherit; text-decoration: none; } .ds-desktop-nav a:hover { color: var(--fg); } .ds-desktop-nav a:focus-visible, .ds-mobile-nav a:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } .ds-desktop-nav svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; } .ds-menu-toggle, .ds-mobile-nav { display: none; } .ds-menu-toggle { width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); } .ds-menu-toggle:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } @media (max-width: 760px) { .ds-nav-shell { min-height: 72px; flex-wrap: wrap; gap: 0; } .ds-desktop-nav { display: none; } .ds-menu-toggle { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; } .ds-menu-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; } .ds-mobile-nav:not([hidden]) { display: flex; flex: 0 0 100%; flex-direction: column; gap: 2px; padding: 8px 24px 20px; border-top: 1px solid var(--line); } .ds-mobile-nav a { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--fg); font: 400 15px Geist, sans-serif; text-decoration: none; } .ds-mobile-nav a:hover { background: var(--soft); } }"
+    },
+    {
+      "name": "Workflow Tabs",
+      "kind": "custom",
+      "refersTo": "workflow-tab-selected",
+      "description": "Four accessible tabs switch the matching workflow copy and product capture.",
+      "html": "<div class=\"ds-workflow-tabs\" role=\"tablist\" aria-label=\"Explore Nivra workflows\"><button id=\"ds-tab-write\" type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"ds-panel-write\" tabindex=\"0\">Write</button><button id=\"ds-tab-plan\" type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"ds-panel-plan\" tabindex=\"-1\">Plan</button><button id=\"ds-tab-time\" type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"ds-panel-time\" tabindex=\"-1\">Make time</button><button id=\"ds-tab-collect\" type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"ds-panel-collect\" tabindex=\"-1\">Collect</button></div>",
+      "css": ".ds-workflow-tabs { display: flex; align-items: center; gap: 4px; max-width: 100%; padding-bottom: 14px; border-bottom: 1px solid var(--line); } .ds-workflow-tabs button { min-height: 44px; padding: 10px 20px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 520 14px Geist, sans-serif; white-space: nowrap; cursor: pointer; } .ds-workflow-tabs button:hover, .ds-workflow-tabs button[aria-selected=\"true\"] { background: var(--soft); color: var(--fg); } .ds-workflow-tabs button:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } @media (max-width: 600px) { .ds-workflow-tabs { justify-content: space-between; gap: 0; padding-bottom: 12px; } .ds-workflow-tabs button { padding: 10px 12px; font-size: 13px; } } @media (max-width: 360px) { .ds-workflow-tabs button { padding-inline: 10px; } }"
+    },
+    {
+      "name": "Installation Panel",
+      "kind": "card",
+      "refersTo": "framed-surface",
+      "description": "A bordered Docker command panel includes copy feedback and a scrollable code block.",
+      "html": "<section class=\"ds-install\" aria-label=\"Docker quick start\"><div class=\"ds-install-heading\"><span>Docker quick start</span><button class=\"ds-copy-button\" type=\"button\" aria-label=\"Copy Docker quick start\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\" /><path d=\"M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3\" /></svg></button></div><pre tabindex=\"0\" aria-label=\"Docker installation commands\"><code>git clone https://github.com/Harsh-2002/Nivra.git\ncd Nivra\ndocker compose up -d --build</code></pre><div class=\"ds-install-footer\"><span>Open <code>localhost:3000</code> to set up your workspace.</span><span role=\"status\" aria-live=\"polite\">Copied</span></div></section>",
+      "css": ".ds-install { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); } .ds-install-heading { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 8px 22px; border-bottom: 1px solid var(--line); color: var(--muted); font: 400 13px Geist, sans-serif; } .ds-copy-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer; } .ds-copy-button:hover { background: var(--soft); } .ds-copy-button:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; } .ds-copy-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; } .ds-install pre { margin: 0; padding: 22px; overflow-x: auto; font: 13px/2 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--muted) var(--soft); } .ds-install-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 0 22px 22px; color: var(--muted); font: 400 12px/1.6 Geist, sans-serif; } .ds-install-footer [role=status] { color: var(--fg); font-weight: 550; } @media (max-width: 600px) { .ds-install-heading { padding-left: 16px; } .ds-install pre { padding: 18px 16px; font-size: 11px; } .ds-install-footer { padding: 0 16px 18px; font-size: 11px; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Clear Space to Think",
+    "overview": "Nivra’s visual language is quiet, precise, and approachable. Local Geist carries the words, while a near-monochrome palette leaves attention on the product itself. A restrained hierarchy and generous spacing make a small amount of detail feel considered.\n\nReal Nivra screens do the explaining. The website uses authored demonstration content and identifies it as an example; the N mark and product interface remain the recognizable identity.",
+    "keyCharacteristics": [
+      "Restrained grayscale with paired light and dark modes.",
+      "Geist hierarchy, generous spacing, and thin framing.",
+      "Real product screens with clearly identified demonstration content."
+    ],
+    "rules": [
+      {
+        "name": "The Neutral-First Rule",
+        "body": "Use contrast, weight, and tonal surfaces for emphasis; keep the core UI monochrome.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat-Frame Rule",
+        "body": "Separate regions with tonal surfaces and thin strokes; do not add shadow elevation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the grayscale palette, bundled Geist, and simple N mark as the website’s visual base.",
+      "Do use real Nivra captures with authored demonstration content, visibly described as examples.",
+      "Do retain visible keyboard focus, semantic labels, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't copy Linear or Polar assets or branding; they are references for restraint and hierarchy.",
+      "Don't use unverified screenshots, personal data, invented metrics, or testimonials."
+    ]
+  }
+}

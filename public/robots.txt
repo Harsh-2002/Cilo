@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /Nivra/
+Sitemap: https://harsh-2002.github.io/Nivra/sitemap.xml
