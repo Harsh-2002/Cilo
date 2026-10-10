@@ -129,30 +129,8 @@ const command = `git clone https://github.com/Harsh-2002/Nivra.git\ncd Nivra\ndo
               <path d="M5 12h14m-6-6 6 6-6 6" />
             </svg>
           </a>
-          <button
-            class="icon-button menu-toggle"
-            type="button"
-            aria-label="Open navigation"
-            aria-expanded="false"
-            aria-controls="mobile-nav"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
         </div>
       </div>
-      <nav
-        id="mobile-nav"
-        class="mobile-nav"
-        aria-label="Mobile navigation"
-        hidden
-      >
-        <a href="#product">Product</a>
-        <a href="#yours">Why Nivra</a>
-        <a href="#start">Get started</a>
-        <a href={repository}>View on GitHub</a>
-      </nav>
     </header>
     <main id="main">
       <section class="hero container" aria-labelledby="hero-title">
@@ -425,35 +403,6 @@ const command = `git clone https://github.com/Harsh-2002/Nivra.git\ncd Nivra\ndo
           localStorage.setItem("nivra-site-theme", root.dataset.theme);
         } catch {}
         refreshThemeLabel();
-      });
-      const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
-      const navigation = document.querySelector<HTMLElement>("#mobile-nav");
-      function closeMenu() {
-        if (!toggle || !navigation) return;
-        navigation.hidden = true;
-        toggle.setAttribute("aria-expanded", "false");
-        toggle.setAttribute("aria-label", "Open navigation");
-      }
-      toggle?.addEventListener("click", () => {
-        if (!navigation) return;
-        navigation.hidden = !navigation.hidden;
-        toggle.setAttribute("aria-expanded", String(!navigation.hidden));
-        toggle.setAttribute(
-          "aria-label",
-          navigation.hidden ? "Open navigation" : "Close navigation",
-        );
-      });
-      navigation
-        ?.querySelectorAll("a")
-        .forEach((a) => a.addEventListener("click", closeMenu));
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && navigation && !navigation.hidden) {
-          closeMenu();
-          toggle?.focus();
-        }
-      });
-      matchMedia("(min-width: 761px)").addEventListener("change", (e) => {
-        if (e.matches) closeMenu();
       });
       const tabs = [
         ...document.querySelectorAll<HTMLButtonElement>("[data-workflow]"),

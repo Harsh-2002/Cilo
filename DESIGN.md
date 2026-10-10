@@ -163,7 +163,7 @@ On narrower screens the lead and section headings step down, while body copy and
 
 Content sits in a centered container capped at 1200px. The desktop page pairs columns for the introduction, ownership details, and setup; intermediate widths tighten the side gutters before navigation and content grids stack for mobile. Sections have ample separation, while controls stay compact.
 
-The implemented responsive breakpoints are 1000px, 760px, 600px, and 360px. At 760px the horizontal navigation becomes a menu button and collapsible link list, and the main two-column groups become single-column. At 600px screenshot frames use portrait captures; at 360px gutters and action gaps tighten again. The sidecar records the exact breakpoint values.
+The implemented responsive breakpoints are 1000px, 760px, 600px, and 360px. At 760px the horizontal navigation is hidden, the header retains the brand and theme control, and the main two-column groups become single-column. At 600px screenshot frames use portrait captures; at 360px gutters and action gaps tighten again. The sidecar records the exact breakpoint values.
 
 ## Elevation & Depth
 
@@ -181,7 +181,7 @@ Controls and selected tabs have softly curved corners. Screenshot and installati
 
 - **Primary:** The main calls to action use an opposite-tone solid fill, a compact label, and a small inline arrow. The header version uses the smaller height.
 - **Hover / Focus:** Hover slightly reduces opacity. Keyboard focus uses a visible foreground outline with offset; it does not rely on color change alone.
-- **Icon controls:** Theme, menu, and copy buttons use a transparent square hit area with a soft hover fill. Each has a changing or purpose-specific accessible name.
+- **Icon controls:** Theme and copy buttons use a transparent square hit area with a soft hover fill. Each has a changing or purpose-specific accessible name.
 - **Text links:** Secondary actions remain plain inline links with an arrow or external-link mark; hover underlines are reserved for these links.
 
 ### Cards / Containers
@@ -193,7 +193,7 @@ Controls and selected tabs have softly curved corners. Screenshot and installati
 ### Navigation
 
 - **Desktop:** A compact row of muted links sits beside the brand and header actions. Links gain foreground contrast on hover.
-- **Mobile:** At the 760px breakpoint, a labeled menu button reveals a vertical list. Selecting a link closes the menu; Escape closes it and returns focus to the button.
+- **Mobile:** The header shows the brand and theme control without a menu. Installation and repository actions remain directly accessible in the page.
 
 ### Workflow Tabs
 
