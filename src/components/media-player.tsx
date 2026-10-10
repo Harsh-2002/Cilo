@@ -226,7 +226,11 @@ export function MediaPlayer({
                 {muted || volume === 0 ? <VolumeX /> : <Volume2 />}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="media-volume" collisionPadding={12}>
+            <PopoverContent
+              className="media-volume"
+              collisionPadding={12}
+              aria-label="Volume"
+            >
               <Button
                 type="button"
                 variant="ghost"

@@ -79,7 +79,11 @@ export function NotePicker({
           <ChevronsUpDown size={14} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="note-picker-popover">
+      <PopoverContent
+        align="start"
+        className="note-picker-popover"
+        aria-label="Link a note"
+      >
         <Command
           shouldFilter={false}
           label="Find a note to link"
@@ -97,7 +101,21 @@ export function NotePicker({
               setError("");
             }}
           />
-          <CommandList label="Available notes">
+          {loading ? (
+            <div className="picker-message" role="status">
+              <Loader2 className="animate-spin" size={16} />
+              Finding notes…
+            </div>
+          ) : error ? (
+            <p className="picker-message" role="alert">
+              {error} Try another search.
+            </p>
+          ) : !notes.length ? (
+            <p className="picker-message" role="status">
+              No available notes.
+            </p>
+          ) : null}
+          <CommandList label="Available notes" aria-busy={loading}>
             {value && (
               <CommandItem
                 value="clear"
@@ -111,18 +129,8 @@ export function NotePicker({
                 Remove note link
               </CommandItem>
             )}
-            {loading ? (
-              <div className="picker-message" role="status">
-                <Loader2 className="animate-spin" size={16} />
-                Finding notes…
-              </div>
-            ) : error ? (
-              <p className="picker-message" role="alert">
-                {error} Try another search.
-              </p>
-            ) : !notes.length ? (
-              <p className="picker-message">No available notes.</p>
-            ) : (
+            {!loading &&
+              !error &&
               notes.map((note) => (
                 <CommandItem
                   key={note.id}
@@ -135,8 +143,7 @@ export function NotePicker({
                   <FileText />
                   <span className="truncate">{note.title || "Untitled"}</span>
                 </CommandItem>
-              ))
-            )}
+              ))}
           </CommandList>
         </Command>
       </PopoverContent>

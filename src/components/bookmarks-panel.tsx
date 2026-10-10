@@ -345,7 +345,7 @@ export function BookmarksPanel({
           : b.collection === collection.slice(2))),
   );
   return (
-    <section className="tasks-panel bookmarks-panel" aria-label="Bookmarks">
+    <section className="tasks-panel bookmarks-panel">
       <div
         className="tasks-scroll"
         tabIndex={0}
@@ -584,7 +584,7 @@ export function BookmarksPanel({
                             </span>
                             <ExternalLink size={13} />
                           </div>
-                          <h3>{item.title}</h3>
+                          <h2>{item.title}</h2>
                           {item.description && <p>{item.description}</p>}
                           {item.metadataStatus === "pending" && (
                             <p role="status">Fetching preview…</p>
@@ -722,11 +722,11 @@ export function BookmarksPanel({
           ) : (
             <div className="tasks-empty">
               <BookmarkIcon size={30} strokeWidth={1.5} />
-              <h3>
+              <h2>
                 {query || favorites || collection !== "all"
                   ? "No matching bookmarks."
                   : "A home for your useful links."}
-              </h3>
+              </h2>
               <p>
                 {query || favorites || collection !== "all"
                   ? "Try another search or collection."

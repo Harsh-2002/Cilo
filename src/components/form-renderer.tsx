@@ -371,7 +371,14 @@ export function FormRenderer({
                       const shared = {
                         id: `input-${question.id}`,
                         "aria-labelledby": `label-${question.id}`,
-                        "aria-describedby": `hint-${question.id} error-${question.id}`,
+                        "aria-describedby":
+                          [
+                            question.description && `hint-${question.id}`,
+                            errors[question.id]?.message &&
+                              `error-${question.id}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" ") || undefined,
                         "aria-invalid": !!errors[question.id],
                         ...([
                           "file",

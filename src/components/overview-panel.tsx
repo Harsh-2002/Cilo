@@ -160,10 +160,7 @@ export function OverviewPanel({
               <div className="overview-clock">
                 {now ? (
                   <>
-                    <time
-                      dateTime={today || undefined}
-                      aria-label="Today's date"
-                    >
+                    <time dateTime={today || undefined}>
                       {now.toLocaleDateString(undefined, {
                         weekday: "long",
                         month: "long",
@@ -171,10 +168,7 @@ export function OverviewPanel({
                         year: "numeric",
                       })}
                     </time>
-                    <time
-                      dateTime={now?.toISOString()}
-                      aria-label="Current time"
-                    >
+                    <time dateTime={now?.toISOString()}>
                       {now.toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -189,7 +183,11 @@ export function OverviewPanel({
             </div>
           </div>
           <NotificationSetup />
-          <div className="overview-actions" aria-label="Quick actions">
+          <div
+            className="overview-actions"
+            role="group"
+            aria-label="Quick actions"
+          >
             <Button onClick={() => onCreate("note")}>
               <Plus size={16} />
               New note
@@ -234,9 +232,9 @@ export function OverviewPanel({
                   aria-labelledby="overview-tasks-title"
                 >
                   <header>
-                    <h3 id="overview-tasks-title">
+                    <h2 id="overview-tasks-title">
                       Open tasks <span>{data.counts.open}</span>
-                    </h3>
+                    </h2>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -254,7 +252,7 @@ export function OverviewPanel({
                     {data.counts.today} due today
                   </p>
                   {data.tasks.length ? (
-                    <ul tabIndex={0} role="region" aria-label="Open tasks">
+                    <ul tabIndex={0} aria-label="Open tasks">
                       {data.tasks.map((task) => (
                         <li key={task.id} className="overview-task-row">
                           <div className="overview-check">
@@ -321,7 +319,7 @@ export function OverviewPanel({
                   aria-labelledby="overview-notes-title"
                 >
                   <header>
-                    <h3 id="overview-notes-title">Recent notes</h3>
+                    <h2 id="overview-notes-title">Recent notes</h2>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -333,7 +331,7 @@ export function OverviewPanel({
                     </Button>
                   </header>
                   {data.notes.length ? (
-                    <ul tabIndex={0} role="region" aria-label="Recent notes">
+                    <ul tabIndex={0} aria-label="Recent notes">
                       {data.notes.map((note) => (
                         <li key={note.id}>
                           <button
@@ -369,7 +367,7 @@ export function OverviewPanel({
                   aria-labelledby="overview-bookmarks-title"
                 >
                   <header>
-                    <h3 id="overview-bookmarks-title">Recent bookmarks</h3>
+                    <h2 id="overview-bookmarks-title">Recent bookmarks</h2>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -381,11 +379,7 @@ export function OverviewPanel({
                     </Button>
                   </header>
                   {data.bookmarks.length ? (
-                    <ul
-                      tabIndex={0}
-                      role="region"
-                      aria-label="Recent bookmarks"
-                    >
+                    <ul tabIndex={0} aria-label="Recent bookmarks">
                       {data.bookmarks.map((bookmark) => (
                         <li key={bookmark.id}>
                           <a

@@ -12,6 +12,8 @@ export function CalendarTimeGrid({
   onOpen: (item: CalendarItem) => void;
 }) {
   const nonce = useCspNonce();
+  const minimumHeight = 44;
+  const minimumDuration = (minimumHeight / 48) * 60 * 60_000;
   const positions: string[] = [];
   let index = 0;
   const date = (day: string) => new Date(day + "T00:00").getTime();
@@ -43,9 +45,14 @@ export function CalendarTimeGrid({
           .sort((a, b) => a.startAt! - b.startAt!);
         const lanes: number[] = [];
         const placed = timed.map((item) => {
-          let lane = lanes.findIndex((value) => value <= item.startAt!);
+          const visibleStart = Math.max(start, item.startAt!);
+          let lane = lanes.findIndex((value) => value <= visibleStart);
           if (lane < 0) lane = lanes.length;
-          lanes[lane] = item.endAt!;
+          // Lane occupancy includes the minimum rendered height of short events.
+          lanes[lane] = Math.max(
+            Math.min(stop, item.endAt!),
+            visibleStart + minimumDuration,
+          );
           return { item, lane };
         });
         return (
@@ -88,7 +95,7 @@ export function CalendarTimeGrid({
                       ? 100
                       : ((b.getHours() * 60 + b.getMinutes()) / 1440) * 100;
                 positions.push(
-                  `.schedule-time-entry-${id}{top:${top}%;height:max(36px,${Math.max(0, bottom - top)}%);left:calc(${(lane / lanes.length) * 100}% + 2px);width:calc(${100 / lanes.length}% - 4px)}`,
+                  `.schedule-time-entry-${id}{top:${top}%;height:max(${minimumHeight}px,${Math.max(0, bottom - top)}%);left:calc(${(lane / lanes.length) * 100}% + 2px);width:calc(${100 / lanes.length}% - 4px)}`,
                 );
                 return (
                   <Button
@@ -96,6 +103,7 @@ export function CalendarTimeGrid({
                     variant="outline"
                     className={`schedule-time-entry schedule-time-entry-${id}`}
                     title={item.title}
+                    aria-label={`${item.title}, ${new Date(item.startAt!).toLocaleString()} to ${new Date(item.endAt!).toLocaleString()}`}
                     onClick={() => onOpen(item)}
                   >
                     <span>

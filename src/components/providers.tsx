@@ -11,6 +11,9 @@ function subscribeSystemTheme(changed: () => void) {
   media.addEventListener("change", changed);
   return () => media.removeEventListener("change", changed);
 }
+function subscribeHydration() {
+  return () => {};
+}
 // The server layout initializes theme; client remounts need no executable script.
 export function Providers({
   children,
@@ -21,6 +24,11 @@ export function Providers({
 }) {
   const currentNonce = documentNonce(nonce);
   const publicForm = usePathname().startsWith("/form/");
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
   const systemTheme = useSyncExternalStore(
     subscribeSystemTheme,
     () =>
@@ -54,8 +62,12 @@ export function Providers({
         attribute="class"
         defaultTheme="system"
         enableSystem
+        disableTransitionOnChange
+        nonce={currentNonce}
         storageKey="nivra-theme"
-        forcedTheme={publicForm ? systemTheme : undefined}
+        forcedTheme={
+          publicForm ? (hydrated ? systemTheme : "system") : undefined
+        }
         scriptProps={{ type: "text/plain" }}
       >
         <InlineFeedback />

@@ -121,7 +121,7 @@ export function CalendarPanel({
     const observer = new ResizeObserver(([entry]) => {
       const cellHeight = entry.contentRect.height / 6;
       setMonthPreview(
-        Math.max(0, Math.min(3, Math.floor((cellHeight - 58) / 22))),
+        Math.max(0, Math.min(3, Math.floor((cellHeight - 58) / 24))),
       );
     });
     observer.observe(grid);
@@ -532,90 +532,110 @@ export function CalendarPanel({
                   role="grid"
                   aria-label="Month"
                 >
-                  {days.map((day) => {
-                    const entries = itemsOn(day),
-                      count = data?.counts[day] ?? 0;
-                    return (
-                      <div
-                        role="gridcell"
-                        key={day}
-                        className="schedule-day-cell"
-                        data-outside={
-                          day.slice(0, 7) !== route.date.slice(0, 7)
-                        }
-                        data-selected={day === route.date}
-                        onClick={(event) => {
-                          if (!(event.target as HTMLElement).closest("button"))
-                            navigate({ date: day });
-                        }}
-                      >
-                        <Button
-                          className="schedule-day-number"
-                          variant="ghost"
-                          data-today={day === localDate()}
-                          aria-label={dayLabel(day)}
-                          aria-pressed={day === route.date}
-                          onClick={() => navigate({ date: day })}
-                          onKeyDown={(event) => {
-                            const delta = (
-                              {
-                                ArrowLeft: -1,
-                                ArrowRight: 1,
-                                ArrowUp: -7,
-                                ArrowDown: 7,
-                              } as Record<string, number>
-                            )[event.key];
-                            if (delta) {
-                              event.preventDefault();
-                              navigate({ date: addDays(day, delta) });
-                              requestAnimationFrame(() =>
-                                document
-                                  .querySelector<HTMLButtonElement>(
-                                    `.schedule-day-number[aria-pressed="true"]`,
-                                  )
-                                  ?.focus(),
-                              );
+                  {Array.from({ length: days.length / 7 }, (_, week) => (
+                    <div
+                      className="schedule-week-row"
+                      role="row"
+                      key={days[week * 7]}
+                    >
+                      {days.slice(week * 7, week * 7 + 7).map((day) => {
+                        const entries = itemsOn(day),
+                          count = data?.counts[day] ?? 0;
+                        return (
+                          <div
+                            role="gridcell"
+                            aria-selected={day === route.date}
+                            key={day}
+                            className="schedule-day-cell"
+                            data-outside={
+                              day.slice(0, 7) !== route.date.slice(0, 7)
                             }
-                          }}
-                        >
-                          {Number(day.slice(-2))}
-                        </Button>
-                        <div
-                          className="schedule-cell-events"
-                          data-compact={monthPreview === 0}
-                        >
-                          {entries.slice(0, monthPreview).map((item) => (
+                            data-selected={day === route.date}
+                            onClick={(event) => {
+                              if (
+                                !(event.target as HTMLElement).closest("button")
+                              )
+                                navigate({ date: day });
+                            }}
+                          >
                             <Button
-                              key={item.id}
+                              className="schedule-day-number"
                               variant="ghost"
-                              className="schedule-cell-event"
-                              onClick={() => void open(item)}
-                            >
-                              {item.title}
-                            </Button>
-                          ))}
-                          {count > Math.min(monthPreview, entries.length) && (
-                            <Button
-                              variant="ghost"
-                              className="schedule-more"
-                              aria-label={`${count - Math.min(monthPreview, entries.length)} more items on ${dayLabel(day)}`}
+                              data-today={day === localDate()}
+                              aria-label={`${dayLabel(day)}${count ? `, ${count} items` : ""}`}
+                              aria-pressed={day === route.date}
+                              tabIndex={day === route.date ? 0 : -1}
                               onClick={() => navigate({ date: day })}
+                              onKeyDown={(event) => {
+                                const delta = (
+                                  {
+                                    ArrowLeft: -1,
+                                    ArrowRight: 1,
+                                    ArrowUp: -7,
+                                    ArrowDown: 7,
+                                  } as Record<string, number>
+                                )[event.key];
+                                if (delta) {
+                                  event.preventDefault();
+                                  navigate({ date: addDays(day, delta) });
+                                  requestAnimationFrame(() =>
+                                    document
+                                      .querySelector<HTMLButtonElement>(
+                                        `.schedule-day-number[aria-pressed="true"]`,
+                                      )
+                                      ?.focus(),
+                                  );
+                                }
+                              }}
                             >
-                              {monthPreview === 0
-                                ? count
-                                : `+${count - Math.min(monthPreview, entries.length)}`}
+                              {Number(day.slice(-2))}
                             </Button>
-                          )}
-                        </div>
-                        <span
-                          className="schedule-mobile-count"
-                          aria-hidden="true"
-                        >
-                          {count || ""}
-                        </span>
-                      </div>
-                    );
-                  })}
+                            <div
+                              className="schedule-cell-events"
+                              data-compact={monthPreview === 0}
+                            >
+                              {entries.slice(0, monthPreview).map((item) => (
+                                <Button
+                                  key={item.id}
+                                  variant="ghost"
+                                  className="schedule-cell-event"
+                                  onClick={() => void open(item)}
+                                >
+                                  {item.title}
+                                </Button>
+                              ))}
+                              {monthPreview === 0 && count > 0 ? (
+                                <span
+                                  className="schedule-more-count"
+                                  aria-hidden="true"
+                                >
+                                  {count}
+                                </span>
+                              ) : (
+                                count >
+                                  Math.min(monthPreview, entries.length) && (
+                                  <Button
+                                    variant="ghost"
+                                    className="schedule-more"
+                                    aria-label={`${count - Math.min(monthPreview, entries.length)} more items on ${dayLabel(day)}`}
+                                    onClick={() => navigate({ date: day })}
+                                  >
+                                    {`+${count - Math.min(monthPreview, entries.length)}`}
+                                  </Button>
+                                )
+                              )}
+                            </div>
+                            <span
+                              className="schedule-mobile-count"
+                              aria-hidden="true"
+                            >
+                              {count || ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -631,7 +651,7 @@ export function CalendarPanel({
               className={`schedule-agenda ${["week", "day"].includes(route.view) && route.mode === "planning" ? "schedule-mobile-agenda" : ""}`}
               aria-label="Calendar agenda"
             >
-              <h3>
+              <h2>
                 {taskMode === "unscheduled"
                   ? "Unscheduled tasks"
                   : taskMode === "overdue"
@@ -639,7 +659,7 @@ export function CalendarPanel({
                     : route.view === "week"
                       ? "This week"
                       : dayLabel(route.date)}
-              </h3>
+              </h2>
               {taskMode && (
                 <Button variant="ghost" onClick={() => setTaskMode(null)}>
                   Back to selected day
@@ -664,13 +684,13 @@ export function CalendarPanel({
                 return (
                   <div key={day} className="schedule-agenda-day">
                     {route.view === "week" && (
-                      <h4>
+                      <h3>
                         {dayLabel(day, {
                           weekday: "long",
                           month: "short",
                           day: "numeric",
                         })}
-                      </h4>
+                      </h3>
                     )}
                     {entries.map(entry)}
                     {!entries.length && !taskMode && (

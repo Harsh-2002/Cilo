@@ -1,0 +1,317 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { chromium, firefox, webkit, request } from "playwright";
+
+const base = process.env.NIVRA_BROWSER_TEST_URL ?? "http://localhost:3015";
+assert.equal(new URL(base).port, "3015", "Use the disposable audit server");
+assert.ok(process.env.NIVRA_BROWSER_SESSION, "Synthetic session required");
+const owner = await request.newContext({
+  baseURL: base,
+  storageState: process.env.NIVRA_BROWSER_SESSION,
+  extraHTTPHeaders: { origin: base },
+});
+const status = await owner.get("/api/v1/status");
+assert.match((await status.json()).owner?.name ?? "", /review|audit|test/i);
+const fixtures = JSON.parse(
+  await readFile(
+    process.env.NIVRA_AUDIT_FIXTURES ??
+      ".impeccable/review/accessibility/fixtures.json",
+    "utf8",
+  ),
+);
+const engines = { chromium, firefox, webkit };
+const name = process.env.NIVRA_AUDIT_ENGINE ?? "chromium";
+assert.ok(engines[name], "Supported browser engine required");
+const browser = await engines[name].launch(
+  name === "chromium" ? { args: ["--disable-dev-shm-usage"] } : {},
+);
+let checked = 0;
+async function touchTarget(locator) {
+  const bounds = await locator.boundingBox();
+  assert.ok(
+    bounds &&
+      Math.round(bounds.width * 100) / 100 >= 44 &&
+      Math.round(bounds.height * 100) / 100 >= 44,
+    `Touch target: ${(await locator.getAttribute("aria-label")) ?? (await locator.textContent())}`,
+  );
+}
+async function focusTrap(page, dialog) {
+  const controls = dialog.locator(
+    'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]',
+  );
+  const visible = [];
+  for (const control of await controls.all())
+    if (await control.isVisible()) visible.push(control);
+  assert.ok(visible.length, "Dialog has usable controls");
+  await visible[0].focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.waitForFunction(
+    () => !!document.activeElement?.closest('[role="dialog"]'),
+  );
+  await visible.at(-1).focus();
+  await page.keyboard.press("Tab");
+  await page.waitForFunction(
+    () => !!document.activeElement?.closest('[role="dialog"]'),
+  );
+}
+try {
+  for (const width of (
+    process.env.NIVRA_AUDIT_WIDTHS ?? "320,390,768,1024,1440"
+  )
+    .split(",")
+    .map(Number)) {
+    const context = await browser.newContext({
+      storageState: process.env.NIVRA_BROWSER_SESSION,
+      viewport: { width, height: width === 320 ? 568 : 900 },
+      hasTouch: width < 1024,
+      serviceWorkers: "block",
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`${base}/overview`);
+    await page.locator(".overview-widget").first().waitFor();
+    await page.keyboard.press("Tab");
+    await page.waitForFunction(() =>
+      document.activeElement?.matches(".skip-link"),
+    );
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() =>
+      document.activeElement?.matches(".section-content"),
+    );
+    assert.equal(
+      await page.locator(".overview-widget ul[role=region]").count(),
+      0,
+    );
+    assert.equal(await page.locator(".overview-widget h2").count(), 3);
+    if (width < 1024) {
+      const navigation = page
+        .getByRole("button", { name: "Open navigation", exact: true })
+        .first();
+      await navigation.tap();
+      await page
+        .getByRole("dialog", { name: "Navigation", exact: true })
+        .waitFor();
+      await focusTrap(
+        page,
+        page.getByRole("dialog", { name: "Navigation", exact: true }),
+      );
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(
+        () =>
+          document.activeElement?.getAttribute("aria-label") ===
+          "Open navigation",
+      );
+      for (const section of [
+        "Notes",
+        "Journal",
+        "Tasks",
+        "Calendar",
+        "Bookmarks",
+        "Artifacts",
+        "Forms",
+        "Favorites",
+        "Trash",
+        "Overview",
+      ]) {
+        await page
+          .getByRole("button", { name: "Open navigation", exact: true })
+          .first()
+          .click();
+        await page
+          .getByRole("dialog", { name: "Navigation", exact: true })
+          .getByRole("button", { name: section, exact: true })
+          .click();
+        await page.waitForFunction(
+          (path) => location.pathname === path,
+          `/${section.toLowerCase()}`,
+        );
+        await page
+          .getByRole("dialog", { name: "Navigation", exact: true })
+          .waitFor({ state: "hidden" });
+      }
+    }
+    await page.goto(`${base}/calendar`);
+    const grid = page.getByRole("grid", { name: "Month", exact: true });
+    await grid.waitFor();
+    await page.locator(".skip-link").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() =>
+      document.activeElement?.matches(".schedule-scroll"),
+    );
+    assert.equal(await grid.getByRole("row").count(), 6);
+    for (const row of await grid.getByRole("row").all())
+      assert.equal(await row.getByRole("gridcell").count(), 7);
+    assert.equal(
+      await grid.locator('.schedule-day-number[tabindex="0"]').count(),
+      1,
+    );
+    const selected = grid.locator('.schedule-day-number[aria-pressed="true"]');
+    await selected.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.waitForFunction(() =>
+      document.activeElement?.matches(
+        '.schedule-day-number[aria-pressed="true"]',
+      ),
+    );
+    assert.equal(
+      await grid.locator('[role="gridcell"][aria-selected="true"]').count(),
+      1,
+    );
+    if (width < 1024)
+      for (const label of ["Previous period", "Next period", "Go to date"])
+        await touchTarget(
+          page.getByRole("button", { name: label, exact: true }),
+        );
+    await page.goto(`${base}/notes?note=${fixtures.note.id}`);
+    await page.locator(".bn-editor").waitFor();
+    await page.locator(".skip-link").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() =>
+      document.activeElement?.matches(
+        innerWidth < 768 ? ".note-pane" : ".notes-list",
+      ),
+    );
+    if (width < 1024) {
+      await touchTarget(
+        page.getByRole("button", { name: /^Remove Audit.* tag$/ }).first(),
+      );
+      await touchTarget(
+        page.getByRole("button", { name: "Add tag", exact: true }),
+      );
+    }
+    await page.goto(`${base}/search`);
+    const search = page.getByRole("combobox", {
+      name: "Search everything",
+      exact: true,
+    });
+    await search.waitFor();
+    await search.fill("Audit");
+    await page.getByRole("option").first().waitFor();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-slot="command-list"]')
+          ?.getAttribute("aria-busy") === "false",
+    );
+    await search.focus();
+    await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(
+      () =>
+        !!document.querySelector(
+          '[data-slot="command-item"][aria-selected="true"]',
+        ),
+    );
+    if (width < 1024) {
+      assert.equal(await page.locator(".workspace").getAttribute("inert"), "");
+      assert.equal(
+        await page
+          .locator("main:not([inert]),[role=main]:not([inert])")
+          .count(),
+        1,
+      );
+      if (name === "chromium") {
+        const cdp = await context.newCDPSession(page);
+        const tree = await cdp.send("Accessibility.getFullAXTree");
+        assert.equal(
+          tree.nodes.filter(
+            (node) => !node.ignored && node.role?.value === "main",
+          ).length,
+          1,
+        );
+        await cdp.detach();
+      }
+      await page
+        .locator('.workspace button[aria-label="Open navigation"]')
+        .first()
+        .focus();
+      assert.equal(
+        await page.evaluate(
+          () => !!document.activeElement?.closest(".workspace"),
+        ),
+        false,
+        "Background remains unfocusable",
+      );
+      await touchTarget(search);
+      await page
+        .getByRole("button", { name: "Back from Search", exact: true })
+        .click();
+      await page.waitForFunction(() => location.pathname !== "/search");
+    } else {
+      await focusTrap(page, page.getByRole("dialog"));
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog").waitFor({ state: "hidden" });
+    }
+    await page.goto(`${base}/settings`);
+    const tab = page.getByRole("tab", { name: "Account", exact: true });
+    await tab.waitFor();
+    const surface = page.locator(".settings-dialog");
+    const height = (await surface.boundingBox()).height;
+    await tab.focus();
+    await page.keyboard.press("End");
+    await page.getByRole("tab", { name: "MCP", exact: true }).waitFor();
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-selected") === "true" &&
+        document.activeElement?.textContent === "MCP",
+    );
+    if (width >= 1024) await focusTrap(page, page.getByRole("dialog"));
+    if (width < 1024)
+      for (const label of ["Account", "Import & export", "System", "MCP"])
+        await touchTarget(page.getByRole("tab", { name: label, exact: true }));
+    for (const label of ["Import & export", "System", "Account"]) {
+      await page.getByRole("tab", { name: label, exact: true }).click();
+      assert.ok(
+        Math.abs((await surface.boundingBox()).height - height) < 1,
+        "Settings height stays fixed between tabs",
+      );
+    }
+    for (const [path, action] of [
+      [`/calendar?event=${fixtures.event.id}`, null],
+      ["/artifacts", `Open ${fixtures.artifact.title}`],
+    ]) {
+      await page.goto(base + path);
+      if (action)
+        await page.getByRole("button", { name: action, exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.waitFor();
+      await focusTrap(page, dialog);
+      await page.keyboard.press("Escape");
+      await dialog.waitFor({ state: "hidden" });
+    }
+    await page.goto(`${base}/overview`);
+    if (width < 1024)
+      await page
+        .getByRole("button", { name: "Open navigation", exact: true })
+        .first()
+        .click();
+    await page
+      .getByRole("button", { name: "Quick", exact: true })
+      .first()
+      .click();
+    const quick = page.getByRole("dialog", { name: "Quick", exact: true });
+    await quick.waitFor();
+    await focusTrap(page, quick);
+    await page.keyboard.press("Escape");
+    await quick.waitFor({ state: "hidden" });
+    assert.equal(
+      await page
+        .locator("html")
+        .evaluate((element) => element.scrollWidth > innerWidth + 1),
+      false,
+    );
+    assert.deepEqual(errors, [], `${name} ${width}: browser errors`);
+    await context.close();
+    checked++;
+    console.log(
+      `${name} ${width}: navigation, skip link, calendar keys, tags, search, Settings keys and fixed height passed`,
+    );
+  }
+  console.log(
+    `Passed ${checked} keyboard/touch/reduced-motion viewport cases.`,
+  );
+} finally {
+  await browser.close();
+  await owner.dispose();
+}

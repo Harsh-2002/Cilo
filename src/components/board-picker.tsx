@@ -90,9 +90,14 @@ export function BoardPicker({
           <ChevronsUpDown size={14} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="board-picker-popover">
+      <PopoverContent
+        align="start"
+        className="board-picker-popover"
+        aria-label="Choose a board"
+      >
         <Command shouldFilter={false}>
           <CommandInput
+            aria-label="Find a board"
             placeholder="Find a board…"
             value={query}
             onValueChange={(v) => {
@@ -100,7 +105,20 @@ export function BoardPicker({
               setLoading(true);
             }}
           />
-          <CommandList>
+          {loading ? (
+            <p className="picker-message" role="status">
+              Loading boards…
+            </p>
+          ) : error ? (
+            <p className="picker-message" role="alert">
+              {error}
+            </p>
+          ) : !page.items.length ? (
+            <p className="picker-message" role="status">
+              No {archived ? "archived " : ""}boards.
+            </p>
+          ) : null}
+          <CommandList label="Available boards" aria-busy={loading}>
             {allowAll && (
               <CommandItem
                 value="all"
@@ -112,15 +130,8 @@ export function BoardPicker({
                 {emptyLabel}
               </CommandItem>
             )}
-            {loading ? (
-              <p className="picker-message" role="status">
-                Loading boards…
-              </p>
-            ) : error ? (
-              <p className="picker-message" role="alert">
-                {error}
-              </p>
-            ) : page.items.length ? (
+            {!loading &&
+              !error &&
               page.items.map((board) => (
                 <CommandItem
                   key={board.id}
@@ -132,12 +143,7 @@ export function BoardPicker({
                 >
                   {board.name}
                 </CommandItem>
-              ))
-            ) : (
-              <p className="picker-message">
-                No {archived ? "archived " : ""}boards.
-              </p>
-            )}
+              ))}
             {page.next && !loading && (
               <CommandItem value="more" onSelect={() => void more()}>
                 More boards

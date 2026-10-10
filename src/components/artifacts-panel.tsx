@@ -383,7 +383,6 @@ export function ArtifactsPanel({
   return (
     <section
       className={`tasks-panel artifacts-panel ${dragging ? "is-dragging" : ""}`}
-      aria-label="Artifacts"
       onDragOver={(e) => {
         if (
           e.dataTransfer.types.some(
@@ -712,7 +711,7 @@ export function ArtifactsPanel({
               ) : (
                 <Layers size={30} strokeWidth={1.5} />
               )}
-              <h3>{query ? "No matches." : "Nothing saved yet."}</h3>
+              <h2>{query ? "No matches." : "Nothing saved yet."}</h2>
               <p>
                 {query
                   ? "Text inside images is searched once it has been read. Try another word."

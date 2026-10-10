@@ -56,7 +56,7 @@ export function DeviceNotifications() {
   }
   return (
     <section className="device-notifications" aria-label="Device notifications">
-      <h3>Notifications</h3>
+      <h2>Notifications</h2>
       <p>
         {loading
           ? "Checking this device…"

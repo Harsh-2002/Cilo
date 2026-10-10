@@ -419,7 +419,7 @@ export function FormResponses({
       ) : (
         <>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex gap-2" aria-label="Response view">
+            <div className="flex gap-2" role="group" aria-label="Response view">
               {(["summary", "submissions"] as const).map((value) => (
                 <Button
                   key={value}

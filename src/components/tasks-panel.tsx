@@ -356,7 +356,7 @@ export function TasksPanel({
     )
     .sort(compareTasks);
   return (
-    <section className="tasks-panel" aria-label="Tasks">
+    <section className="tasks-panel">
       <div
         className="tasks-scroll"
         tabIndex={0}
@@ -681,7 +681,7 @@ export function TasksPanel({
               ) : (
                 <ListTodo size={30} strokeWidth={1.5} />
               )}
-              <h3>
+              <h2>
                 {query
                   ? "No matching tasks."
                   : filter === "completed"
@@ -689,7 +689,7 @@ export function TasksPanel({
                     : counts && counts.open + counts.completed
                       ? "Everything is checked off."
                       : "Make room for your next step."}
-              </h3>
+              </h2>
               <p>
                 {query
                   ? "Try another search."

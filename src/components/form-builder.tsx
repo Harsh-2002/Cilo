@@ -114,16 +114,17 @@ function SortableQuestion({
       data-field-id={field.id}
       className={`form-question-block ${isDragSource ? "is-dragging" : ""}`}
     >
-      <header
-        ref={handleRef}
-        className="form-question-header form-question-handle"
-        role="group"
-        tabIndex={0}
-        aria-label={`Reorder question ${index + 1}`}
-        aria-describedby="form-reorder-help"
-      >
+      <header className="form-question-header">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 text-sm font-medium">{index + 1}.</span>
+          <Button
+            ref={handleRef}
+            variant="ghost"
+            className="form-question-handle"
+            aria-label={`Reorder question ${index + 1}`}
+            aria-describedby="form-reorder-help"
+          >
+            {index + 1}.
+          </Button>
           <Select
             value={field.type}
             onValueChange={(value) => onType(value as FormField["type"])}
@@ -374,7 +375,7 @@ export function FormBuilder({
         </label>
       </div>
       <p id="form-reorder-help" className="sr-only">
-        Hold a question header to drag. With the header focused, press Space,
+        Hold a question number to drag. With the number focused, press Space,
         use arrow keys to move, and press Space to drop. The question menu also
         has Move up and Move down.
       </p>

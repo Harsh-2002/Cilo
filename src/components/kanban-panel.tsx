@@ -666,7 +666,7 @@ export function KanbanPanel({
           !hideEmpty && (
             <div className="tasks-empty kanban-empty">
               <Columns3 size={30} />
-              <h3>Give your project a board.</h3>
+              <h2>Give your project a board.</h2>
               <p>
                 Choose a board or create one to organize tasks into To do, In
                 progress and Done.

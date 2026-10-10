@@ -814,8 +814,27 @@ export function Workspace({
   const rows = shownNotes ?? [];
   return (
     <main
+      id="workspace-content"
       className={`workspace ${active ? "has-note" : ""} ${sidebar ? "" : "rail-hidden"}`}
     >
+      <a
+        className="skip-link"
+        href="#workspace-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const content = Array.from(
+            event.currentTarget.parentElement?.querySelectorAll<HTMLElement>(
+              ".note-pane, .section-content, .notes-list, .schedule-scroll",
+            ) ?? [],
+          ).find((element) => element.getClientRects().length > 0);
+          if (content) {
+            content.tabIndex = -1;
+            content.focus({ preventScroll: true });
+          }
+        }}
+      >
+        Skip to content
+      </a>
       {sidebar && <aside className="desktop-navigation">{navigation}</aside>}
       <Sheet open={drawer} onOpenChange={setDrawer}>
         <SheetContent

@@ -990,6 +990,17 @@ button:disabled {
   padding: 1px;
   border-radius: 2px;
 }
+.note-tags .tag-chip {
+  max-width: 100%;
+  min-width: 0;
+}
+.tag-chip-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.note-tags .tag-chip button {
+  flex-shrink: 0;
+}
 .add-tag {
   display: flex;
   align-items: center;
@@ -1223,6 +1234,8 @@ button:disabled {
   border-bottom: 1px solid var(--border);
 }
 .settings-tabs > button {
+  min-width: 44px;
+  padding-inline: 8px;
   min-height: 44px;
   font-size: 13px;
   color: var(--muted-foreground);
@@ -1272,7 +1285,8 @@ button:disabled {
   font-weight: 550;
   letter-spacing: -0.02em;
 }
-.settings-content h3 {
+.settings-content h3,
+.settings-content .device-notifications h2 {
   font-size: 13px;
   font-weight: 550;
   margin-bottom: 4px;
@@ -2232,8 +2246,7 @@ button:disabled {
 .tasks-empty svg {
   margin: 0 auto 16px;
 }
-.tasks-empty h2,
-.tasks-empty h3 {
+.tasks-empty h2 {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 8px;
@@ -2432,7 +2445,7 @@ button:disabled {
 .bookmark-domain svg {
   flex-shrink: 0;
 }
-.bookmark-details h3 {
+.bookmark-details h2 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -2641,9 +2654,16 @@ button:disabled {
 .global-search-dialog [data-slot="command-input-wrapper"]:focus-within {
   background: transparent;
 }
-.global-search-dialog [data-slot="command-list"] {
+.search-results-viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   height: min(520px, calc(100dvh - 160px));
-  max-height: min(520px, calc(100dvh - 160px));
+}
+.global-search-dialog [data-slot="command-list"] {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   position: relative;
 }
 .global-search-dialog [data-slot="command-item"] {
@@ -2718,10 +2738,11 @@ button:disabled {
 .mobile-app-page .settings-tabs {
   flex-shrink: 0;
   padding: 0 20px;
-  gap: 20px;
+  gap: 4px;
 }
 .mobile-app-page .settings-tabs > button {
   min-height: 48px;
+  padding-inline: 10px;
 }
 .mobile-app-page .settings-content {
   flex: 1;
@@ -2750,7 +2771,17 @@ button:disabled {
 .mobile-app-page.global-search-dialog [data-slot="command-input-wrapper"] {
   flex-shrink: 0;
   min-height: 64px;
-  padding: 12px 64px 12px 20px;
+  padding: 10px 64px 10px 20px;
+}
+.mobile-app-page.global-search-dialog [data-slot="command-input"] {
+  height: 44px;
+}
+.search-status:empty {
+  display: none;
+}
+.mobile-app-page .search-results-viewport {
+  flex: 1;
+  height: auto;
 }
 .mobile-app-page.global-search-dialog [data-slot="command-list"] {
   flex: 1;
@@ -3365,7 +3396,7 @@ button:disabled {
   flex-direction: column;
   gap: 16px;
 }
-.item-tag-picker h3 {
+.item-tag-picker h2 {
   font-size: 14px;
   font-weight: 550;
 }
@@ -3478,11 +3509,11 @@ button:disabled {
   justify-content: space-between;
   margin-bottom: 12px;
 }
-.overview-widget h3 {
+.overview-widget h2 {
   font-size: 14px;
   font-weight: 600;
 }
-.overview-widget h3 > span {
+.overview-widget h2 > span {
   margin-left: 6px;
   color: var(--muted-foreground);
   font-size: 12px;
@@ -4498,7 +4529,7 @@ button:disabled {
 .artifact-found-heading button {
   flex-shrink: 0;
 }
-.artifact-found h3 {
+.artifact-found h2 {
   font-size: 13px;
   font-weight: 600;
 }
@@ -5662,6 +5693,9 @@ button:disabled {
   border-radius: 12px;
   overflow: hidden;
 }
+.schedule-week-row {
+  display: contents;
+}
 .schedule-day-cell {
   min-width: 0;
   cursor: pointer;
@@ -5673,7 +5707,7 @@ button:disabled {
 .schedule-day-cell:nth-child(7n) {
   border-inline-end: 0;
 }
-.schedule-day-cell:nth-last-child(-n + 7) {
+.schedule-week-row:last-child .schedule-day-cell {
   border-bottom: 0;
 }
 .schedule-day-cell[data-outside="true"] .schedule-day-number {
@@ -5717,12 +5751,12 @@ button:disabled {
 .schedule-mobile-count {
   display: none;
 }
-.schedule-agenda h3 {
+.schedule-agenda h2 {
   font-size: 16px;
   font-weight: 600;
   margin: 8px 0 18px;
 }
-.schedule-agenda h4 {
+.schedule-agenda h3 {
   font-size: 14px;
   font-weight: 600;
   margin: 24px 0 12px;
@@ -6021,7 +6055,7 @@ button:disabled {
     padding: 8px 0;
   }
   .schedule-year {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     gap: 24px 16px;
   }
   .schedule-editor[data-slot="dialog-content"] {
@@ -6141,7 +6175,8 @@ button:disabled {
 }
 .schedule-time-entry {
   position: absolute;
-  padding: 6px 8px;
+  padding: 4px 8px;
+  line-height: 16px;
   display: block;
   overflow: hidden;
   text-align: start;
@@ -6239,8 +6274,8 @@ button:disabled {
   }
   .schedule-cell-event,
   .schedule-more {
-    min-height: 22px;
-    height: 22px;
+    min-height: 24px;
+    height: 24px;
     padding-block: 0;
     font-size: 11px;
   }
@@ -6302,7 +6337,7 @@ button:disabled {
   .schedule-day-cell:has(.schedule-cell-events[data-compact="true"]) {
     padding-top: 4px;
   }
-  .schedule-cell-events[data-compact="true"] .schedule-more {
+  .schedule-cell-events[data-compact="true"] .schedule-more-count {
     position: absolute;
     top: auto;
     bottom: 2px;
@@ -6314,13 +6349,16 @@ button:disabled {
     line-height: 12px;
     text-align: start;
     padding-inline: 0;
+    font-size: 11px;
+    color: var(--muted-foreground);
   }
 }
 
 @media (min-width: 1024px) {
   .schedule-year {
+    --schedule-year-row-min: 202px;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(var(--schedule-year-row-min), 1fr));
     gap: 12px 24px;
   }
   .schedule-year > section {
@@ -6336,13 +6374,13 @@ button:disabled {
   .schedule-mini-grid {
     flex: 1;
     min-height: 0;
-    grid-template-rows: repeat(7, minmax(0, 1fr));
+    grid-template-rows: 14px repeat(6, minmax(24px, 1fr));
   }
   .schedule-mini-grid > span {
     padding: 0;
   }
   .schedule-mini-grid button {
-    min-height: 0;
+    min-height: 24px;
     height: auto;
   }
 }
@@ -6388,15 +6426,20 @@ button:disabled {
     font-size: 11px;
   }
 }
-@media (min-width: 1024px) and (max-height: 800px) {
+@media (min-width: 1536px) and (max-height: 800px) {
   .schedule-year {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(var(--schedule-year-row-min), 1fr));
     gap: 8px 12px;
   }
   .schedule-month-heading {
     height: 24px;
     font-size: 12px;
+  }
+}
+@media (min-width: 1024px) and (pointer: coarse) {
+  .schedule-year {
+    --schedule-year-row-min: 218px;
   }
 }
 
@@ -7033,13 +7076,16 @@ body .bn-mobile-formatting-toolbar {
   margin-bottom: 16px;
 }
 .form-question-handle {
+  min-width: 44px;
+  padding-inline: 8px;
+  flex-shrink: 0;
   touch-action: none;
   cursor: grab;
   user-select: none;
 }
 .form-question-handle:focus-visible {
-  outline: 1px solid var(--ring);
-  outline-offset: 4px;
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
   border-radius: 8px;
 }
 .form-question-block.is-dragging .form-question-handle {
@@ -7115,4 +7161,124 @@ body .bn-mobile-formatting-toolbar {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 1001;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--foreground);
+  color: var(--background);
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .auth-secondary {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+  .field [data-slot="input"] {
+    min-height: 44px;
+  }
+  .password-field input {
+    padding-right: 48px;
+  }
+  .password-field button {
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .check-row {
+    min-height: 44px;
+  }
+  .schedule-month-heading {
+    min-height: 44px;
+  }
+  :is(.board-picker-popover, .note-picker-popover, .language-popover)
+    [data-slot="command-input"] {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  :is(.board-picker-popover, .note-picker-popover, .language-popover)
+    [data-slot="command-input-wrapper"] {
+    padding-block: 8px;
+  }
+  :is(.board-picker-popover, .note-picker-popover, .language-popover)
+    [data-slot="command-item"] {
+    min-height: 44px;
+  }
+  :is(
+      .tasks-panel,
+      .mobile-app-page,
+      [data-slot="dialog-content"],
+      .settings-dialog,
+      .schedule-toolbar,
+      .schedule-filters,
+      .schedule-agenda,
+      .schedule-summary,
+      .schedule-month-heading,
+      .artifact-viewer,
+      .item-tag-picker,
+      .publish-dialog
+    )
+    :is(
+      [data-slot="button"],
+      [data-slot="dialog-close"],
+      [data-slot="dropdown-menu-trigger"],
+      [data-slot="popover-trigger"],
+      [data-slot="select-trigger"],
+      [data-slot="input"]
+    ) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  [data-slot="dialog-content"]:has(> [data-slot="dialog-close"])
+    [data-slot="dialog-title"] {
+    padding-right: 44px;
+  }
+  .date-picker-popover
+    :is(.calendar-heading, .calendar-shortcuts, .calendar-entry)
+    :is(button, input) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  :is(
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="dropdown-menu-sub-trigger"],
+    [data-slot="select-item"]
+  ) {
+    min-height: 44px;
+  }
+  .note-tags .tag-chip {
+    min-height: 44px;
+    padding: 0 0 0 10px;
+    font-size: 12px;
+  }
+  .note-tags .tag-chip button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .note-tags .add-tag {
+    min-height: 44px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .note-tags .add-tag::after {
+    content: none;
+  }
 }

@@ -45,13 +45,17 @@ function LanguagePicker({
       </PopoverTrigger>
       <PopoverContent
         className="language-popover"
+        aria-label="Code language"
         align="start"
         sideOffset={8}
         collisionPadding={12}
       >
         <Command>
-          <CommandInput placeholder="Search languages…" />
-          <CommandList>
+          <CommandInput
+            aria-label="Search languages"
+            placeholder="Search languages…"
+          />
+          <CommandList label="Code languages">
             <CommandEmpty>No matching language.</CommandEmpty>
             <CommandGroup>
               {languages.map((item) => (

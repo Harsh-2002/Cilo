@@ -103,7 +103,7 @@ export function TrashPanel({ onNavigation }: { onNavigation: () => void }) {
     }
   }
   return (
-    <section className="tasks-panel trash-panel" aria-label="Trash">
+    <section className="tasks-panel trash-panel">
       <div
         className="tasks-scroll"
         tabIndex={0}

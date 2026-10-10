@@ -60,6 +60,7 @@ try {
             serviceWorkers: "block",
             storageState: await owner.storageState(),
             viewport,
+            hasTouch: width < 1024,
             colorScheme,
           });
           await context.addInitScript(
@@ -303,7 +304,7 @@ try {
             );
             await page.mouse.up();
             await page.keyboard.press("Escape");
-            const handle = page.getByRole("group", {
+            const handle = page.getByRole("button", {
               name: "Reorder question 1",
               exact: true,
             });
@@ -350,8 +351,11 @@ try {
             }
             await page.waitForFunction(
               () =>
+                document.querySelectorAll(".form-builder .form-question-block")
+                  .length === 2 &&
+                !document.querySelector(".form-question-block.is-dragging") &&
                 document.querySelector(".form-question-block input")?.value ===
-                "Area",
+                  "Area",
             );
             await page.waitForFunction(
               () =>
@@ -366,7 +370,7 @@ try {
               .click();
             assert.deepEqual(await questionOrder(), ["Your feedback", "Area"]);
             if (width === 390) {
-              const reorder = page.getByRole("group", {
+              const reorder = page.getByRole("button", {
                 name: "Reorder question 1",
                 exact: true,
               });
@@ -400,6 +404,86 @@ try {
                 "Cancel restores the unsaved drag order",
               );
             }
+          }
+          if (name === "chromium" && width === 390) {
+            await page
+              .locator(".form-question-block")
+              .first()
+              .scrollIntoViewIfNeeded();
+            const handle = await page
+              .getByRole("button", { name: "Reorder question 1", exact: true })
+              .boundingBox();
+            const target = await page
+              .locator(".form-question-block")
+              .nth(1)
+              .boundingBox();
+            const start = {
+              x: handle.x + handle.width / 2,
+              y: handle.y + handle.height / 2,
+              id: 0,
+            };
+            const end = {
+              x: start.x,
+              y: Math.min(target.y + 30, viewport.height - 20),
+              id: 0,
+            };
+            const cdp = await context.newCDPSession(page);
+            await cdp.send("Input.dispatchTouchEvent", {
+              type: "touchStart",
+              touchPoints: [start],
+            });
+            await page.waitForFunction(
+              () =>
+                !!document.querySelector(".form-question-block.is-dragging"),
+            );
+            for (let step = 1; step <= 12; step++) {
+              await cdp.send("Input.dispatchTouchEvent", {
+                type: "touchMove",
+                touchPoints: [
+                  { ...start, y: start.y + ((end.y - start.y) * step) / 12 },
+                ],
+              });
+              await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+            await cdp.send("Input.dispatchTouchEvent", {
+              type: "touchEnd",
+              touchPoints: [],
+            });
+            await cdp.detach();
+            await page.waitForFunction(
+              () =>
+                document.querySelectorAll(".form-builder .form-question-block")
+                  .length === 2 &&
+                !document.querySelector(".form-question-block.is-dragging") &&
+                document.querySelector(".form-question-block input")?.value ===
+                  "Area",
+            );
+            assert.deepEqual(
+              await questionOrder(),
+              ["Area", "Your feedback"],
+              "Native touch moves the question",
+            );
+            await page.waitForFunction(() =>
+              Array.from(
+                document.querySelectorAll(
+                  ".form-workspace header [role=status]",
+                ),
+              ).some((status) => status.textContent.trim() === "Saved"),
+            );
+            const savedOrder = await api(`forms/${id}`);
+            assert.deepEqual(
+              savedOrder.definition.fields.map((field) => field.label),
+              ["Area", "Your feedback"],
+              "Native touch persists exactly two reordered questions",
+            );
+            await page
+              .getByRole("button", { name: "Question 2 actions", exact: true })
+              .click();
+            await page
+              .getByRole("menuitem", { name: "Move up", exact: true })
+              .click();
+            assert.deepEqual(await questionOrder(), ["Your feedback", "Area"]);
+            console.log(`Native touch reorder ${width} ${colorScheme} passed`);
           }
           const message = page.getByRole("textbox", {
             name: "Confirmation message",

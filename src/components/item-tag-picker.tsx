@@ -86,11 +86,12 @@ export function ItemTagPicker({
       </PopoverTrigger>
       <PopoverContent
         className="item-tag-picker"
+        aria-label="Tags"
         align="end"
         collisionPadding={20}
         sideOffset={8}
       >
-        <h3>Tags</h3>
+        <h2>Tags</h2>
         {error && <p role="alert">{error}</p>}
         {!revision ? (
           <>

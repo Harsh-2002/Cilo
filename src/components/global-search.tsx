@@ -183,105 +183,108 @@ export function GlobalSearch({
             setError("");
           }}
         />
-        <CommandList label="Search results" aria-busy={loading}>
-          {loading && !results.length ? (
-            <LoadingState kind="search" label="Loading search results" />
-          ) : loading ? (
-            <span className="sr-only" role="status">
-              Searching…
-            </span>
-          ) : null}
-          {error ? (
-            <p className="picker-message" role="alert">
-              {error} Change your search to retry.
-            </p>
-          ) : !loading && !results.length ? (
-            <p className="picker-message" role="status">
-              {query.trim()
-                ? "No matching items. Try another word or filter."
-                : "Your recent items will appear here."}
-            </p>
-          ) : null}
-
-          {!error && !!results.length && (
-            <CommandGroup
-              heading={query.trim() ? "Search results" : "Recent items"}
-            >
-              {results.map((result) => {
-                const Icon =
-                  result.type === "note"
-                    ? FileText
-                    : result.type === "task"
-                      ? ListTodo
-                      : result.type === "artifact"
-                        ? result.artifactKind === "image"
-                          ? ImageIcon
-                          : Layers
-                        : result.type === "event"
-                          ? CalendarDays
-                          : result.type === "form"
-                            ? ClipboardList
-                            : Bookmark;
-                return (
-                  <CommandItem
-                    disabled={busy || loading}
-                    key={`${result.type}-${result.id}`}
-                    value={`${result.type}-${result.id}`}
-                    onSelect={() =>
-                      void run(
-                        () => onSelect(result),
-                        result.type === "note"
-                          ? result.matchTerms?.length
-                            ? '[aria-label="Note content"]'
-                            : ".note-title"
+        <div className="search-results-viewport">
+          <div className="search-status">
+            {loading && !results.length ? (
+              <LoadingState kind="search" label="Loading search results" />
+            ) : loading ? (
+              <span className="sr-only" role="status">
+                Searching…
+              </span>
+            ) : null}
+            {error ? (
+              <p className="picker-message" role="alert">
+                {error} Change your search to retry.
+              </p>
+            ) : !loading && !results.length ? (
+              <p className="picker-message" role="status">
+                {query.trim()
+                  ? "No matching items. Try another word or filter."
+                  : "Your recent items will appear here."}
+              </p>
+            ) : null}
+          </div>
+          <CommandList label="Search results" aria-busy={loading}>
+            {!error && !!results.length && (
+              <CommandGroup
+                heading={query.trim() ? "Search results" : "Recent items"}
+              >
+                {results.map((result) => {
+                  const Icon =
+                    result.type === "note"
+                      ? FileText
+                      : result.type === "task"
+                        ? ListTodo
+                        : result.type === "artifact"
+                          ? result.artifactKind === "image"
+                            ? ImageIcon
+                            : Layers
+                          : result.type === "event"
+                            ? CalendarDays
+                            : result.type === "form"
+                              ? ClipboardList
+                              : Bookmark;
+                  return (
+                    <CommandItem
+                      disabled={busy || loading}
+                      key={`${result.type}-${result.id}`}
+                      value={`${result.type}-${result.id}`}
+                      onSelect={() =>
+                        void run(
+                          () => onSelect(result),
+                          result.type === "note"
+                            ? result.matchTerms?.length
+                              ? '[aria-label="Note content"]'
+                              : ".note-title"
+                            : result.type === "task"
+                              ? 'input[aria-label="Search tasks"]'
+                              : result.type === "artifact"
+                                ? 'input[aria-label="Search artifacts"]'
+                                : result.type === "form"
+                                  ? 'input[placeholder="Untitled form"]'
+                                  : 'input[aria-label="Search bookmarks"]',
+                        )
+                      }
+                    >
+                      <Icon />
+                      <span className="search-result-copy">
+                        <strong>
+                          <SearchText
+                            text={result.title || "Untitled"}
+                            ranges={result.titleMatches}
+                          />
+                        </strong>
+                        {result.excerpt.trim() &&
+                          result.excerpt.trim() !== result.title.trim() && (
+                            <small>
+                              <SearchText
+                                text={result.excerpt}
+                                ranges={result.excerptMatches}
+                              />
+                            </small>
+                          )}
+                      </span>
+                      <span className="search-result-type">
+                        {result.type === "note"
+                          ? "Note"
                           : result.type === "task"
-                            ? 'input[aria-label="Search tasks"]'
+                            ? "Task"
                             : result.type === "artifact"
-                              ? 'input[aria-label="Search artifacts"]'
-                              : result.type === "form"
-                                ? 'input[placeholder="Untitled form"]'
-                                : 'input[aria-label="Search bookmarks"]',
-                      )
-                    }
-                  >
-                    <Icon />
-                    <span className="search-result-copy">
-                      <strong>
-                        <SearchText
-                          text={result.title || "Untitled"}
-                          ranges={result.titleMatches}
-                        />
-                      </strong>
-                      {result.excerpt.trim() &&
-                        result.excerpt.trim() !== result.title.trim() && (
-                          <small>
-                            <SearchText
-                              text={result.excerpt}
-                              ranges={result.excerptMatches}
-                            />
-                          </small>
-                        )}
-                    </span>
-                    <span className="search-result-type">
-                      {result.type === "note"
-                        ? "Note"
-                        : result.type === "task"
-                          ? "Task"
-                          : result.type === "artifact"
-                            ? "Artifact"
-                            : result.type === "event"
-                              ? "Event"
-                              : result.type === "form"
-                                ? "Form"
-                                : "Bookmark"}
-                      {result.completed ? " · done" : ""}
-                    </span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          )}
-        </CommandList>
+                              ? "Artifact"
+                              : result.type === "event"
+                                ? "Event"
+                                : result.type === "form"
+                                  ? "Form"
+                                  : "Bookmark"}
+                        {result.completed ? " · done" : ""}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </div>
         <div className="search-keyboard-hints" aria-hidden="true">
           <span>
             <kbd>↑</kbd>

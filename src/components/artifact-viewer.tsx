@@ -349,6 +349,7 @@ export function ArtifactViewer({
                     ) : item.content ? (
                       <pre
                         className="artifact-text"
+                        role="region"
                         tabIndex={0}
                         aria-label="Extracted text"
                       >

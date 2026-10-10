@@ -135,6 +135,7 @@ export function ResponsiveSurface({
             ref={page}
             className={`mobile-app-page ${contentProps.className ?? ""}`}
             data-slot="app-page"
+            role="main"
             aria-label={title}
             tabIndex={-1}
             onKeyDown={(event) => {

@@ -679,7 +679,7 @@ export function NotePane({
                     tags.find((item) => item.id === tag.id)?.color || tag.color
                   }
                 />
-                {tag.name}
+                <span className="tag-chip-label">{tag.name}</span>
                 {!note.trashedAt && (
                   <button
                     aria-label={`Remove ${tag.name} tag`}

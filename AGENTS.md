@@ -94,7 +94,7 @@ Run checks appropriate to the change. Application delivery requires type checkin
 - Authentication: check onboarding races, blocked signup, login, recovery, optional TOTP enrollment/challenge, one-use backup codes, and session invalidation.
 - Persistence/editor: check saves, delayed requests, conflicting revisions, reloads, and preservation of artifacts.
 - Files/import/export: check authorization, limits, traversal, malformed archives, and restoration with attachments.
-- UI: inspect desktop and mobile in the browser, including dark mode, keyboard focus, touch controls, and overflow. Use the browser MCP when available.
+- UI: inspect desktop and mobile in the browser, including dark mode, keyboard focus, touch controls, and overflow. Use the browser MCP when available. See docs/testing.md for the disposable accessibility scan and keyboard/touch harnesses.
 - Docker/storage: check startup, health, container recreation, migrations, persistent volume permissions, and backup/restore. Use disposable test data.
 
 Review the diff before committing. Flag data loss, missing authorization, extra-owner creation, private-content caching, and lossy bundle restoration as defects. Do not weaken checks to obtain a passing result. Report failed or unavailable checks accurately.
