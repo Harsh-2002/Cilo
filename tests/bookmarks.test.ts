@@ -70,6 +70,43 @@ test("metadata extracts Open Graph, Twitter and HTML with safe relative assets",
   );
   assert.equal(imageMime(Buffer.from("<svg onload=alert(1)>")), null);
 });
+test("metadata parsing preserves HTML boundaries and ignores inert content", () => {
+  const fake = '<meta property="og:title" content="Forged">';
+  for (const html of [
+    `<!--${fake}-->`,
+    `<script>const fake = '${fake}'</script>`,
+    `<style>body::after { content: '${fake}' }</style>`,
+    `<template>${fake}</template>`,
+    `<textarea>${fake}</textarea>`,
+    `<<script>ignored</script>meta property="og:title" content="Forged">`,
+    `<<!--ignored-->meta property="og:title" content="Forged">`,
+    `<div data-preview='${fake}'></div>`,
+  ]) {
+    const result = parseMetadata(
+      html + '<meta property="og:title" content="Real &amp; useful">',
+      "https://example.com/page",
+    );
+    assert.equal(result.title, "Real & useful", html);
+  }
+  assert.equal(
+    parseMetadata(`<title>${fake}</title>`, "https://example.com").title,
+    fake,
+    "Title text cannot create metadata elements",
+  );
+  const result = parseMetadata(
+    '<META PROPERTY="og:title" CONTENT="Rock &amp;amp; Roll"><meta name="description" content="Quoted &quot;words&quot; &copy;"><meta property="og:image" content="jav&#97;script:alert(1)"><link rel="icon" href="/icon.png?a=1&amp;b=2">',
+    "https://example.com/page",
+  );
+  assert.equal(result.title, "Rock &amp; Roll");
+  assert.equal(result.description, 'Quoted "words" ©');
+  assert.equal(result.thumbnail, "");
+  assert.equal(result.icon, "https://example.com/icon.png?a=1&b=2");
+  assert.equal(
+    parseMetadata("<title>Visible &amp; ready</title>", "https://example.com")
+      .title,
+    "Visible & ready",
+  );
+});
 test("bookmarks preserve fallback links, organization, FTS and revisions", async () => {
   const directory = await mkdtemp(
     path.join(os.tmpdir(), "nivra-bookmark-test-"),

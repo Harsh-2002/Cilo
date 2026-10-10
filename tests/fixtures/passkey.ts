@@ -5,6 +5,7 @@ import {
   sign,
 } from "node:crypto";
 import { isoCBOR } from "@simplewebauthn/server/helpers";
+// WebAuthn requires SHA-256 of the RP ID and client data; this never hashes passwords.
 const hash = (value: string | Buffer) =>
   createHash("sha256").update(value).digest();
 const base64 = (value: Uint8Array) => Buffer.from(value).toString("base64url");

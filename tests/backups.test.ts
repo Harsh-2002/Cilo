@@ -452,14 +452,14 @@ test("encrypted full-instance backups preserve accounts, search, tasks, bookmark
         await backups.verifyBackup(first.id);
         const moved = path.join(directory, "relocated");
         await rename(target, moved);
-        const storageModule = path.resolve("src/lib/server/storage.ts");
-        const configuration = path.resolve(
-          "src/lib/server/system-configuration.ts",
-        );
-        const script = `(async()=>{const s=await import(${JSON.stringify(storageModule)});const c=await import(${JSON.stringify(configuration)});if((await s.storage.read(${JSON.stringify(file)})).toString()!=="payload")throw new Error("Moved files unavailable");if(c.profileSource(c.systemConfiguration().local_profile).NIVRA_DATA_DIR!==process.env.NIVRA_DATA_DIR)throw new Error("Local destination retained an old host path");console.log("Relocated restore is readable");})().catch(()=>{process.exitCode=1;});`;
         const child = await promisify(execFile)(
           process.execPath,
-          ["--import", "tsx", "--eval", script],
+          [
+            "--import",
+            "tsx",
+            path.resolve("tests/fixtures/restored-storage.ts"),
+            file,
+          ],
           { env: { ...process.env, NIVRA_DATA_DIR: moved }, timeout: 60000 },
         );
         assert.equal(child.stdout.trim(), "Relocated restore is readable");

@@ -9,6 +9,7 @@ Nivra's own source is MIT licensed. Dependencies retain their original notices a
 - Tesseract.js and its WebAssembly core: Apache-2.0. Bundled English language data from `@tesseract.js-data/eng`: MIT. unpdf: MIT. OCR and PDF extraction run locally with pinned packages and retain their upstream notices.
 - Sharp: Apache-2.0. OCR uses it for EXIF orientation and complete quarter-turn images before recognition; packaged native binaries retain their own third-party notices. This explicitly pins the image library already present through Next.js.
 - shadcn/ui, Next.js, React, Drizzle, Better Auth, and Lucide retain their package licenses. The lockfile records the complete dependency set.
+- parse5: MIT. Bookmark metadata uses its inert HTML parser, pinned from the existing dependency tree.
 
 See the LICENSE files in installed packages and upstream distributions for full terms. Review dependency advisories when updating; do not use `npm audit fix --force` to silently downgrade the editor or framework.
 

@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import http from "node:http";
 import https from "node:https";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
 import { HttpError } from "./http";
 
 const blocked = new BlockList();
@@ -167,60 +168,37 @@ export async function fetchPublic(
   });
 }
 function text(value: string, limit: number) {
-  return value
-    .replace(/<[^>]*>/g, " ")
-    .replace(
-      /&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt|nbsp);/gi,
-      (_, entity: string) => {
-        if (entity[0] === "#") {
-          const code =
-            entity[1].toLowerCase() === "x"
-              ? parseInt(entity.slice(2), 16)
-              : parseInt(entity.slice(1), 10);
-          return code > 0 &&
-            code <= 0x10ffff &&
-            !(code >= 0xd800 && code <= 0xdfff)
-            ? String.fromCodePoint(code)
-            : "";
-        }
-        return (
-          (
-            {
-              amp: "&",
-              quot: '"',
-              apos: "'",
-              lt: "<",
-              gt: ">",
-              nbsp: " ",
-            } as Record<string, string>
-          )[entity.toLowerCase()] || ""
-        );
-      },
-    )
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, limit);
+  return value.replace(/\s+/g, " ").trim().slice(0, limit);
 }
 export function parseMetadata(html: string, url: string) {
   const metadata = new Map<string, string>();
-  const clean = html.replace(
-    /<!--[^]*?-->|<(script|style)\b[^>]*>[^]*?<\/\1\s*>/gi,
-    "",
-  );
+  const pending: DefaultTreeAdapterMap["node"][] = [parse(html)];
   let icon = "";
-  for (const match of clean.matchAll(
-    /<(meta|link)\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi,
-  )) {
-    const attributes: Record<string, string> = {};
-    for (const a of match[2].matchAll(
-      /([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g,
-    ))
-      attributes[a[1].toLowerCase()] = a[2] ?? a[3] ?? a[4];
-    if (match[1].toLowerCase() === "meta") {
+  let title = "";
+  while (pending.length) {
+    const node = pending.pop()!;
+    if (!("childNodes" in node)) continue;
+    if (
+      "tagName" in node &&
+      ["script", "style", "template"].includes(node.tagName)
+    )
+      continue;
+    for (let i = node.childNodes.length - 1; i >= 0; i--)
+      pending.push(node.childNodes[i]);
+    if (!("tagName" in node)) continue;
+    const attributes = Object.fromEntries(
+      node.attrs.map(({ name, value }) => [name, value]),
+    );
+    if (node.tagName === "title" && !title)
+      title = node.childNodes
+        .map((child) => ("value" in child ? child.value : ""))
+        .join("");
+    if (node.tagName === "meta") {
       const key = (attributes.property || attributes.name || "").toLowerCase();
       if (!metadata.has(key) && attributes.content)
         metadata.set(key, attributes.content);
     } else if (
+      node.tagName === "link" &&
       /(^|\s)(icon|apple-touch-icon)(\s|$)/i.test(attributes.rel || "") &&
       attributes.href &&
       !icon
@@ -239,7 +217,7 @@ export function parseMetadata(html: string, url: string) {
     title: text(
       metadata.get("og:title") ||
         metadata.get("twitter:title") ||
-        clean.match(/<title\b[^>]*>([^]*?)<\/title\s*>/i)?.[1] ||
+        title ||
         new URL(url).hostname,
       300,
     ),

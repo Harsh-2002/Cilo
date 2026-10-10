@@ -8,7 +8,28 @@ test("MCP client setup uses the supplied origin and inline credentials", () => {
   for (const client of mcpClients)
     for (const mode of ["oauth", "key"] as const) {
       const setup = mcpClientSetup(client.id, mode, endpoint, token);
-      assert.ok(setup.snippets[0].value.includes(endpoint));
+      const snippet = setup.snippets[0].value;
+      if (client.id === "cursor")
+        assert.equal(JSON.parse(snippet).mcpServers.nivra.url, endpoint);
+      else if (client.id === "opencode")
+        assert.equal(JSON.parse(snippet).mcp.nivra.url, endpoint);
+      else if (client.id === "openclaw")
+        assert.equal(JSON.parse(snippet).mcp.servers.nivra.url, endpoint);
+      else if (client.id === "codex" && mode === "oauth")
+        assert.equal(
+          snippet.split("\n")[0],
+          `codex mcp add nivra --url '${endpoint}'`,
+        );
+      else if (client.id === "claude")
+        assert.equal(
+          snippet,
+          `claude mcp add --transport http --scope user nivra '${endpoint}'${mode === "oauth" ? "\nclaude mcp login nivra" : ` --header 'Authorization: Bearer ${token}'`}`,
+        );
+      else
+        assert.equal(
+          JSON.parse(snippet.match(/^\s*url\s*[:=]\s*(.+)$/m)![1]),
+          endpoint,
+        );
       assert.equal(setup.snippets[0].value.includes(token), mode === "key");
       assert.equal(setup.snippets[0].value.includes("NIVRA_API_KEY"), false);
       if (["cursor", "opencode", "openclaw"].includes(client.id))

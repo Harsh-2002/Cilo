@@ -137,8 +137,11 @@ test("online navigations are never stored and static files are cached once with 
   });
   assert.equal(await page!.text(), "network");
   assert.ok(
-    ![...(worker.store.get("nivra-static-v5") ?? new Map()).keys()].includes(
-      "https://nivra.test/",
+    ![...(worker.store.get("nivra-static-v5") ?? new Map()).keys()].some(
+      (value) => {
+        const url = new URL(value);
+        return url.origin === "https://nivra.test" && url.pathname === "/";
+      },
     ),
   );
   for (let i = 0; i < 160; i++)
