@@ -194,6 +194,7 @@ Controls and selected tabs have softly curved corners. Screenshot and installati
 
 - **Desktop:** A compact row of muted links sits beside the brand and header actions. Links gain foreground contrast on hover.
 - **Mobile:** The header shows the brand and theme control without a menu. Installation and repository actions remain directly accessible in the page.
+- **Footer:** Only GitHub and MIT license links, aligned to the content gutter, with no repeated branding or tagline.
 
 ### Workflow Tabs
 

@@ -525,24 +525,14 @@ pre code {
 .site-footer {
   border-top: 1px solid var(--line);
   padding: 32px 0;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-.site-footer .brand {
-  font-size: 17px;
-}
-.site-footer p {
-  font-size: 13px;
 }
 .site-footer > div {
-  margin-left: auto;
   display: flex;
-  gap: 25px;
+  gap: 24px;
   font-size: 13px;
   color: var(--muted);
 }
-.site-footer a:not(.brand) {
+.site-footer a {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -663,17 +653,7 @@ pre code {
     max-width: 380px;
   }
   .site-footer {
-    flex-wrap: wrap;
-    gap: 16px;
     padding: 25px 0;
-  }
-  .site-footer > div {
-    width: 100%;
-    margin-left: 0;
-    gap: 24px;
-  }
-  .site-footer p {
-    margin-left: auto;
   }
   .desktop-break {
     display: none;
@@ -755,9 +735,6 @@ pre code {
     padding: 0 16px 18px;
     font-size: 11px;
   }
-  .site-footer p {
-    font-size: 12px;
-  }
 }
 @media (max-width: 360px) {
   .container,
@@ -776,9 +753,6 @@ pre code {
   }
   .workflow-tabs button {
     padding-inline: 10px;
-  }
-  .site-footer p {
-    margin-left: 0;
   }
   .hero-intro {
     margin-bottom: 30px;
