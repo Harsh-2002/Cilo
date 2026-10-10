@@ -48,14 +48,14 @@ export function agentCounts(owner: string, options: CountOptions) {
       const values = [owner];
       if (options.tagId) {
         where.push(
-          `EXISTS(SELECT 1 FROM ${tagTable} WHERE ${tagColumn}=${table}.id AND tag_id=?)`,
+          `id IN(SELECT ${tagColumn} FROM ${tagTable} WHERE tag_id=?)`,
         );
         values.push(options.tagId);
       }
       if (options.favoritesOnly) where.push(favorite ? "favorite=1" : "0=1");
       const row = database
         .prepare(
-          `SELECT count(*) AS total${type === "tasks" ? ",coalesce(sum(completed_at IS NULL),0) AS open,coalesce(sum(completed_at IS NOT NULL),0) AS completed" : ""} FROM ${table} WHERE ${where.join(" AND ")}`,
+          `SELECT count(*) AS total${type === "tasks" ? ",coalesce(sum(completed_at IS NULL),0) AS open,coalesce(sum(completed_at IS NOT NULL),0) AS completed" : ""} FROM ${table}${options.state === "active" ? ` INDEXED BY ${table === "calendar_events" ? "events" : table}_active_counts_idx` : ""} WHERE ${where.join(" AND ")}`,
         )
         .get(...values) as { total: number; open?: number; completed?: number };
       counts[type] = row.total;

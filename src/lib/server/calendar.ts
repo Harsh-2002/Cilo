@@ -307,9 +307,9 @@ export function trashEvent(
 function taskItems(owner: string, from: string, to: string): CalendarItem[] {
   const rows = sqlite()
     .prepare(
-      "SELECT id,title,revision,planned_date AS plannedDate,due_date AS dueDate,completed_at AS completedAt FROM tasks WHERE owner_id=? AND trashed_at IS NULL AND ((planned_date>=? AND planned_date<?) OR (due_date>=? AND due_date<?))",
+      "SELECT id,title,revision,planned_date AS plannedDate,due_date AS dueDate,completed_at AS completedAt FROM tasks INDEXED BY tasks_owner_planned_idx WHERE owner_id=? AND trashed_at IS NULL AND planned_date>=? AND planned_date<? UNION SELECT id,title,revision,planned_date AS plannedDate,due_date AS dueDate,completed_at AS completedAt FROM tasks INDEXED BY tasks_owner_due_idx WHERE owner_id=? AND trashed_at IS NULL AND due_date>=? AND due_date<?",
     )
-    .all(owner, from, to, from, to) as {
+    .all(owner, from, to, owner, from, to) as {
     id: string;
     title: string;
     revision: number;
@@ -373,6 +373,7 @@ function activity(
           (type === "note" ? ",daily_date AS dailyDate" : "") +
           " FROM " +
           table +
+          (type === "note" ? " INDEXED BY notes_activity_idx" : "") +
           " WHERE owner_id=? AND trashed_at IS NULL AND created_at>=? AND created_at<? ORDER BY created_at DESC",
       )
       .all(owner, a, b) as {
@@ -397,7 +398,7 @@ function activity(
   }
   const completed = sqlite()
     .prepare(
-      "SELECT id,title,revision,completed_at AS at FROM tasks WHERE owner_id=? AND trashed_at IS NULL AND completed_at>=? AND completed_at<?",
+      "SELECT id,title,revision,completed_at AS at FROM tasks INDEXED BY tasks_completed_activity_idx WHERE owner_id=? AND trashed_at IS NULL AND completed_at>=? AND completed_at<?",
     )
     .all(owner, a, b) as {
     id: string;
@@ -584,19 +585,22 @@ export function calendarRange(
   }
   if (options.includeCompleted === false)
     items = items.filter((item) => !item.completed);
-  if (options.tag)
-    items = items.filter((item) => {
-      const type = item.type === "journal" ? "note" : item.type;
-      return !!sqlite()
-        .prepare(
-          "SELECT 1 FROM " +
-            type +
-            "_tags WHERE " +
-            type +
-            "_id=? AND tag_id=?",
-        )
-        .get(item.sourceId, options.tag);
-    });
+  if (options.tag) {
+    const tagged = new Map<string, Set<string>>();
+    for (const type of new Set(
+      items.map((item) => (item.type === "journal" ? "note" : item.type)),
+    )) {
+      const rows = connection
+        .prepare(`SELECT ${type}_id AS id FROM ${type}_tags WHERE tag_id=?`)
+        .all(options.tag) as { id: string }[];
+      tagged.set(type, new Set(rows.map((row) => row.id)));
+    }
+    items = items.filter((item) =>
+      tagged
+        .get(item.type === "journal" ? "note" : item.type)
+        ?.has(item.sourceId),
+    );
+  }
   if (options.query)
     items = items.filter((item) =>
       item.title
@@ -635,7 +639,7 @@ export function calendarRange(
     limit = options.limit ?? 500;
   const stats = sqlite()
     .prepare(
-      "SELECT count(*) FILTER(WHERE planned_date IS NULL AND due_date IS NULL) AS unscheduled,count(*) FILTER(WHERE due_date<?) AS overdue FROM tasks WHERE owner_id=? AND completed_at IS NULL AND trashed_at IS NULL",
+      "SELECT count(*) FILTER(WHERE planned_date IS NULL AND due_date IS NULL) AS unscheduled,count(*) FILTER(WHERE due_date<?) AS overdue FROM tasks INDEXED BY tasks_active_counts_idx WHERE owner_id=? AND completed_at IS NULL AND trashed_at IS NULL",
     )
     .get(localInstant(Date.now(), zone).slice(0, 10), owner) as {
     unscheduled: number;

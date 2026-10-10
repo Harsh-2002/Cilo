@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { sqlite } from "./db";
 import { storage, storedFileResponse } from "./storage";
 import { HttpError } from "./http";
+import { matchingRows } from "./search-plan";
 import { fuzzyQuery } from "./search";
 import { ftsQuery } from "./validation";
 import { decodeMatches } from "../search-context";
@@ -32,7 +33,7 @@ type Row = {
   excerpt?: string;
 };
 const columns =
-  "a.id,a.kind,a.title,a.name,a.mime,a.size,a.width,a.height,a.storage_key,a.thumb_key,a.extraction,a.revision,a.created_at,a.updated_at,substr(a.content,1,600) AS content";
+  "a.rowid AS searchRow,a.id,a.kind,a.title,a.name,a.mime,a.size,a.width,a.height,a.storage_key,a.thumb_key,a.extraction,a.revision,a.created_at,a.updated_at,substr(a.content,1,600) AS content";
 const thumbnailLimit = 768 * 1024;
 const oneLine = (text: string, length: number) =>
   text.replace(/\s+/g, " ").trim().slice(0, length);
@@ -187,11 +188,17 @@ export function listArtifactPage(
       where.push("a.kind=?");
       values.push(options.kind);
     }
+    let index = " INDEXED BY artifacts_page_idx";
     if (match !== undefined) {
-      where.push(
-        "a.rowid IN (SELECT rowid FROM artifacts_fts WHERE artifacts_fts MATCH ?)",
+      const plan = matchingRows(
+        "artifacts_fts",
+        match,
+        "a",
+        "artifacts_page_idx",
       );
-      values.push(match);
+      index = plan.index;
+      where.push(plan.condition);
+      values.push(...plan.values);
     }
     if (cursor) {
       where.push("(a.created_at<? OR (a.created_at=? AND a.id>?))");
@@ -203,7 +210,7 @@ export function listArtifactPage(
     }
     return database()
       .prepare(
-        `SELECT ${columns} FROM artifacts a WHERE ${where.join(" AND ")} ORDER BY a.created_at DESC,a.id LIMIT ?`,
+        `SELECT ${columns} FROM artifacts a${index} WHERE ${where.join(" AND ")} ORDER BY a.created_at DESC,a.id LIMIT ?`,
       )
       .all(...values, options.limit + 1) as Row[];
   };
@@ -220,14 +227,22 @@ export function listArtifactPage(
   if (options.context !== false && term && used && items.length) {
     const start = `[[${randomUUID()}]]`;
     const end = `[[/${randomUUID()}]]`;
-    const statement = database().prepare(
-      "SELECT snippet(artifacts_fts,-1,?,?,'…',28) AS excerpt FROM artifacts_fts WHERE rowid=(SELECT rowid FROM artifacts WHERE id=?) AND artifacts_fts MATCH ?",
+    const ids = items.map(
+      (row) => (row as Row & { searchRow: number }).searchRow,
     );
+    const snippets = database()
+      .prepare(
+        `SELECT rowid AS searchRow,snippet(artifacts_fts,-1,?,?,'…',28) AS excerpt FROM artifacts_fts WHERE rowid BETWEEN ? AND ? AND (rowid+0) IN (${ids.map(() => "?").join(",")}) AND artifacts_fts MATCH ?`,
+      )
+      .all(start, end, Math.min(...ids), Math.max(...ids), ...ids, used) as {
+      searchRow: number;
+      excerpt: string;
+    }[];
+    const byRow = new Map(snippets.map((row) => [row.searchRow, row.excerpt]));
     for (const row of items) {
-      const found = statement.get(start, end, row.id, used) as
-        { excerpt: string } | undefined;
-      if (!found) continue;
-      const marked = decodeMatches(found.excerpt, start, end);
+      const excerpt = byRow.get((row as Row & { searchRow: number }).searchRow);
+      if (excerpt === undefined) continue;
+      const marked = decodeMatches(excerpt, start, end);
       Object.assign(row, {
         excerpt: marked.text,
         excerptMatches: marked.ranges,
@@ -247,7 +262,7 @@ const database = sqlite;
 export function artifactSummary(owner: string) {
   return sqlite()
     .prepare(
-      "SELECT COUNT(*) AS total,COUNT(*) FILTER (WHERE kind='image') AS images,COUNT(*) FILTER (WHERE kind='text') AS texts,COUNT(*) FILTER (WHERE kind='file') AS files FROM artifacts WHERE owner_id=? AND trashed_at IS NULL",
+      "SELECT COUNT(*) AS total,COUNT(*) FILTER (WHERE kind='image') AS images,COUNT(*) FILTER (WHERE kind='text') AS texts,COUNT(*) FILTER (WHERE kind='file') AS files FROM artifacts INDEXED BY artifacts_active_counts_idx WHERE owner_id=? AND trashed_at IS NULL",
     )
     .get(owner) as {
     total: number;

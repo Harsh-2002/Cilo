@@ -163,7 +163,9 @@ export function taskCounts(owner: string, boardId?: string | null) {
   if (boardId) requireBoard(owner, boardId, true);
   return sqlite()
     .prepare(
-      "SELECT COUNT(*) FILTER (WHERE completed_at IS NULL) AS open,COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS completed FROM tasks WHERE owner_id=? AND trashed_at IS NULL" +
+      "SELECT COUNT(*) FILTER (WHERE completed_at IS NULL) AS open,COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS completed FROM tasks" +
+        (boardId === undefined ? " INDEXED BY tasks_active_counts_idx" : "") +
+        " WHERE owner_id=? AND trashed_at IS NULL" +
         (boardId
           ? " AND board_id=?"
           : boardId === null

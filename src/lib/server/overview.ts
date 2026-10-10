@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db, sqlite } from "./db";
 import { bookmarks, notes, tasks } from "./schema";
 import type { Overview } from "../types";
@@ -11,15 +11,11 @@ export function workspaceOverview(owner: string, today: string): Overview {
       isNull(tasks.completedAt),
       isNull(tasks.trashedAt),
     );
-    const taskCounts = database
-      .select({
-        open: count(),
-        today: sql<number>`coalesce(sum(case when ${tasks.dueDate} = ${today} then 1 else 0 end), 0)`,
-        overdue: sql<number>`coalesce(sum(case when ${tasks.dueDate} < ${today} then 1 else 0 end), 0)`,
-      })
-      .from(tasks)
-      .where(open)
-      .get()!;
+    const taskCounts = sqlite()
+      .prepare(
+        "SELECT count(*) AS open,coalesce(sum(due_date=?),0) AS today,coalesce(sum(due_date<?),0) AS overdue FROM tasks INDEXED BY tasks_active_counts_idx WHERE owner_id=? AND completed_at IS NULL AND trashed_at IS NULL",
+      )
+      .get(today, today, owner) as Overview["counts"];
     return {
       counts: taskCounts,
       tasks: database

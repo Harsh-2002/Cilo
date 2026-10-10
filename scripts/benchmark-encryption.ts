@@ -23,14 +23,17 @@ const p95 = (values: number[]) =>
 async function child() {
   assert.ok(mode === "true" || mode === "false");
   process.env.NIVRA_DATA_DIR = path.join(root, mode);
-  process.env.NIVRA_ENCRYPTION_ENABLED = mode;
+  const { persistEncryptionMode, encryptionEnabled } =
+    await import("../src/lib/server/encryption-mode");
+  persistEncryptionMode(process.env.NIVRA_DATA_DIR, mode === "true");
+  assert.equal(encryptionEnabled(process.env.NIVRA_DATA_DIR), mode === "true");
   const { sqlite } = await import("../src/lib/server/db");
   const { createStorage } = await import("../src/lib/server/storage");
   const size = Number(requestedSize || 25) * 1024 * 1024;
-  const store = createStorage({
-    NIVRA_DATA_DIR: path.join(root, `${mode}-files-${size}`),
-    NIVRA_ENCRYPTION_ENABLED: mode,
-  });
+  const fileDirectory = path.join(root, `${mode}-files-${size}`);
+  persistEncryptionMode(fileDirectory, mode === "true");
+  assert.equal(encryptionEnabled(fileDirectory), mode === "true");
+  const store = createStorage({ NIVRA_DATA_DIR: fileDirectory });
   if (action === "prepare") {
     const db = sqlite();
     db.prepare(
@@ -117,10 +120,12 @@ async function child() {
     assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
     db.close();
     for (const mib of [25, 100]) {
-      const fileStore = createStorage({
-        NIVRA_DATA_DIR: path.join(root, `${mode}-files-${mib * 1024 * 1024}`),
-        NIVRA_ENCRYPTION_ENABLED: mode,
-      });
+      const fileDirectory = path.join(
+        root,
+        `${mode}-files-${mib * 1024 * 1024}`,
+      );
+      persistEncryptionMode(fileDirectory, mode === "true");
+      const fileStore = createStorage({ NIVRA_DATA_DIR: fileDirectory });
       await fileStore.write(fixture, Buffer.alloc(mib * 1024 * 1024, 97));
     }
     console.log(JSON.stringify({ prepared: true }));

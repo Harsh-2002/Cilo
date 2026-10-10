@@ -32,6 +32,54 @@ export function editDistance(a: string, b: string, max: number) {
   }
   return previous[b.length];
 }
+export function fuzzyCandidates(
+  vocabulary: "notes" | "bookmarks" | "tasks" | "artifacts",
+  word: string,
+  max: number,
+) {
+  const database = sqlite();
+  const characters = [...word];
+  const pairs = new Set<string>();
+  for (let i = 1; i < characters.length; i++)
+    pairs.add(`${characters[i - 1]}|${characters[i]}`);
+  // A middle transposition can remove every adjacent pair in a four-letter word.
+  if (characters.length === 4)
+    for (let i = 2; i < characters.length; i++)
+      pairs.add(`${characters[i - 2]}|${characters[i]}`);
+  const indexed =
+    characters.length === word.length &&
+    ((max === 1 && characters.length >= 4) ||
+      (max === 2 && characters.length >= 8));
+  const statement = indexed
+    ? database.prepare(
+        `SELECT s.term FROM search_terms_fts CROSS JOIN search_terms s ON s.id=search_terms_fts.rowid WHERE search_terms_fts MATCH ? AND s.vocabulary=? AND s.term_length BETWEEN ? AND ?`,
+      )
+    : database.prepare(
+        `SELECT term FROM search_terms WHERE vocabulary=? AND term_length BETWEEN ? AND ?`,
+      );
+  const parameters: (string | number)[] = [
+    vocabulary,
+    word.length - max,
+    word.length + max,
+  ];
+  if (indexed)
+    parameters.unshift(
+      [...pairs].map((pair) => `"${pair.replaceAll('"', '""')}"`).join(" OR "),
+    );
+  const matches: { term: string; distance: number }[] = [];
+  for (const row of statement.iterate(...parameters)) {
+    const { term } = row as { term: string };
+    const distance = editDistance(word, term, max);
+    if (distance <= max) {
+      matches.push({ term, distance });
+      matches.sort(
+        (a, b) => a.distance - b.distance || a.term.localeCompare(b.term),
+      );
+      if (matches.length > 6) matches.pop();
+    }
+  }
+  return matches;
+}
 export function fuzzyQuery(
   input: string,
   vocabulary: "notes" | "bookmarks" | "tasks" | "artifacts" = "notes",
@@ -62,20 +110,11 @@ export function fuzzyQuery(
     if (!max) return `"${word}"*`;
     if (
       database
-        .prepare(`SELECT 1 FROM ${vocabulary}_fts_vocab WHERE term=? LIMIT 1`)
-        .get(word)
+        .prepare("SELECT 1 FROM search_terms WHERE vocabulary=? AND term=?")
+        .get(vocabulary, word)
     )
       return `"${word}"*`;
-    const candidates = database
-      .prepare(
-        `SELECT term FROM ${vocabulary}_fts_vocab WHERE length(term) BETWEEN ? AND ?`,
-      )
-      .all(word.length - max, word.length + max) as { term: string }[];
-    const matches = candidates
-      .map(({ term }) => ({ term, distance: editDistance(word, term, max) }))
-      .filter((item) => item.distance <= max)
-      .sort((a, b) => a.distance - b.distance || a.term.localeCompare(b.term))
-      .slice(0, 6);
+    const matches = fuzzyCandidates(vocabulary, word, max);
     if (matches.some((item) => item.term !== word)) changed = true;
     return matches.length
       ? `(${matches.map((item) => `"${item.term.replaceAll('"', '""')}"`).join(" OR ")})`

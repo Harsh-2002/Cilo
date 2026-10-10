@@ -82,37 +82,34 @@ export function listNotes(
       ? "substr(replace(n.text,char(10),' '),1,180)"
       : "n.text";
   const database = sqlite();
-  const rows =
-    bounded && search
-      ? database.transaction(() => {
-          // Stream FTS relevance order, then read previews for the selected page.
-          const selected = database
-            .prepare(
-              `SELECT n.rowid AS picked FROM notes_fts CROSS JOIN notes n ON notes_fts.rowid=n.rowid WHERE ${where.join(" AND ")} ORDER BY notes_fts.rank LIMIT ? OFFSET ?`,
-            )
-            .all(...values, limit, offset) as { picked: number }[];
-          if (!selected.length) return [];
-          const hydrated = database
-            .prepare(
-              `SELECT n.rowid AS picked,${columns},${text} AS text FROM notes n WHERE n.owner_id=? AND n.rowid IN (${selected.map(() => "?").join(",")})`,
-            )
-            .all(
-              owner,
-              ...selected.map((row) => row.picked),
-            ) as (NoteSummary & { picked: number })[];
-          const byRow = new Map(
-            hydrated.map(({ picked, ...row }) => [picked, row]),
-          );
-          return selected.map((row) => byRow.get(row.picked)!).filter(Boolean);
-        })()
-      : (database
+  const rows = bounded
+    ? database.transaction(() => {
+        // Stream FTS relevance order, then read previews for the selected page.
+        const selected = database
           .prepare(
-            `SELECT ${columns},${text} AS text FROM ${source} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
+            search
+              ? `SELECT n.rowid AS picked FROM notes_fts CROSS JOIN notes n ON notes_fts.rowid=n.rowid WHERE ${where.join(" AND ")} ORDER BY notes_fts.rank LIMIT ? OFFSET ?`
+              : `SELECT n.rowid AS picked FROM notes n${view === "trash" ? "" : ` INDEXED BY ${view === "journal" ? "notes_journal_page_idx" : params.get("sort") === "title" ? "notes_title_page_idx" : params.get("sort") === "created" ? "notes_activity_idx" : "notes_search_order_idx"}`} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id LIMIT ? OFFSET ?`,
           )
-          .all(
-            ...values,
-            ...(bounded ? [limit, offset] : []),
-          ) as NoteSummary[]);
+          .all(...values, limit, offset) as { picked: number }[];
+        if (!selected.length) return [];
+        const hydrated = database
+          .prepare(
+            `SELECT n.rowid AS picked,${columns},${text} AS text FROM notes n WHERE n.owner_id=? AND n.rowid IN (${selected.map(() => "?").join(",")})`,
+          )
+          .all(owner, ...selected.map((row) => row.picked)) as (NoteSummary & {
+          picked: number;
+        })[];
+        const byRow = new Map(
+          hydrated.map(({ picked, ...row }) => [picked, row]),
+        );
+        return selected.map((row) => byRow.get(row.picked)!).filter(Boolean);
+      })()
+    : (database
+        .prepare(
+          `SELECT ${columns},${text} AS text FROM ${source} WHERE ${where.join(" AND ")} ORDER BY ${order},n.id${bounded ? " LIMIT ? OFFSET ?" : ""}`,
+        )
+        .all(...values, ...(bounded ? [limit, offset] : [])) as NoteSummary[]);
   if (
     !rows.length &&
     search &&

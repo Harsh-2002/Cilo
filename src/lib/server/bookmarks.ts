@@ -129,10 +129,26 @@ function bookmarkWhere(owner: string, options: BookmarkQuery, search?: string) {
   const where = ["b.owner_id=?", "b.trashed_at IS NULL"];
   const values: (string | number)[] = [owner];
   if (search !== undefined) {
-    where.push(
-      "(b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) OR instr(lower(b.title || ' ' || b.description || ' ' || b.url || ' ' || b.collection),lower(?))>0)",
-    );
-    values.push(ftsQuery(search), search);
+    const folded = (
+      sqlite().prepare("SELECT lower(?) AS term").get(search) as {
+        term: string;
+      }
+    ).term;
+    if ([...folded].length >= 3 && !folded.includes("\0")) {
+      where.push(
+        "b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ? UNION SELECT rowid FROM bookmarks_literal_fts WHERE bookmarks_literal_fts MATCH ? AND instr(text,?)>0)",
+      );
+      values.push(
+        ftsQuery(search),
+        `"${folded.replaceAll('"', '""')}"`,
+        folded,
+      );
+    } else {
+      where.push(
+        "(b.rowid IN (SELECT rowid FROM bookmarks_fts WHERE bookmarks_fts MATCH ?) OR instr(lower(b.title || ' ' || b.description || ' ' || b.url || ' ' || b.collection),lower(?))>0)",
+      );
+      values.push(ftsQuery(search), search);
+    }
   }
   if (options.favorite) where.push("b.favorite=1");
   if (options.unfiled) where.push("b.collection=''");
@@ -167,11 +183,34 @@ function queryBookmarks(
       where.push("(b.created_at<? OR (b.created_at=? AND b.id>?))");
       values.push(after[0], after[0], after[1]);
     }
-    return sqlite()
-      .prepare(
-        `SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE ${where.join(" AND ")} ORDER BY ${bookmarkOrder}${limit ? " LIMIT ?" : ""}`,
-      )
-      .all(...values, ...(limit ? [limit] : [])) as Row[];
+    const database = sqlite();
+    const predicate = where.join(" AND ");
+    let index = " INDEXED BY bookmarks_page_idx";
+    if (term) {
+      const candidates = database
+        .prepare(
+          `SELECT b.rowid FROM bookmarks b NOT INDEXED WHERE ${predicate} LIMIT 513`,
+        )
+        .all(...values);
+      if (candidates.length <= 512) index = " NOT INDEXED";
+    }
+    if (!limit)
+      return database
+        .prepare(
+          `SELECT b.*,n.title AS linkedTitle FROM bookmarks b${index} LEFT JOIN notes n ON n.id=b.note_id WHERE ${predicate} ORDER BY ${bookmarkOrder}`,
+        )
+        .all(...values) as Row[];
+    return database.transaction(() => {
+      const selected = database
+        .prepare(
+          `SELECT b.id FROM bookmarks b${index} WHERE ${predicate} ORDER BY ${bookmarkOrder} LIMIT ?`,
+        )
+        .all(...values, limit) as { id: string }[];
+      const reader = database.prepare(
+        "SELECT b.*,n.title AS linkedTitle FROM bookmarks b LEFT JOIN notes n ON n.id=b.note_id WHERE b.id=? AND b.owner_id=?",
+      );
+      return selected.map((row) => reader.get(row.id, owner) as Row);
+    })();
   };
   const primary = term ? bookmarkWhere(owner, options, term) : run();
   let rows = build(primary);
@@ -213,10 +252,19 @@ export function bookmarkSummary(owner: string, options: BookmarkQuery) {
       );
       values.push(match);
     }
+    let index = " INDEXED BY bookmarks_active_counts_idx";
+    if (search !== undefined || match !== undefined) {
+      const candidates = sqlite()
+        .prepare(
+          `SELECT b.rowid FROM bookmarks b NOT INDEXED WHERE ${where.join(" AND ")} LIMIT 513`,
+        )
+        .all(...values);
+      if (candidates.length <= 512) index = " NOT INDEXED";
+    }
     return (
       sqlite()
         .prepare(
-          `SELECT COUNT(*) AS n FROM bookmarks b WHERE ${where.join(" AND ")}`,
+          `SELECT COUNT(*) AS n FROM bookmarks b${index} WHERE ${where.join(" AND ")}`,
         )
         .get(...values) as { n: number }
     ).n;
@@ -229,7 +277,7 @@ export function bookmarkSummary(owner: string, options: BookmarkQuery) {
   const collections = (
     sqlite()
       .prepare(
-        "SELECT DISTINCT collection FROM bookmarks WHERE owner_id=? AND trashed_at IS NULL AND collection<>''",
+        "SELECT DISTINCT collection FROM bookmarks INDEXED BY bookmarks_active_counts_idx WHERE owner_id=? AND trashed_at IS NULL AND collection<>''",
       )
       .all(owner) as { collection: string }[]
   )

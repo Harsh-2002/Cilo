@@ -8,7 +8,6 @@ async function main() {
     path.join(tmpdir(), "nivra-library-benchmark-"),
   );
   process.env.NIVRA_DATA_DIR = directory;
-  process.env.NIVRA_ENCRYPTION_ENABLED = "true";
   const { sqlite } = await import("../src/lib/server/db");
   const { listNotes, getNote } = await import("../src/lib/server/notes");
   const { listTasks, listTaskPage, taskCounts } =
@@ -106,9 +105,9 @@ async function main() {
         rows: Array.isArray(output) ? output.length : undefined,
       };
     };
-    const lateTaskCursor = Buffer.from(
-      JSON.stringify(["9999", 4900, "0"]),
-    ).toString("base64url");
+    const lateTaskCursor = Buffer.from(JSON.stringify([100, ""])).toString(
+      "base64url",
+    );
     const lateBookmarkCursor = Buffer.from(JSON.stringify([100, ""])).toString(
       "base64url",
     );
