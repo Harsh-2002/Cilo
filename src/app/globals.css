@@ -2243,7 +2243,7 @@ button:disabled {
   text-align: center;
   color: var(--muted-foreground);
 }
-.tasks-empty svg {
+.tasks-empty > svg {
   margin: 0 auto 16px;
 }
 .tasks-empty h2 {

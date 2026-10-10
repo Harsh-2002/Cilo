@@ -132,6 +132,26 @@ try {
           .waitFor({ state: "hidden" });
       }
     }
+    await page.goto(`${base}/tasks?view=board`);
+    const createBoard = page
+      .locator(".kanban-empty")
+      .getByRole("button", { name: "Create board", exact: true });
+    await createBoard.waitFor();
+    const iconOffset = await createBoard.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const icon = button.querySelector("svg").getBoundingClientRect();
+      return Math.abs(
+        icon.y + icon.height / 2 - (bounds.y + bounds.height / 2),
+      );
+    });
+    assert.ok(iconOffset <= 1, "Empty-state action icon is centered");
+    if (width < 1024) await touchTarget(createBoard);
+    await createBoard.click();
+    await page
+      .getByRole("textbox", { name: "New board", exact: true })
+      .waitFor();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await createBoard.waitFor();
     await page.goto(`${base}/calendar`);
     const grid = page.getByRole("grid", { name: "Month", exact: true });
     await grid.waitFor();
